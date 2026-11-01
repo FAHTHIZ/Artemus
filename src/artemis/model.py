@@ -122,3 +122,43 @@ class ArtemisLM(nn.Module):
                 raise ValueError("targets must have the same shape as token_ids")
             loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1))
         return logits, loss
+
+    @torch.inference_mode()
+    def generate(
+        self,
+        token_ids: torch.Tensor,
+        max_new_tokens: int,
+        *,
+        temperature: float = 1.0,
+        top_k: int | None = None,
+        eos_token_id: int | None = None,
+    ) -> torch.Tensor:
+        if token_ids.ndim != 2 or token_ids.size(1) == 0:
+            raise ValueError("token_ids must be a non-empty [batch, sequence] tensor")
+        if max_new_tokens < 0:
+            raise ValueError("max_new_tokens must be non-negative")
+        if temperature <= 0:
+            raise ValueError("temperature must be greater than zero")
+        if top_k is not None and top_k < 1:
+            raise ValueError("top_k must be positive when provided")
+
+        was_training = self.training
+        self.eval()
+        generated = token_ids
+        try:
+            for _ in range(max_new_tokens):
+                context = generated[:, -self.config.block_size :]
+                logits, _ = self(context)
+                next_logits = logits[:, -1, :] / temperature
+                if top_k is not None:
+                    k = min(top_k, next_logits.size(-1))
+                    values, _ = torch.topk(next_logits, k)
+                    next_logits[next_logits < values[:, [-1]]] = float("-inf")
+                probabilities = F.softmax(next_logits, dim=-1)
+                next_token = torch.multinomial(probabilities, num_samples=1)
+                generated = torch.cat((generated, next_token), dim=1)
+                if eos_token_id is not None and torch.all(next_token == eos_token_id):
+                    break
+        finally:
+            self.train(was_training)
+        return generated
