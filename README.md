@@ -48,9 +48,10 @@ After installing the project dependencies, run the tests and the tiny random-ini
 python -m pip install -e ".[dev]"
 pytest
 artemus-train --data examples/demo_corpus.txt --steps 20 --batch-size 4 --block-size 32 --layers 2 --heads 2 --embedding-size 32 --eval-interval 10 --output artifacts/artemis-tiny.pt
+artemus-generate --checkpoint artifacts/artemis-tiny.pt --prompt "Artemis is" --tokens 80
 ```
 
-This only validates the training mechanics. The byte tokenizer and tiny model are temporary research baselines, not the final architecture or a useful assistant.
+These commands only validate the training and inference mechanics. The byte tokenizer and tiny model are temporary research baselines, not the final architecture or a useful assistant.
 
 ## Initial next steps
 
