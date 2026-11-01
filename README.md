@@ -2,7 +2,7 @@
 
 **Artemus is a from-scratch foundation-model and agent-systems project.** Its intended model, Artemis, is a general-purpose assistant with exceptional software-engineering capability. The project is in its architecture and bootstrap phase.
 
-> **Current status:** Architecture documentation only. No foundation model has been trained, no production agent runtime exists, and no training datasets or model weights are included in this repository.
+> **Current status:** Initial architecture documentation and a tiny CPU-capable training baseline are present. The baseline has passed local smoke tests; no capable assistant, frontier model, or production agent runtime has been trained or built.
 
 ## Mission
 
@@ -38,14 +38,27 @@ The model, agent runtime, training platform, and external memory are separate co
 - [Training strategy](docs/training/training-strategy.md)
 - [Evaluation and release gates](docs/evaluation/quality-gates.md)
 - [Engineering roadmap](docs/engineering/roadmap.md)
+- [First training run](docs/engineering/first-training-run.md)
+
+## First local smoke test
+
+After installing the project dependencies, run the tests and the tiny random-initialisation training demo:
+
+```bash
+python -m pip install -e ".[dev]"
+pytest
+artemus-train --data examples/demo_corpus.txt --steps 20 --batch-size 4 --block-size 32 --layers 2 --heads 2 --embedding-size 32 --eval-interval 10 --output artifacts/artemis-tiny.pt
+```
+
+This only validates the training mechanics. The byte tokenizer and tiny model are temporary research baselines, not the final architecture or a useful assistant.
 
 ## Initial next steps
 
 1. Record the available workstation hardware and storage.
-2. Establish the development environment and reproducible experiment tracking.
-3. Build a small, randomly initialized baseline model and prove that training/checkpoint/resume/inference work end to end.
-4. Build the data-quality and evaluation pipelines before scaling.
-5. Implement OASIS as a separately testable runtime.
+2. Select the development environment and accelerator backend.
+3. Improve the data-quality and evaluation pipelines before scaling.
+4. Build OASIS as a separately testable runtime.
+5. Run controlled dense-versus-sparse architecture experiments when sufficient compute is available.
 
 ## Repository hygiene
 
