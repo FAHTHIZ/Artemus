@@ -15,6 +15,7 @@ dev = ["pytest>=8", "ruff>=0.6"]
 
 [project.scripts]
 artemus-train = "artemis.train:main"
+artemus-generate = "artemis.generate:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
