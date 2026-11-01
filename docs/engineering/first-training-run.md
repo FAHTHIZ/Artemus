@@ -40,6 +40,12 @@ artemus-train \
 
 The generated checkpoint is local and ignored by Git. Training data and checkpoints must not be committed.
 
+Generate a short sample from the checkpoint:
+
+```bash
+artemus-generate --checkpoint artifacts/artemis-tiny.pt --prompt "Artemis is" --tokens 80
+```
+
 To continue a run from a checkpoint, use `--resume PATH` and set `--steps` to the new total target step count (not the number of additional steps).
 
 ## What this verifies
@@ -48,7 +54,7 @@ To continue a run from a checkpoint, use `--resume PATH` and set `--steps` to th
 - The model starts with randomly initialized parameters.
 - Attention is causal: changing future tokens must not change earlier-position logits.
 - A training step computes finite loss and updates parameters.
-- Evaluation, checkpoint save, and checkpoint resume work.
+- Evaluation, checkpoint save/resume, and basic inference work.
 
 ## What it does not prove
 
