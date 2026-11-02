@@ -68,7 +68,9 @@ This first systems measurement used a tiny random-init smoke model, not trained 
 | Generated tokens per second | 860.6 | 645.5 |
 | Generated output equality | `true` | `true` |
 
-Uncached/cached elapsed-time ratio: **1.333×** in this single CI CPU configuration.
+Uncached/cached elapsed-time ratio: **1.333×** in the first CI CPU configuration.
+
+A second CI repeat after main-branch integration (workflow https://github.com/FAHTHIZ/Artemus/actions/runs/41376680061) measured 26.30 ms cached versus 36.70 ms uncached, a **1.395×** ratio, with `cached_and_uncached_outputs_match: true`. The second run used the same 113,024-parameter random-init architecture, 32-token prompt, 24 generated tokens, two CPU threads, one warmup, and three timed repeats.
 
 Persistent K/V payload at the prompt context:
 - GQA cache actually stored: **16,384 bytes**.
