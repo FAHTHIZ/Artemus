@@ -73,7 +73,7 @@ Keep the existing dense baseline as a reference. Every change must be ablated in
 - Factorised token embeddings/output projection to trade embedding-table parameters for input/output projection compute.
 - Weight tying, robust initialization, gradient clipping, and carefully tuned schedules.
 
-The present V2 implementation is a research candidate. It passes forward/backward and checkpoint-compatibility tests. It does not yet implement an incremental KV cache; current GQA expands key/value heads before PyTorch SDPA. No decode-speed benefit is claimed until a cache-aware kernel is implemented and benchmarked.
+The present V2 implementation is a research candidate. It passes forward/backward and checkpoint-compatibility tests. The model now includes an incremental KV cache: cached keys/values are stored with `n_kv_head` heads, while the current SDPA compatibility path temporarily expands them for attention. Cached prefill and continuations support RoPE offsets, learned absolute positions, and multi-token chunks. This removes repeated projection of prior tokens, but concatenating cache tensors and expanding GQA heads still add overhead; measured latency/memory comparisons are required before claiming a speed or total-memory win.
 
 ### B. Attention memory alternatives
 
