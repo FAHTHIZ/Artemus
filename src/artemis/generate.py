@@ -49,7 +49,7 @@ def main() -> None:
 
     device = choose_device(args.device)
     payload = torch.load(args.checkpoint, map_location=device, weights_only=True)
-    if payload.get("format_version") not in {1, 2}:
+    if payload.get("format_version") not in {1, 2, 3}:
         raise SystemExit("Unsupported checkpoint format")
 
     tokenizer = load_tokenizer(payload)
