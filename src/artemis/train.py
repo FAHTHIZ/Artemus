@@ -22,16 +22,26 @@ def choose_device(requested: str) -> torch.device:
     return torch.device("cpu")
 
 
-def load_tokens(path: Path) -> tuple[torch.Tensor, torch.Tensor]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Training text file does not exist: {path}")
-    text = path.read_text(encoding="utf-8")
-    ids = torch.tensor(ByteTokenizer().encode(text, add_eos=True), dtype=torch.long)
-    if ids.numel() < 40:
-        raise ValueError("Training text is too short; provide at least 40 UTF-8 bytes")
-    split_at = int(ids.numel() * 0.9)
-    train_data, val_data = ids[:split_at], ids[split_at:]
-    return train_data, val_data
+def load_tokens(
+    path: Path, validation_path: Path | None = None
+) -> tuple[torch.Tensor, torch.Tensor]:
+    def read_ids(source: Path) -> torch.Tensor:
+        if not source.is_file():
+            raise FileNotFoundError(f"Dataset text file does not exist: {source}")
+        text = source.read_text(encoding="utf-8")
+        ids = torch.tensor(ByteTokenizer().encode(text, add_eos=True), dtype=torch.long)
+        if ids.numel() < 40:
+            raise ValueError(f"Dataset split is too short (at least 40 UTF-8 bytes): {source}")
+        return ids
+
+    train_ids = read_ids(path)
+    if validation_path is not None:
+        # Prefer group-separated, externally prepared splits when provided.
+        return train_ids, read_ids(validation_path)
+
+    # Backward-compatible fallback for small local smoke-test corpora.
+    split_at = int(train_ids.numel() * 0.9)
+    return train_ids[:split_at], train_ids[split_at:]
 
 
 def get_batch(
@@ -101,6 +111,7 @@ def save_checkpoint(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, required=True, help="UTF-8 plain-text training file")
+    parser.add_argument("--validation-data", type=Path, help="separate validation file (preferred)")
     parser.add_argument("--output", type=Path, default=Path("artifacts/artemis-tiny.pt"))
     parser.add_argument("--resume", type=Path, help="resume from a checkpoint created by this trainer")
     parser.add_argument("--steps", type=int, default=100)
@@ -146,7 +157,7 @@ def main() -> None:
             n_embd=args.embedding_size,
             dropout=0.0,
         )
-    train_data, val_data = load_tokens(args.data)
+    train_data, val_data = load_tokens(args.data, args.validation_data)
     if train_data.numel() <= config.block_size + 1:
         raise SystemExit("Training split is too small for block-size; reduce block-size or add data")
     if val_data.numel() <= config.block_size + 1:
