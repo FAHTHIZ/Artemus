@@ -134,9 +134,6 @@ class TransformerBlock(nn.Module):
         self.feed_forward = FeedForward(config)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x + self.attention(self.norm1(x)) + self.feed_forward(self.norm2(x)) if False else self._forward(x)
-
-    def _forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x + self.attention(self.norm1(x))
         return x + self.feed_forward(self.norm2(x))
 
