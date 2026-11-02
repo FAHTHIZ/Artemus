@@ -62,3 +62,17 @@ jobs:
             --eval-iters 2 \
             --device cpu \
             --output artifacts/efficient-dense-smoke.pt
+
+      - name: Profile compact GQA model parameters and theoretical KV cache
+        run: |
+          artemus-profile \
+            --vocab-size 4096 \
+            --block-size 256 \
+            --layers 4 \
+            --heads 4 \
+            --kv-heads 2 \
+            --embedding-size 128 \
+            --rope --qk-norm --swiglu \
+            --batch-size 1 \
+            --context-length 256 \
+            --dtype-bytes 2
