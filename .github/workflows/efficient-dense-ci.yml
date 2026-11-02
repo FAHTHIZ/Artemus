@@ -102,6 +102,15 @@ jobs:
             --context-length 256 \
             --dtype-bytes 2
 
+      - name: Profile future 10M, 30M, and 100M from-scratch model candidates
+        run: |
+          echo "=== ~10M compact candidate ==="
+          artemus-profile --vocab-size 8192 --block-size 2048 --layers 6 --heads 5 --kv-heads 1 --embedding-size 320 --embedding-dim 192 --rope --qk-norm --swiglu
+          echo "=== ~30M compact candidate ==="
+          artemus-profile --vocab-size 16384 --block-size 2048 --layers 8 --heads 8 --kv-heads 2 --embedding-size 512 --embedding-dim 256 --rope --qk-norm --swiglu
+          echo "=== ~100M compact candidate ==="
+          artemus-profile --vocab-size 32768 --block-size 4096 --layers 12 --heads 12 --kv-heads 4 --embedding-size 768 --embedding-dim 384 --rope --qk-norm --swiglu
+
       - name: Benchmark incremental KV cache against uncached decoding
         run: |
           artemus-bench-kv-cache \

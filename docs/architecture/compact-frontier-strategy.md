@@ -73,7 +73,7 @@ Keep the existing dense baseline as a reference. Every change must be ablated in
 - Factorised token embeddings/output projection to trade embedding-table parameters for input/output projection compute.
 - Weight tying, robust initialization, gradient clipping, and carefully tuned schedules.
 
-The present V2 implementation is a research candidate. It passes forward/backward and checkpoint-compatibility tests. The model now includes an incremental KV cache: cached keys/values are stored with `n_kv_head` heads, while the current SDPA compatibility path temporarily expands them for attention. Cached prefill and continuations support RoPE offsets, learned absolute positions, and multi-token chunks. This removes repeated projection of prior tokens, but concatenating cache tensors and expanding GQA heads still add overhead; measured latency/memory comparisons are required before claiming a speed or total-memory win.
+The present V2 implementation is a research candidate. It passes forward/backward and checkpoint-compatibility tests and now includes incremental KV caching. Persistent cached keys/values use `n_kv_head` heads; the current SDPA compatibility path temporarily expands them for attention. Cached prefill and continuation support RoPE offsets, learned absolute positions, multi-token chunks, and context-window rollover. A tiny random-init CPU benchmark showed a 1.33× cached/uncached ratio, but that is a systems smoke result—not a trained-model or accelerator guarantee. Cache concatenation and temporary GQA expansion remain optimization targets.
 
 ### B. Attention memory alternatives
 
@@ -106,6 +106,13 @@ At (V=4096,d=128,d_e=64), the table saves 262,144 parameters and the two project
 ### F. Retrieval and agent tools are a separate capability layer
 
 Use OASIS for approved-source retrieval, repository indexing, test execution, compiler feedback, task planning, checkpoints, and verification. Report base-model and agent-system results separately. External memory can make a compact system more useful without pretending it enlarged the model's intrinsic parametric knowledge.
+
+
+### G. Hybrid linear/full attention (future research only)
+
+Gated DeltaNet, Native Hybrid Attention, and dynamic full/sliding-window attention offer possible long-context efficiency improvements. They are not automatic wins: linear/recurrent state can lose precise retrieval or multi-step composition that full attention preserves. Any candidate must be trained from Artemis random initialization and compared on long-context needle retrieval, multi-document synthesis, exact recall, reasoning, and generation quality at matched compute.
+
+**Lineage constraint:** do not convert or distil an external pretrained model into the claimed Artemis foundation checkpoint. Published architectural ideas may be independently implemented, but the official foundation weights must remain ours from random initialization. If an architecture only becomes viable through transferring another provider's learned weights, it is not eligible as the Artemis foundation model.
 
 ## 5. Training curriculum — from random weights to a flagship
 

@@ -96,3 +96,18 @@ INTERACTION
 ```
 
 Memory updates and weight updates are different. Never rewrite production weights directly from live conversation feedback.
+
+## 9. Tokenizer and Bangla efficiency experiments
+
+A compact flagship cannot waste context on avoidable token fragmentation. Evaluate tokenizer candidates on held-out, source-balanced samples of:
+- English prose and technical documentation.
+- Standard Bangla, colloquial Bangla, and Banglish/code-switching.
+- Python and other target programming languages.
+- Mathematics, formulas, shell commands, and structured tool payloads.
+
+Report tokens per whitespace word, tokens per Unicode character, byte fallback rate, unknown/rare-fragment rate, and sequence-length distributions. Also measure round-trip correctness and downstream task quality; lower token count alone is not a quality win.
+
+Compare SentencePiece BPE and Unigram baselines before considering morphology-aware segmentation. The B-CORE research release describes morphology-aware tokenization and principled denoising for Bangla; treat this as a reproducible research hypothesis, not a requirement to import its model weights. Keep tokenizer training restricted to training data and version every tokenizer with its corpus manifest.
+
+B-CORE is a high-value Bangla pretraining candidate, but its CC-BY-4.0 dataset card notes that individual source components may have their own attribution obligations. Audit the component manifest before use or redistribution. See [Additional Data Sources](../data/next-sources.md).
+
