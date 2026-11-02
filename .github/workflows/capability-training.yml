@@ -118,11 +118,11 @@ jobs:
       - name: Inspect generated math and coding samples
         run: |
           artemus-generate \
-            --checkpoint artifacts/artemis-capability-mix.pt \
+            --checkpoint artifacts/artemis-capability-mix-compact.pt \
             --prompt $'<|prompter|>\\nA shop sells 3 pens for $6. What is the price of 5 pens at the same rate?\\n<|assistant|>\\n' \
             --tokens 80 --device cpu
           artemus-generate \
-            --checkpoint artifacts/artemis-capability-mix.pt \
+            --checkpoint artifacts/artemis-capability-mix-compact.pt \
             --prompt $'<|prompter|>\\nWrite a Python function that adds two numbers.\\n<|assistant|>\\n' \
             --tokens 80 --device cpu
 
@@ -132,7 +132,7 @@ jobs:
         with:
           name: artemis-capability-mix-compact-cpu-run
           path: |
-            artifacts/artemis-capability-mix.pt
+            artifacts/artemis-capability-mix-compact.pt
             artifacts/capability-mixture/manifest.json
             artifacts/oasst1/manifest.json
           if-no-files-found: warn
