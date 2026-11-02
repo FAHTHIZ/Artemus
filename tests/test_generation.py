@@ -28,13 +28,19 @@ def test_cached_generation_matches_uncached_reference_across_window_rollover():
     ).eval()
     prompt = torch.tensor([[10, 11, 12, 13, 14, 15]], dtype=torch.long)
     with torch.inference_mode():
-        cached = model.generate(
-            prompt, 14, temperature=1.0, top_k=1, use_cache=True
+        static_cached = model.generate(
+            prompt, 14, temperature=1.0, top_k=1,
+            use_cache=True, use_static_cache=True,
+        )
+        dynamic_cached = model.generate(
+            prompt, 14, temperature=1.0, top_k=1,
+            use_cache=True, use_static_cache=False,
         )
         uncached = model.generate(
             prompt, 14, temperature=1.0, top_k=1, use_cache=False
         )
-    assert torch.equal(cached, uncached)
+    assert torch.equal(static_cached, dynamic_cached)
+    assert torch.equal(dynamic_cached, uncached)
 
 
 def test_cached_generation_restores_training_mode_and_handles_zero_tokens():
