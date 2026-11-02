@@ -10,6 +10,10 @@ This document records research that materially informs the Artemis flagship stra
 | Google ATLAS (ICLR 2026) | 774 runs across 10M–8B models, 400+ languages, and 48 language evaluations model transfer and language mixture. | Bangla/English sampling needs language-specific measurement and controlled mixture experiments. |
 | ThinkSLM (EMNLP 2025) | 72 small models across 17 reasoning benchmarks; data and training choices matter, and robustness remains a challenge. | Use verified reasoning curricula and adversarial/generalisation tests. |
 | MoSE (ICML 2026) | Slimmable experts allow conditional compute through variable expert width as well as routing. | Consider only after a meaningful dense baseline and GPU-scale MoE comparison. |
+| ICLR 2026, *Pretraining Scaling Laws for Generative Evaluations* | Fits scaling laws to pass@k on math/software-engineering tasks and studies how inference budget changes observed capability. | Track held-out generative task outcomes and pass@k across model size, training compute, and inference budget; loss alone is not a sufficient proxy. |
+| ICLR 2025, *Inference Scaling Laws* | Finds smaller models with additional search/test-time compute can occupy better cost/performance trade-offs on selected reasoning tasks. | Explore verifier-guided sampling/search only after the base model is coherent; report all extra tokens and compute. |
+| ICLR 2025, *Language Models Scale Reliably with Overtraining and on Downstream Tasks* | Studies scaling beyond compute-optimal token/parameter ratios and relates pretraining loss to downstream task performance. | Fit both compute-optimal and inference-efficient/overtrained regimes; measure downstream outcomes directly rather than extrapolating from loss alone. |
+| ICLR 2026, *How Text Quality Interventions Reshape Neural Scaling Laws* | Large-scale experiments show filtering, deduplication, and text-quality interventions can change fitted scaling-law coefficients and exponents. | Treat the data pipeline as an experimental variable; preserve raw/filtered comparisons and quality labels. |
 | OpenAI SWE-bench Verified analysis (2026) | Benchmark contamination weakens the value of Verified as a frontier coding measure; SWE-bench Pro is recommended. | Maintain private holdouts and use current, contamination-aware repository evaluations. |
 
 ## Source links
@@ -20,6 +24,10 @@ This document records research that materially informs the Artemis flagship stra
 - Multilingual ATLAS: https://research.google/blog/atlas-practical-scaling-laws-for-multilingual-models/
 - ThinkSLM: https://aclanthology.org/2025.emnlp-main.1659/
 - MoSE: https://proceedings.mlr.press/v306/tastan26a.html
+- Generative evaluation scaling: https://proceedings.iclr.cc/paper_files/paper/2026/hash/55d7fbeddfd9bb6dace146cc4fa02ff0-Abstract-Conference.html
+- Inference-time scaling: https://proceedings.iclr.cc/paper_files/paper/2025/hash/8c3caae2f725c8e2a55ecd600563d172-Abstract-Conference.html
+- Overtraining and downstream scaling: https://proceedings.iclr.cc/paper_files/paper/2025/hash/a91869936a63d814971b6423990ecf6e-Abstract-Conference.html
+- Text-quality interventions: https://proceedings.iclr.cc/paper_files/paper/2026/hash/6544c0b53cc1ea51d0c7086b536830a8-Abstract-Conference.html
 - SWE-bench Verified contamination: https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/
 
 ## Interpretation
