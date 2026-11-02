@@ -16,7 +16,7 @@ def test_cache_payload_byte_count_uses_actual_tensor_dtype():
     assert cache_payload_bytes(((key, value),)) == 1 * 2 * 5 * 8 * 4 * 2
 
 
-def test_benchmark_checks_cached_output_matches_uncached():
+def test_benchmark_checks_static_dynamic_and_uncached_outputs_match():
     torch.manual_seed(21)
     model = ArtemisLM(ModelConfig(
         vocab_size=257, block_size=8, n_layer=1, n_head=2, n_embd=16,
@@ -27,10 +27,11 @@ def test_benchmark_checks_cached_output_matches_uncached():
         model, prompt, new_tokens=4, warmup=0, repeats=2,
         device=torch.device("cpu"),
     )
-    assert result["cached_and_uncached_outputs_match"] is True
+    assert result["static_dynamic_and_uncached_outputs_match"] is True
     assert result["kv_cache_active_payload_bytes"] > 0
     assert result["kv_cache_allocated_capacity_bytes"] >= result["kv_cache_active_payload_bytes"]
-    assert result["cached_latency_ms"] > 0
+    assert result["static_cached_latency_ms"] > 0
+    assert result["dynamic_cached_latency_ms"] > 0
     assert result["uncached_latency_ms"] > 0
 
 
