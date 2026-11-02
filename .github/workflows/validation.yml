@@ -1,4 +1,4 @@
-name: Artemis validation
+name: Artemis data, training, and validation
 
 on:
   push:
@@ -12,13 +12,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: artemis-validation-${{ github.ref }}
+  group: artemis-training-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  validate:
+  train:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 90
+    env:
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      TOKENIZERS_PARALLELISM: "false"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -37,35 +41,54 @@ jobs:
       - name: Run unit tests
         run: pytest -q
 
-      - name: Run a deterministic training smoke test
+      - name: Download pinned OASST1 reviewed conversation export
+        run: |
+          mkdir -p data/raw
+          curl --fail --location --retry 3 --retry-delay 2 \
+            "https://huggingface.co/datasets/OpenAssistant/oasst1/resolve/a4992e1595393714c9e6c567b1ed645bbf7d00ee/2023-04-12_oasst_ready.messages.jsonl.gz" \
+            --output data/raw/oasst1-ready.messages.jsonl.gz
+          echo "286a6e9a5a413b3272ae9c0b5a20d327983dea1c24342ae28cb244a6da65185c  data/raw/oasst1-ready.messages.jsonl.gz" | sha256sum --check
+
+      - name: Filter and group-split conversations
+        run: |
+          python -m artemis.prepare_oasst1 \
+            --source data/raw/oasst1-ready.messages.jsonl.gz \
+            --output-dir artifacts/oasst1 \
+            --max-examples 15000
+
+      - name: Train Artemis from random initialization
         run: |
           artemus-train \
-            --data examples/demo_corpus.txt \
-            --steps 25 \
-            --batch-size 4 \
-            --block-size 32 \
+            --data artifacts/oasst1/train.txt \
+            --validation-data artifacts/oasst1/validation.txt \
+            --steps 1200 \
+            --batch-size 8 \
+            --block-size 64 \
             --layers 2 \
             --heads 2 \
-            --embedding-size 32 \
-            --eval-interval 5 \
-            --eval-iters 2 \
+            --embedding-size 64 \
+            --learning-rate 0.0003 \
+            --eval-interval 100 \
+            --eval-iters 8 \
             --seed 1337 \
             --device cpu \
-            --output artifacts/artemis-ci-smoke.pt
+            --output artifacts/artemis-oasst1.pt
 
-      - name: Verify checkpoint can generate text
+      - name: Verify the trained checkpoint can generate text
         run: |
           artemus-generate \
-            --checkpoint artifacts/artemis-ci-smoke.pt \
-            --prompt "Artemis" \
-            --tokens 24 \
+            --checkpoint artifacts/artemis-oasst1.pt \
+            --prompt "<|prompter|>\\nWhat is a variable?\\n<|assistant|>\\n" \
+            --tokens 80 \
             --device cpu
 
-      - name: Upload smoke-test checkpoint
+      - name: Upload model checkpoint, data manifest, and evaluation logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: artemis-ci-smoke-checkpoint
-          path: artifacts/artemis-ci-smoke.pt
-          if-no-files-found: ignore
-          retention-days: 3
+          name: artemis-oasst1-cpu-run
+          path: |
+            artifacts/artemis-oasst1.pt
+            artifacts/oasst1/manifest.json
+          if-no-files-found: warn
+          retention-days: 7
