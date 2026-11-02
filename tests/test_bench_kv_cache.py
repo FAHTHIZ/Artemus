@@ -28,7 +28,8 @@ def test_benchmark_checks_cached_output_matches_uncached():
         device=torch.device("cpu"),
     )
     assert result["cached_and_uncached_outputs_match"] is True
-    assert result["kv_cache_payload_bytes"] > 0
+    assert result["kv_cache_active_payload_bytes"] > 0
+    assert result["kv_cache_allocated_capacity_bytes"] >= result["kv_cache_active_payload_bytes"]
     assert result["cached_latency_ms"] > 0
     assert result["uncached_latency_ms"] > 0
 
