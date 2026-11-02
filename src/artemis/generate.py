@@ -69,7 +69,7 @@ def main() -> None:
         args.tokens,
         temperature=args.temperature,
         top_k=args.top_k,
-        eos_token_id=tokenizer.eos_token_id,
+        eos_token_id=tokenizer.stop_token_id,
     )[0].tolist()
     print(tokenizer.decode(output_ids))
     print("\nNOTE: generated text is experimental; evaluate it before treating it as useful advice.")
