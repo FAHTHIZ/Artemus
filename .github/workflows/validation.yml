@@ -76,7 +76,8 @@ jobs:
           from pathlib import Path
           path = Path("data/raw/mbpp-full.jsonl")
           raw = path.read_bytes()
-          blob_sha = hashlib.sha1(f"blob {len(raw)}\\0".encode("ascii") + raw).hexdigest()
+          header = b"blob " + str(len(raw)).encode("ascii") + bytes([0])
+          blob_sha = hashlib.sha1(header + raw).hexdigest()
           expected = "96e2dc2f7dd95b7b87b38dc46e42cbed444251bb"
           if blob_sha != expected:
               raise SystemExit(f"MBPP Git blob SHA mismatch: {blob_sha} != {expected}")
