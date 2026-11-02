@@ -5,14 +5,28 @@ on:
     branches:
       - main
       - bootstrap/architecture
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "examples/**"
+      - "data/**"
+      - ".github/workflows/validation.yml"
   pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "examples/**"
+      - "data/**"
+      - ".github/workflows/validation.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: artemis-training-\${{ github.ref }}
+  group: artemis-training-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -56,13 +70,14 @@ jobs:
             --output-dir artifacts/oasst1 \
             --max-examples 15000
 
-      - name: Train Artemis from random initialization
+      - name: Train Artemis with response-only supervision
         run: |
           artemus-train \
             --data artifacts/oasst1/train.txt \
             --validation-data artifacts/oasst1/validation.txt \
             --tokenizer sentencepiece \
             --vocab-size 2048 \
+            --response-only \
             --steps 1200 \
             --batch-size 8 \
             --block-size 256 \
@@ -88,7 +103,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: artemis-oasst1-sentencepiece-run
+          name: artemis-oasst1-response-only-run
           path: |
             artifacts/artemis-oasst1.pt
             artifacts/oasst1/manifest.json

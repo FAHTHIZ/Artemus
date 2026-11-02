@@ -2,7 +2,7 @@
 
 **Artemus is a from-scratch foundation-model and agent-systems project.** Its intended model, Artemis, is a general-purpose assistant with exceptional software-engineering capability.
 
-> **Current status:** Experiment 0001 validated the tiny training loop. Experiment 0002 successfully downloaded and filtered pinned OASST1 data, trained a 119,808-parameter model for 1,200 CPU steps, and verified checkpoint reload and generation. Its generated text is still incoherent; Artemis is not yet a usable assistant. The next blocker is tokenizer/context/model capacity and instruction tuning—not simply more training steps.
+> **Current status:** Experiments 0001 and 0002 validated the data and training pipeline. Experiment 0002 trained a 1,085,056-parameter model with SentencePiece over pinned OASST1 data for 1,200 CPU steps; the checkpoint reloads, but generated text remains incoherent. The current experiment adds assistant-response-only loss masking. Artemis is not yet a usable assistant.
 
 ## Mission
 

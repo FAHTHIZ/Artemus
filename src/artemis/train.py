@@ -42,13 +42,42 @@ def load_tokens(
     if validation_path is not None:
         return train_ids, read_ids(validation_path)
 
-    # Backward-compatible fallback for tiny local smoke-test corpora.
     split_at = int(train_ids.numel() * 0.9)
     return train_ids[:split_at], train_ids[split_at:]
 
 
+def build_response_loss_mask(
+    token_ids: torch.Tensor, tokenizer: SentencePieceTokenizer
+) -> torch.Tensor:
+    """Mark assistant text and end-of-turn tokens; ignore user prompts and role markers."""
+    if token_ids.ndim != 1:
+        raise ValueError("token_ids must be a one-dimensional token stream")
+
+    processor = tokenizer.processor
+    prompter_id = int(processor.piece_to_id("<|prompter|>"))
+    assistant_id = int(processor.piece_to_id("<|assistant|>"))
+    end_id = int(processor.piece_to_id("<|end|>"))
+    if min(prompter_id, assistant_id, end_id) < 0:
+        raise ValueError("tokenizer is missing required chat control tokens")
+
+    events = torch.zeros_like(token_ids, dtype=torch.int32)
+    events[token_ids == assistant_id] = 1
+    events[(token_ids == prompter_id) | (token_ids == end_id)] = -1
+    state_before_token = torch.cumsum(events, dim=0) - events
+    assistant_region = state_before_token > 0
+    control_tokens = (
+        (token_ids == prompter_id)
+        | (token_ids == assistant_id)
+    )
+    return assistant_region & ~control_tokens
+
+
 def get_batch(
-    data: torch.Tensor, batch_size: int, block_size: int, device: torch.device
+    data: torch.Tensor,
+    batch_size: int,
+    block_size: int,
+    device: torch.device,
+    target_mask: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     max_start = data.numel() - block_size - 1
     if max_start < 1:
@@ -56,9 +85,33 @@ def get_batch(
             f"dataset split has {data.numel()} tokens; needs more than "
             f"block_size + 1 ({block_size + 1})"
         )
+    if target_mask is not None and (
+        target_mask.ndim != 1 or target_mask.numel() != data.numel()
+    ):
+        raise ValueError("target_mask must be one-dimensional and match data length")
+
     starts = torch.randint(0, max_start + 1, (batch_size,))
+    offsets = torch.arange(1, block_size + 1)
+    if target_mask is not None:
+        valid_targets = target_mask[starts[:, None] + offsets[None, :]]
+        invalid_rows = ~valid_targets.any(dim=1)
+        for _ in range(32):
+            if not invalid_rows.any():
+                break
+            starts[invalid_rows] = torch.randint(
+                0, max_start + 1, (int(invalid_rows.sum().item()),)
+            )
+            valid_targets = target_mask[starts[:, None] + offsets[None, :]]
+            invalid_rows = ~valid_targets.any(dim=1)
+        if invalid_rows.any():
+            raise RuntimeError(
+                "Could not sample a block containing assistant response targets"
+            )
+
     x = torch.stack([data[i : i + block_size] for i in starts.tolist()])
     y = torch.stack([data[i + 1 : i + block_size + 1] for i in starts.tolist()])
+    if target_mask is not None:
+        y = y.masked_fill(~valid_targets, -100)
     return x.to(device), y.to(device)
 
 
@@ -71,18 +124,23 @@ def estimate_loss(
     block_size: int,
     device: torch.device,
     eval_iters: int,
+    train_mask: torch.Tensor | None = None,
+    val_mask: torch.Tensor | None = None,
 ) -> dict[str, float]:
     was_training = model.training
     model.eval()
     results: dict[str, float] = {}
     try:
-        for name, split in (("train", train_data), ("val", val_data)):
+        for name, split, mask in (
+            ("train", train_data, train_mask),
+            ("val", val_data, val_mask),
+        ):
             losses = []
             for _ in range(eval_iters):
-                x, y = get_batch(split, batch_size, block_size, device)
+                x, y = get_batch(split, batch_size, block_size, device, mask)
                 _, loss = model(x, y)
-                if loss is None:
-                    raise RuntimeError("loss unexpectedly missing during evaluation")
+                if loss is None or not torch.isfinite(loss):
+                    raise RuntimeError("loss is missing or non-finite during evaluation")
                 losses.append(float(loss.item()))
             results[name] = sum(losses) / len(losses)
     finally:
@@ -106,20 +164,25 @@ def save_checkpoint(
     tokenizer: ByteTokenizer | SentencePieceTokenizer,
     step: int,
     losses: dict[str, float],
+    *,
+    response_only: bool,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "format_version": 2,
-        "step": step,
-        "model_config": model.config.to_dict(),
-        "model_state_dict": model.state_dict(),
-        "optimizer_state_dict": optimizer.state_dict(),
-        "losses": losses,
-        "torch_rng_state": torch.get_rng_state(),
-        "cuda_rng_states": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
-        **tokenizer_checkpoint_fields(tokenizer),
-    }
-    torch.save(payload, path)
+    torch.save(
+        {
+            "format_version": 2,
+            "step": step,
+            "model_config": model.config.to_dict(),
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "losses": losses,
+            "response_only": response_only,
+            "torch_rng_state": torch.get_rng_state(),
+            "cuda_rng_states": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
+            **tokenizer_checkpoint_fields(tokenizer),
+        },
+        path,
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -131,6 +194,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tokenizer", choices=("byte", "sentencepiece"), default="byte")
     parser.add_argument("--tokenizer-model", type=Path, help="existing SentencePiece .model file")
     parser.add_argument("--vocab-size", type=int, default=2048)
+    parser.add_argument(
+        "--response-only",
+        action="store_true",
+        help="compute next-token loss only over assistant replies and end-of-turn tokens",
+    )
     parser.add_argument("--steps", type=int, default=100)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--block-size", type=int, default=64)
@@ -192,7 +260,12 @@ def main() -> None:
             raise SystemExit("Resume checkpoint uses a different tokenizer")
         tokenizer = ByteTokenizer()
 
+    if args.response_only and not isinstance(tokenizer, SentencePieceTokenizer):
+        raise SystemExit("--response-only currently requires --tokenizer sentencepiece")
+
     if resume_payload is not None:
+        if bool(resume_payload.get("response_only", False)) != args.response_only:
+            raise SystemExit("Resume checkpoint response_only setting does not match this run")
         config = ModelConfig.from_dict(resume_payload["model_config"])
     else:
         config = ModelConfig(
@@ -214,6 +287,17 @@ def main() -> None:
         raise SystemExit("Training split is too small for block-size; reduce block-size or add data")
     if val_data.numel() <= config.block_size + 1:
         raise SystemExit("Validation split is too small for block-size; reduce block-size or add data")
+
+    train_mask = val_mask = None
+    if args.response_only:
+        train_mask = build_response_loss_mask(train_data, tokenizer)
+        val_mask = build_response_loss_mask(val_data, tokenizer)
+        if not train_mask.any() or not val_mask.any():
+            raise SystemExit("Response-only masking found no assistant targets in a data split")
+        print(
+            f"response_only=true train_target_tokens={int(train_mask.sum())} "
+            f"validation_target_tokens={int(val_mask.sum())}"
+        )
 
     model = ArtemisLM(config).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
@@ -243,7 +327,9 @@ def main() -> None:
     latest_losses: dict[str, float] = {}
     for step in range(start_step + 1, args.steps + 1):
         model.train()
-        x, y = get_batch(train_data, args.batch_size, config.block_size, device)
+        x, y = get_batch(
+            train_data, args.batch_size, config.block_size, device, train_mask
+        )
         _, loss = model(x, y)
         if loss is None or not torch.isfinite(loss):
             raise RuntimeError(f"non-finite or missing training loss at step {step}")
@@ -255,13 +341,16 @@ def main() -> None:
         if step == 1 or step % args.eval_interval == 0 or step == args.steps:
             latest_losses = estimate_loss(
                 model, train_data, val_data, args.batch_size,
-                config.block_size, device, args.eval_iters,
+                config.block_size, device, args.eval_iters, train_mask, val_mask,
             )
             print(
                 f"step={step:>5} train_loss={latest_losses['train']:.4f} "
                 f"val_loss={latest_losses['val']:.4f}"
             )
-            save_checkpoint(args.output, model, optimizer, tokenizer, step, latest_losses)
+            save_checkpoint(
+                args.output, model, optimizer, tokenizer, step, latest_losses,
+                response_only=args.response_only,
+            )
 
     print(f"checkpoint_saved={args.output.resolve()}")
     print("NOTE: capability must be established by held-out task evaluations, not loss alone.")
