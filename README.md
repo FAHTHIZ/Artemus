@@ -2,7 +2,7 @@
 
 **Artemus is a from-scratch foundation-model and agent-systems project.** Its intended model, Artemis, is a general-purpose assistant with exceptional software-engineering capability.
 
-> **Current status:** Architecture documentation and a tiny CPU training baseline are committed. Experiment 0001 completed 250 training steps and verified checkpoint reload and generation. This remains a pipeline smoke test—not a capable assistant or frontier-model training run.
+> **Current status:** Experiment 0001 validated the tiny training loop. Experiment 0002 successfully downloaded and filtered pinned OASST1 data, trained a 119,808-parameter model for 1,200 CPU steps, and verified checkpoint reload and generation. Its generated text is still incoherent; Artemis is not yet a usable assistant. The next blocker is tokenizer/context/model capacity and instruction tuning—not simply more training steps.
 
 ## Mission
 
@@ -40,6 +40,8 @@ The model, agent runtime, training platform, and external memory are separate co
 - [Engineering roadmap](docs/engineering/roadmap.md)
 - [First training run](docs/engineering/first-training-run.md)
 - [Experiment 0001 report](docs/experiments/0001-cpu-smoke-test.md)
+- [Experiment 0002 — OASST1 CPU run](docs/experiments/0002-oasst1-cpu-run.md)
+- [Training data source registry](docs/data/source-registry.md)
 
 ## Run locally
 
