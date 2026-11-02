@@ -38,6 +38,7 @@ Base-model capability and Artemis + OASIS system performance are measured separa
 | [0004 — efficient dense smoke](docs/experiments/0004-efficient-dense-smoke.md) | GQA, RoPE, QK norm, and SwiGLU passed architecture/gradient tests. | Candidate mechanics validated, not quality. |
 | [0005 — parameter/KV profile](docs/experiments/0005-parameter-profile.md) | 1,250,688 parameters; theoretical FP16 KV state 50% smaller than full MHA at the profiled config. | No incremental KV cache or measured decode-speed benefit yet. |
 | [0006 — factorized embeddings](docs/experiments/0006-factorized-embedding-profile.md) | Reduced the profiled compact candidate to 1,004,928 parameters, about 19.65% fewer than the non-factorized candidate. | No matched-quality result yet. |
+| [0008 — incremental KV cache](docs/experiments/0008-incremental-kv-cache.md) | 47 tests passed; cached and uncached logits/outputs match. Tiny CPU run was 1.33× faster with cache. | Systems smoke result only; static cache and accelerator benchmarks remain. |
 | [0007 — multi-task CPU task-SFT](docs/experiments/0007-multitask-cpu-task-sft.md) | 1,347,200-parameter full-MHA model trained 8,000 steps on OASST1/GSM8K/MBPP. | Checkpoint and generation pipeline passed; math/Python outputs remained incoherent. |
 
 The 0007 checkpoint used format v2 and did not embed run metadata. Its sidecar report records the workflow commit, configuration, data manifests, and artifact/checkpoint hashes. New training runs use checkpoint format v3 with provenance metadata.
