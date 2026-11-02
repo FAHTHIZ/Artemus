@@ -111,3 +111,18 @@ Compare SentencePiece BPE and Unigram baselines before considering morphology-aw
 
 B-CORE is a high-value Bangla pretraining candidate, but its CC-BY-4.0 dataset card notes that individual source components may have their own attribution obligations. Audit the component manifest before use or redistribution. See [Additional Data Sources](../data/next-sources.md).
 
+
+## 10. Foundation-scale trainer requirements
+
+The current trainer is deliberately small and simple. Before large-corpus pretraining, replace its whole-text/in-memory token loading path with a scalable input system:
+
+1. **Versioned token shards:** stream documents through privacy/quality/dedup filters and a pinned tokenizer; write packed, memory-mapped token shards with document-boundary markers and a source-to-shard manifest.
+2. **Deterministic sampling:** use shard-aware shuffling and a seeded buffer; record shard order, offsets, sample weights, and data position so a resumed run does not silently repeat or skip a different data distribution.
+3. **Efficient packing:** pack sequences to the model context window while preserving document boundaries and preventing cross-document target leakage.
+4. **Training schedule:** add warmup plus cosine decay, configurable weight decay/betas, gradient accumulation, gradient clipping, and explicit token-based schedules. Compare optimizers under matched FLOPs rather than switching based on one loss curve.
+5. **Hardware-aware execution:** add BF16/FP16 where supported, fused optimizers/kernels, activation checkpointing, and benchmarked batch/sequence shapes. Keep a numerically stable FP32 reference.
+6. **Exact resume:** checkpoint model, optimizer, scheduler, scaler, RNG states, data/shard cursor, tokenizer hash, and full config. Validate resume equivalence against an uninterrupted short run.
+7. **Measurement:** log unique tokens, repeated token presentations, tokens/sec, FLOPs estimate, peak memory, wall-clock time, energy/cost where available, and held-out capability outcomes.
+
+Do not scale the current 8K-step CPU task-SFT script by simply increasing the step count. Build the data and systems path first, then run controlled size/data/compute experiments on suitable accelerators.
+
