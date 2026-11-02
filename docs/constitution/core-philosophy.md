@@ -69,6 +69,7 @@ Default rules:
 - No external-model-generated response corpus by default.
 - Preserve original licence, attribution, source revision, hashes, and removal obligations.
 - Quarantine sources whose rights are unclear.
+- Do not apply viewpoint, political, religious, or ideological filters to lawful material merely because of its position. Data-quality filters must target documented issues such as duplication, corruption, spam, privacy/PII, provenance gaps, access restrictions, or concrete serious-harm risks—not disagreement or discomfort.
 
 ## 7. Learning from conversations without uncontrolled self-modification
 
