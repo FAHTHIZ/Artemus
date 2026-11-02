@@ -70,7 +70,7 @@ The current OASST1/GSM8K/MBPP mixture is an early **task-SFT** experiment. It is
 
 - `validation.yml`: quick tests and syntax checks on changes.
 - `efficient-dense-ci.yml`: compact architecture smoke training, parameter profiling, cache correctness, and cached/uncached CPU benchmarking.
-- `capability-training.yml`: manual `workflow_dispatch` for the longer multi-task CPU experiment.
+- `capability-training.yml`: manual `workflow_dispatch` plus automatic main-branch runs when training/data/tokenizer code changes; longer multi-task CPU experiment.
 
 The 8,000-step completed run is recorded at [GitHub Actions run 41372200736](https://github.com/FAHTHIZ/Artemus/actions/runs/41372200736). The artifact is retained until 2026-11-09.
 
