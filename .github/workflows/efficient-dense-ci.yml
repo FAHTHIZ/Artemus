@@ -3,7 +3,7 @@ name: Artemis efficient architecture tests
 on:
   push:
     branches:
-      - research/efficient-dense-v2
+      - main
     paths:
       - "src/**"
       - "tests/**"
@@ -55,6 +55,7 @@ jobs:
             --heads 4 \
             --kv-heads 2 \
             --embedding-size 64 \
+            --embedding-dim 32 \
             --use-rope \
             --use-qk-norm \
             --use-swiglu \
@@ -72,7 +73,20 @@ jobs:
             --heads 4 \
             --kv-heads 2 \
             --embedding-size 128 \
+            --embedding-dim 64 \
             --rope --qk-norm --swiglu \
+            --batch-size 1 \
+            --context-length 256 \
+            --dtype-bytes 2
+
+      - name: Profile the legacy dense baseline at the same width and vocabulary
+        run: |
+          artemus-profile \
+            --vocab-size 4096 \
+            --block-size 256 \
+            --layers 4 \
+            --heads 4 \
+            --embedding-size 128 \
             --batch-size 1 \
             --context-length 256 \
             --dtype-bytes 2
