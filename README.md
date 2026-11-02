@@ -2,7 +2,7 @@
 
 **Artemus** is the repository name. **Artemis** is the independently developed foundation model and flagship assistant being built here.
 
-> **Current status (2026-11-02):** The training pipeline, data-ingestion checks, checkpoint loading, and compact-architecture smoke tests work. The 1.085M-parameter response-only model from Experiment 0003 was incoherent. Experiment 0007 completed 8,000 CPU steps on an OASST1/GSM8K/MBPP multi-task mixture, but its math and Python generations were still incoherent. The newer 1.25M compact GQA/RoPE/QKNorm/SwiGLU candidate and 1.005M factorized-embedding candidate pass architecture tests and reduce parameter counts, but have not yet passed matched-quality capability comparisons. **Artemis is not yet a usable assistant or a frontier-capable model.**
+> **Current status (2026-11-02):** The training pipeline, data-ingestion checks, checkpoint loading, and compact-architecture smoke tests work. The 1.085M-parameter response-only model from Experiment 0003 was incoherent. Experiment 0007 completed 8,000 CPU steps on an OASST1/GSM8K/MBPP multi-task mixture, but its math and Python generations were still incoherent. The newer 1.25M compact GQA/RoPE/QKNorm/SwiGLU candidate and 1.005M factorized-embedding candidate pass architecture tests and reduce parameter counts, but have not yet passed matched-quality capability comparisons. The incremental KV cache is now implemented and verified, with 47 tests passing and preliminary 1.27–1.40× speed ratios on a tiny random-init CPU benchmark. **Artemis is not yet a usable assistant or a frontier-capable model.**
 
 ## Mission
 
@@ -39,7 +39,7 @@ Base-model capability and Artemis + OASIS system performance are measured separa
 | [0005 — parameter/KV profile](docs/experiments/0005-parameter-profile.md) | 1,250,688 parameters; theoretical FP16 KV state 50% smaller than full MHA at the profiled config. | Parameter/cache accounting only; see Experiment 0008 for the implemented cache. |
 | [0006 — factorized embeddings](docs/experiments/0006-factorized-embedding-profile.md) | Reduced the profiled compact candidate to 1,004,928 parameters, about 19.65% fewer than the non-factorized candidate. | No matched-quality result yet. |
 | [0007 — multi-task CPU task-SFT](docs/experiments/0007-multitask-cpu-task-sft.md) | 1,347,200-parameter full-MHA model trained 8,000 steps on OASST1/GSM8K/MBPP. | Checkpoint and generation pipeline passed; math/Python outputs remained incoherent. |
-| [0008 — incremental KV cache](docs/experiments/0008-incremental-kv-cache.md) | 47 tests passed; cached/uncached outputs matched; tiny CPU run measured 1.33× lower elapsed time with cache. | Systems smoke result only; static cache and accelerator benchmarks remain. |
+| [0008 — incremental KV cache](docs/experiments/0008-incremental-kv-cache.md) | 47 tests passed; cached/uncached outputs matched; three tiny CPU runs measured 1.27–1.40× cached/uncached elapsed-time ratios. | Systems smoke result only; static cache and accelerator benchmarks remain. |
 | [0009 — size ladder profile](docs/experiments/0009-size-ladder-profile.md) | Exact profiles for 8.1M, 26.5M, and 88.7M parameter candidates. | Parameter accounting only; no training or capability claim. |
 
 The incremental-cache benchmark is documented in [Experiment 0008](docs/experiments/0008-incremental-kv-cache.md).
