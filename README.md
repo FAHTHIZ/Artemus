@@ -36,10 +36,11 @@ Base-model capability and Artemis + OASIS system performance are measured separa
 | [0002 — OASST1 CPU run](docs/experiments/0002-oasst1-cpu-run.md) | SentencePiece/OASST1 training reduced loss. | Output remained incoherent. |
 | [0003 — response-only supervision](docs/experiments/0003-oasst1-response-only.md) | 1.085M parameters, 1,200 CPU steps, response-only target masking. | Output remained incoherent. |
 | [0004 — efficient dense smoke](docs/experiments/0004-efficient-dense-smoke.md) | GQA, RoPE, QK norm, and SwiGLU passed architecture/gradient tests. | Candidate mechanics validated, not quality. |
-| [0005 — parameter/KV profile](docs/experiments/0005-parameter-profile.md) | 1,250,688 parameters; theoretical FP16 KV state 50% smaller than full MHA at the profiled config. | No incremental KV cache or measured decode-speed benefit yet. |
+| [0005 — parameter/KV profile](docs/experiments/0005-parameter-profile.md) | 1,250,688 parameters; theoretical FP16 KV state 50% smaller than full MHA at the profiled config. | Parameter/cache accounting only; see Experiment 0008 for the implemented cache. |
 | [0006 — factorized embeddings](docs/experiments/0006-factorized-embedding-profile.md) | Reduced the profiled compact candidate to 1,004,928 parameters, about 19.65% fewer than the non-factorized candidate. | No matched-quality result yet. |
 | [0007 — multi-task CPU task-SFT](docs/experiments/0007-multitask-cpu-task-sft.md) | 1,347,200-parameter full-MHA model trained 8,000 steps on OASST1/GSM8K/MBPP. | Checkpoint and generation pipeline passed; math/Python outputs remained incoherent. |
 | [0008 — incremental KV cache](docs/experiments/0008-incremental-kv-cache.md) | 47 tests passed; cached/uncached outputs matched; tiny CPU run measured 1.33× lower elapsed time with cache. | Systems smoke result only; static cache and accelerator benchmarks remain. |
+| [0009 — size ladder profile](docs/experiments/0009-size-ladder-profile.md) | Exact profiles for 8.1M, 26.5M, and 88.7M parameter candidates. | Parameter accounting only; no training or capability claim. |
 
 The incremental-cache benchmark is documented in [Experiment 0008](docs/experiments/0008-incremental-kv-cache.md).
 
@@ -68,7 +69,7 @@ The current OASST1/GSM8K/MBPP mixture is an early **task-SFT** experiment. It is
 ## GitHub Actions
 
 - `validation.yml`: quick tests and syntax checks on changes.
-- `efficient-dense-ci.yml`: compact architecture smoke training and parameter/KV profiling.
+- `efficient-dense-ci.yml`: compact architecture smoke training, parameter profiling, cache correctness, and cached/uncached CPU benchmarking.
 - `capability-training.yml`: manual `workflow_dispatch` for the longer multi-task CPU experiment.
 
 The 8,000-step completed run is recorded at [GitHub Actions run 41372200736](https://github.com/FAHTHIZ/Artemus/actions/runs/41372200736). The artifact is retained until 2026-11-09.
@@ -96,7 +97,7 @@ The byte tokenizer, tiny demo corpus, and smoke model are engineering baselines�
 
 1. Add protected held-out evaluation for math, code, general language, and Bangla/Banglish.
 2. Compare dense and factorized candidates under identical tokenizer, data, seed, and training-token budgets.
-3. Implement and benchmark an actual incremental KV cache.
+3. Benchmark the incremental cache on trained checkpoints and target accelerators; investigate a preallocated static cache.
 4. Build a large, licensed, deduplicated foundation-pretraining mixture and audit its quality.
 5. Secure suitable accelerator compute for true foundation pretraining and size/data/architecture scaling experiments.
 6. Train and evaluate the base model through pretraining, SFT, verified task training, and outcome optimisation.
