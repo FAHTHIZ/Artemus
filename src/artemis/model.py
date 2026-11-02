@@ -544,6 +544,7 @@ class ArtemisLM(nn.Module):
         top_k: int | None = None,
         eos_token_id: int | None = None,
         use_cache: bool = True,
+        use_static_cache: bool = True,
     ) -> torch.Tensor:
         if token_ids.ndim != 2 or token_ids.size(1) == 0:
             raise ValueError("token_ids must be a non-empty [batch, sequence] tensor")
@@ -560,7 +561,7 @@ class ArtemisLM(nn.Module):
         self.eval()
         generated = token_ids
         try:
-            if use_cache:
+            if use_cache and use_static_cache:
                 context = generated[:, -self.config.block_size :]
                 cache = self.allocate_static_kv_cache(
                     generated.size(0), device=generated.device
@@ -587,6 +588,35 @@ class ArtemisLM(nn.Module):
                             context = generated[:, -self.config.block_size :]
                             cache.reset()
                             logits, cache = self.forward_with_static_cache(context, cache)
+                        next_logits = logits[:, -1, :] / temperature
+            elif use_cache:
+                # Dynamic cache is retained as a reference and can be faster
+                # for short prompts where allocating full-capacity buffers costs more.
+                context = generated[:, -self.config.block_size :]
+                cache = None
+                logits, cache = self.forward_with_cache(context, cache)
+                next_logits = logits[:, -1, :] / temperature
+                for step in range(max_new_tokens):
+                    if top_k is not None:
+                        k = min(top_k, next_logits.size(-1))
+                        values, _ = torch.topk(next_logits, k)
+                        next_logits = next_logits.masked_fill(
+                            next_logits < values[:, [-1]], float("-inf")
+                        )
+                    probabilities = F.softmax(next_logits, dim=-1)
+                    next_token = torch.multinomial(probabilities, num_samples=1)
+                    generated = torch.cat((generated, next_token), dim=1)
+                    if eos_token_id is not None and torch.all(next_token == eos_token_id):
+                        break
+                    if step + 1 < max_new_tokens:
+                        cache_len = cache[0][0].size(2)
+                        if cache_len < self.config.block_size:
+                            logits, cache = self.forward_with_cache(
+                                next_token, cache, position_offset=cache_len
+                            )
+                        else:
+                            context = generated[:, -self.config.block_size :]
+                            logits, cache = self.forward_with_cache(context)
                         next_logits = logits[:, -1, :] / temperature
             else:
                 for _ in range(max_new_tokens):
