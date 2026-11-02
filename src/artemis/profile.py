@@ -38,6 +38,9 @@ def profile_model(
     model = ArtemisLM(config)
     params_by_component: dict[str, int] = {
         "token_embedding_and_output_tied": parameter_count(model.token_embedding),
+        "embedding_projections": (
+            parameter_count(model.input_projection) + parameter_count(model.output_projection)
+        ),
         "position_embedding": (
             parameter_count(model.position_embedding)
             if model.position_embedding is not None
@@ -121,6 +124,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--heads", type=int, default=4)
     parser.add_argument("--kv-heads", type=int)
     parser.add_argument("--embedding-size", type=int, default=128)
+    parser.add_argument("--embedding-dim", type=int, help="factorised token embedding width")
     parser.add_argument("--rope", action="store_true")
     parser.add_argument("--qk-norm", action="store_true")
     parser.add_argument("--swiglu", action="store_true")
@@ -140,6 +144,7 @@ def main() -> None:
         n_head=args.heads,
         n_embd=args.embedding_size,
         dropout=args.dropout,
+        embedding_dim=args.embedding_dim,
         n_kv_head=args.kv_heads,
         use_rope=args.rope,
         use_qk_norm=args.qk_norm,

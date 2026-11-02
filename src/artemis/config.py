@@ -17,6 +17,8 @@ class ModelConfig:
     use_qk_norm: bool = False
     use_swiglu: bool = False
     rope_theta: float = 10000.0
+    # Optional factorised token/output embedding width. None preserves d_model.
+    embedding_dim: int | None = None
 
     def __post_init__(self) -> None:
         if self.vocab_size < 257:
@@ -36,6 +38,8 @@ class ModelConfig:
             raise ValueError("RoPE requires an even attention head dimension")
         if self.rope_theta <= 0:
             raise ValueError("rope_theta must be positive")
+        if self.embedding_dim is not None and not 1 <= self.embedding_dim <= self.n_embd:
+            raise ValueError("embedding_dim must be between 1 and n_embd")
         if not 0.0 <= self.dropout < 1.0:
             raise ValueError("dropout must be in [0, 1)")
 

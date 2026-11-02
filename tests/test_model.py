@@ -104,3 +104,48 @@ def test_legacy_config_dict_defaults_to_original_architecture():
     assert model.position_embedding is not None
     assert hasattr(model.blocks[0].attention, "qkv")
     assert hasattr(model.blocks[0].feed_forward, "net")
+
+
+def test_factorized_token_embeddings_reduce_parameters_and_preserve_tying():
+    base_config = ModelConfig(
+        vocab_size=4096, block_size=64, n_layer=2, n_head=4, n_embd=64
+    )
+    factor_config = ModelConfig(
+        vocab_size=4096, block_size=64, n_layer=2, n_head=4, n_embd=64,
+        embedding_dim=32,
+    )
+    base = ArtemisLM(base_config)
+    factor = ArtemisLM(factor_config)
+    assert factor.token_embedding.weight is factor.output.weight
+    assert factor.token_embedding.embedding_dim == 32
+    assert factor.input_projection.weight.shape == (64, 32)
+    assert factor.output_projection.weight.shape == (32, 64)
+    assert sum(p.numel() for p in factor.parameters()) < sum(
+        p.numel() for p in base.parameters()
+    )
+
+
+def test_factorized_embedding_forward_backward_is_finite():
+    config = ModelConfig(
+        vocab_size=512, block_size=32, n_layer=2, n_head=4, n_embd=64,
+        embedding_dim=32, n_kv_head=2, use_rope=True, use_swiglu=True,
+    )
+    model = ArtemisLM(config)
+    tokens = torch.randint(0, 512, (2, 24))
+    logits, loss = model(tokens, tokens)
+    assert logits.shape == (2, 24, 512)
+    assert loss is not None and torch.isfinite(loss)
+    loss.backward()
+    assert all(p.grad is None or torch.isfinite(p.grad).all() for p in model.parameters())
+
+
+def test_factorized_embedding_old_config_keeps_legacy_weight_shapes():
+    config = ModelConfig.from_dict({
+        "vocab_size": 257, "block_size": 16, "n_layer": 2,
+        "n_head": 2, "n_embd": 16, "dropout": 0.0,
+    })
+    model = ArtemisLM(config)
+    assert model.token_embedding.weight.shape == (257, 16)
+    assert model.output.weight is model.token_embedding.weight
+    assert isinstance(model.input_projection, torch.nn.Identity)
+    assert isinstance(model.output_projection, torch.nn.Identity)
