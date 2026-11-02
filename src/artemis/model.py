@@ -144,14 +144,27 @@ class ArtemisLM(nn.Module):
     def __init__(self, config: ModelConfig) -> None:
         super().__init__()
         self.config = config
-        self.token_embedding = nn.Embedding(config.vocab_size, config.n_embd)
+        self.embedding_dim = (
+            config.n_embd if config.embedding_dim is None else config.embedding_dim
+        )
+        self.token_embedding = nn.Embedding(config.vocab_size, self.embedding_dim)
+        self.input_projection = (
+            nn.Identity()
+            if self.embedding_dim == config.n_embd
+            else nn.Linear(self.embedding_dim, config.n_embd, bias=False)
+        )
+        self.output_projection = (
+            nn.Identity()
+            if self.embedding_dim == config.n_embd
+            else nn.Linear(config.n_embd, self.embedding_dim, bias=False)
+        )
         self.position_embedding = (
             None if config.use_rope else nn.Embedding(config.block_size, config.n_embd)
         )
         self.embedding_dropout = nn.Dropout(config.dropout)
         self.blocks = nn.Sequential(*(TransformerBlock(config) for _ in range(config.n_layer)))
         self.final_norm = RMSNorm(config.n_embd)
-        self.output = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        self.output = nn.Linear(self.embedding_dim, config.vocab_size, bias=False)
         self.apply(self._initialise)
         self.output.weight = self.token_embedding.weight
 
@@ -172,13 +185,13 @@ class ArtemisLM(nn.Module):
             raise ValueError(
                 f"sequence length {seq_len} exceeds block_size {self.config.block_size}"
             )
-        x = self.token_embedding(token_ids)
+        x = self.input_projection(self.token_embedding(token_ids))
         if self.position_embedding is not None:
             positions = torch.arange(seq_len, device=token_ids.device)
             x = x + self.position_embedding(positions)[None, :, :]
         x = self.embedding_dropout(x)
         x = self.blocks(x)
-        logits = self.output(self.final_norm(x))
+        logits = self.output(self.output_projection(self.final_norm(x)))
         loss = None
         if targets is not None:
             if targets.shape != token_ids.shape:
