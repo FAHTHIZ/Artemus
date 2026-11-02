@@ -55,6 +55,7 @@ jobs:
             --heads 4 \
             --kv-heads 2 \
             --embedding-size 64 \
+            --embedding-dim 32 \
             --use-rope \
             --use-qk-norm \
             --use-swiglu \
@@ -72,6 +73,7 @@ jobs:
             --heads 4 \
             --kv-heads 2 \
             --embedding-size 128 \
+            --embedding-dim 64 \
             --rope --qk-norm --swiglu \
             --batch-size 1 \
             --context-length 256 \
