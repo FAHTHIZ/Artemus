@@ -64,7 +64,18 @@ jobs:
             --device cpu \
             --output artifacts/efficient-dense-smoke.pt
 
-      - name: Profile compact GQA model parameters and theoretical KV cache
+      - name: Smoke-test cached checkpoint generation
+        run: |
+          artemus-generate \
+            --checkpoint artifacts/efficient-dense-smoke.pt \
+            --prompt "Artemis is" \
+            --tokens 12 --top-k 1 --device cpu
+          artemus-generate \
+            --checkpoint artifacts/efficient-dense-smoke.pt \
+            --prompt "Artemis is" \
+            --tokens 12 --top-k 1 --no-cache --device cpu
+
+      - name: Profile compact GQA model parameters and KV-cache payload
         run: |
           artemus-profile \
             --vocab-size 4096 \
@@ -90,6 +101,24 @@ jobs:
             --batch-size 1 \
             --context-length 256 \
             --dtype-bytes 2
+
+      - name: Benchmark incremental KV cache against uncached decoding
+        run: |
+          artemus-bench-kv-cache \
+            --vocab-size 512 \
+            --block-size 64 \
+            --layers 2 \
+            --heads 4 \
+            --kv-heads 2 \
+            --embedding-size 64 \
+            --embedding-dim 32 \
+            --rope --qk-norm --swiglu \
+            --prompt-tokens 32 \
+            --new-tokens 24 \
+            --warmup 1 \
+            --repeats 3 \
+            --threads 2 \
+            --device cpu
 
       - name: Profile future 10M, 30M, and 100M from-scratch model candidates
         run: |
