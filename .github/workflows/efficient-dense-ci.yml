@@ -101,3 +101,21 @@ jobs:
             --batch-size 1 \
             --context-length 256 \
             --dtype-bytes 2
+
+      - name: Benchmark incremental KV cache against uncached decoding
+        run: |
+          artemus-bench-kv-cache \
+            --vocab-size 512 \
+            --block-size 64 \
+            --layers 2 \
+            --heads 4 \
+            --kv-heads 2 \
+            --embedding-size 64 \
+            --embedding-dim 32 \
+            --rope --qk-norm --swiglu \
+            --prompt-tokens 32 \
+            --new-tokens 24 \
+            --warmup 1 \
+            --repeats 3 \
+            --threads 2 \
+            --device cpu
