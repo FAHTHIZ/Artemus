@@ -21,6 +21,7 @@ class ByteTokenizer:
 
     vocab_size = VOCAB_SIZE
     eos_token_id = EOS_TOKEN_ID
+    stop_token_id = EOS_TOKEN_ID
     name = "utf8-byte-v1"
 
     def encode(self, text: str, *, add_eos: bool = False) -> list[int]:
@@ -65,7 +66,8 @@ class SentencePieceTokenizer:
             raise ValueError("could not load SentencePiece model")
         self.vocab_size = int(self.processor.get_piece_size())
         self.eos_token_id = int(self.processor.eos_id())
-        if self.vocab_size < 300 or self.eos_token_id < 0:
+        self.stop_token_id = int(self.processor.piece_to_id("<|end|>"))
+        if self.vocab_size < 300 or self.eos_token_id < 0 or self.stop_token_id < 0:
             raise ValueError("SentencePiece model is missing expected vocabulary/EOS")
 
     @classmethod
@@ -95,6 +97,7 @@ class SentencePieceTokenizer:
             user_defined_symbols=CHAT_SPECIAL_TOKENS,
             hard_vocab_limit=False,
             num_threads=2,
+            add_dummy_prefix=False,
         )
         return cls(model_file=model_prefix.with_suffix(".model"))
 
