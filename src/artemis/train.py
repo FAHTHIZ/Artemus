@@ -60,16 +60,36 @@ def build_response_loss_mask(
     if min(prompter_id, assistant_id, end_id) < 0:
         raise ValueError("tokenizer is missing required chat control tokens")
 
-    events = torch.zeros_like(token_ids, dtype=torch.int32)
-    events[token_ids == assistant_id] = 1
-    events[(token_ids == prompter_id) | (token_ids == end_id)] = -1
-    state_before_token = torch.cumsum(events, dim=0) - events
-    assistant_region = state_before_token > 0
     control_tokens = (
         (token_ids == prompter_id)
         | (token_ids == assistant_id)
+        | (token_ids == end_id)
     )
-    return assistant_region & ~control_tokens
+    positions = torch.arange(token_ids.numel(), device=token_ids.device)
+    last_control_positions = torch.cummax(
+        torch.where(control_tokens, positions, torch.full_like(positions, -1)),
+        dim=0,
+    ).values
+    previous_control_positions = torch.cat(
+        (
+            torch.full((1,), -1, dtype=torch.long, device=token_ids.device),
+            last_control_positions[:-1],
+        )
+    )
+    last_control_ids = token_ids[last_control_positions.clamp_min(0)]
+    previous_control_ids = token_ids[previous_control_positions.clamp_min(0)]
+
+    # Text after an assistant marker is supervised. The end marker itself is
+    # supervised using the immediately preceding control marker's state.
+    in_assistant_region = (
+        (last_control_positions >= 0) & (last_control_ids == assistant_id)
+    )
+    end_of_assistant_turn = (
+        (token_ids == end_id) & (previous_control_ids == assistant_id)
+    )
+    return (in_assistant_region | end_of_assistant_turn) & ~(
+        (token_ids == prompter_id) | (token_ids == assistant_id)
+    )
 
 
 def get_batch(
