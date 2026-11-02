@@ -2,7 +2,7 @@
 
 **Artemus is a from-scratch foundation-model and agent-systems project.** Its intended model, Artemis, is a general-purpose assistant with exceptional software-engineering capability.
 
-> **Current status:** Experiments 0001 and 0002 validated the data and training pipeline. Experiment 0002 trained a 1,085,056-parameter model with SentencePiece over pinned OASST1 data for 1,200 CPU steps; the checkpoint reloads, but generated text remains incoherent. The current experiment adds assistant-response-only loss masking. Artemis is not yet a usable assistant.
+> **Current status:** Experiments 0001–0003 validated the initial pipeline, SentencePiece tokenization, and response-only loss masking. Experiment 0003 completed 1,200 CPU steps on a 1,085,056-parameter random-init model and verified checkpoint reload/generation; its sample output remains incoherent. Artemis is not yet a usable assistant. See the [Experiment 0003 report](docs/experiments/0003-oasst1-response-only.md).
 
 ## Mission
 
@@ -47,6 +47,7 @@ See [Core Philosophy](docs/constitution/core-philosophy.md), [Compact Frontier-C
 - [First training run](docs/engineering/first-training-run.md)
 - [Experiment 0001 report](docs/experiments/0001-cpu-smoke-test.md)
 - [Experiment 0002 — OASST1 CPU run](docs/experiments/0002-oasst1-cpu-run.md)
+- [Experiment 0003 — response-only supervision](docs/experiments/0003-oasst1-response-only.md)
 - [Training data source registry](docs/data/source-registry.md)
 - [Additional datasets and ingestion priorities](docs/data/next-sources.md)
 - [Core philosophy](docs/constitution/core-philosophy.md)
