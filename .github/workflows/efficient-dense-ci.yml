@@ -73,6 +73,10 @@ jobs:
           artemus-generate \
             --checkpoint artifacts/efficient-dense-smoke.pt \
             --prompt "Artemis is" \
+            --tokens 12 --top-k 1 --dynamic-cache --device cpu
+          artemus-generate \
+            --checkpoint artifacts/efficient-dense-smoke.pt \
+            --prompt "Artemis is" \
             --tokens 12 --top-k 1 --no-cache --device cpu
 
       - name: Profile compact GQA model parameters and KV-cache payload
@@ -102,7 +106,7 @@ jobs:
             --context-length 256 \
             --dtype-bytes 2
 
-      - name: Benchmark incremental KV cache against uncached decoding
+      - name: Benchmark static, dynamic, and uncached decoding
         run: |
           artemus-bench-kv-cache \
             --vocab-size 512 \
