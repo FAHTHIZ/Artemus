@@ -20,6 +20,12 @@ The long-term ambition is frontier-class general intelligence with especially st
 
 The model, agent runtime, training platform, and external memory are separate components with explicit interfaces. See [the system architecture](docs/architecture/system-overview.md).
 
+## Core philosophy
+
+Artemis is an independently trained model whose foundation weights begin from random initialization. No renamed or hidden pretrained checkpoint is allowed. The project optimises capability per parameter and unit of compute, and treats frontier-level capability as a measurable ambition rather than a claim. It aims for candid, intellectually open responses without arbitrary viewpoint-based refusals, while preserving explicit privacy, consent, legal, and serious-harm boundaries.
+
+See [Core Philosophy](docs/constitution/core-philosophy.md), [Compact Frontier-Capability Strategy](docs/architecture/compact-frontier-strategy.md), and [Frontier Comparison Plan](docs/evaluation/frontier-targets.md).
+
 ## Design principles
 
 1. **Train from scratch.** Foundation weights start from random initialization. Existing models may be used as external evaluators or research references, never silently substituted as Artemis.
@@ -42,6 +48,10 @@ The model, agent runtime, training platform, and external memory are separate co
 - [Experiment 0001 report](docs/experiments/0001-cpu-smoke-test.md)
 - [Experiment 0002 — OASST1 CPU run](docs/experiments/0002-oasst1-cpu-run.md)
 - [Training data source registry](docs/data/source-registry.md)
+- [Additional datasets and ingestion priorities](docs/data/next-sources.md)
+- [Core philosophy](docs/constitution/core-philosophy.md)
+- [Compact frontier strategy](docs/architecture/compact-frontier-strategy.md)
+- [Frontier comparison plan](docs/evaluation/frontier-targets.md)
 
 ## Run locally
 
