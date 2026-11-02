@@ -1,8 +1,8 @@
 # Artemus
 
-**Artemus is a from-scratch foundation-model and agent-systems project.** Its intended model, Artemis, is a general-purpose assistant with exceptional software-engineering capability. The project is in its architecture and bootstrap phase.
+**Artemus is a from-scratch foundation-model and agent-systems project.** Its intended model, Artemis, is a general-purpose assistant with exceptional software-engineering capability.
 
-> **Current status:** Initial architecture documentation and a tiny CPU-capable training baseline are present. The baseline has passed local smoke tests; no capable assistant, frontier model, or production agent runtime has been trained or built.
+> **Current status:** Architecture documentation and a tiny CPU training baseline are committed. Experiment 0001 completed 250 training steps and verified checkpoint reload and generation. This remains a pipeline smoke test—not a capable assistant or frontier-model training run.
 
 ## Mission
 
@@ -39,10 +39,9 @@ The model, agent runtime, training platform, and external memory are separate co
 - [Evaluation and release gates](docs/evaluation/quality-gates.md)
 - [Engineering roadmap](docs/engineering/roadmap.md)
 - [First training run](docs/engineering/first-training-run.md)
+- [Experiment 0001 report](docs/experiments/0001-cpu-smoke-test.md)
 
-## First local smoke test
-
-After installing the project dependencies, run the tests and the tiny random-initialisation training demo:
+## Run locally
 
 ```bash
 python -m pip install -e ".[dev]"
@@ -51,15 +50,15 @@ artemus-train --data examples/demo_corpus.txt --steps 20 --batch-size 4 --block-
 artemus-generate --checkpoint artifacts/artemis-tiny.pt --prompt "Artemis is" --tokens 80
 ```
 
-These commands only validate the training and inference mechanics. The byte tokenizer and tiny model are temporary research baselines, not the final architecture or a useful assistant.
+The byte tokenizer and tiny model are temporary research baselines, not the final architecture or a useful assistant.
 
 ## Initial next steps
 
 1. Record the available workstation hardware and storage.
 2. Select the development environment and accelerator backend.
-3. Improve the data-quality and evaluation pipelines before scaling.
+3. Build a properly sourced and licensed corpus and a held-out evaluation suite.
 4. Build OASIS as a separately testable runtime.
-5. Run controlled dense-versus-sparse architecture experiments when sufficient compute is available.
+5. Run controlled architecture and scaling experiments when sufficient compute is available.
 
 ## Repository hygiene
 
