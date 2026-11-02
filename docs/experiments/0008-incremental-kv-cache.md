@@ -77,6 +77,9 @@ Persistent K/V payload at the prompt context:
 - Full-MHA cache estimate at the same layer count, context, head dimension, and dtype: **32,768 bytes**.
 - Payload reduction: **50%**.
 
+
+A third repeat on the merged main branch (workflow https://github.com/FAHTHIZ/Artemus/actions/runs/41376790154) measured 27.30 ms cached versus 34.78 ms uncached, a **1.274×** ratio; output equality remained true. Across these three tiny CPU smoke runs, the measured ratio ranged from 1.27× to 1.40×. Treat this as preliminary evidence that caching helps this setup, not as a stable performance guarantee.
+
 ## Interpretation and limits
 
 This is the first measured decode improvement from caching on the tested tiny CPU setup. It is not a general speedup guarantee.
