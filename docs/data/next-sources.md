@@ -64,3 +64,16 @@ Research snapshot: 2026-11-02. Dataset availability and licences can change; eve
 - Deduplicate exact and near-duplicate content across sources before mixture creation.
 - Keep benchmark test/prompt splits untouched; report potential contamination.
 - Validate code with offline, resource-limited tests; never execute arbitrary corpus code on the host.
+
+
+## Additional foundation-pretraining candidate
+
+### FineWeb and FineWeb-Edu
+
+- FineWeb dataset card: https://huggingface.co/datasets/HuggingFaceFW/fineweb
+- FineWeb-Edu dataset card: https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu
+- FineWeb is an English web-text corpus derived from 96 Common Crawl dumps from 2013 through April 2024. The current dataset card reports more than 18.5 trillion tokens and the ODC-By 1.0 licence.
+- FineWeb-Edu is an educationally filtered subset reported at roughly 1.3 trillion tokens and ODC-By 1.0. Common Crawl terms also apply.
+- These are foundation-pretraining candidates, not instruction-tuning datasets. Use a pinned release/configuration, retain source metadata, filter duplicates and quality issues, and create source/temporal held-out evaluation.
+- **Scale caveat:** the complete corpora are far beyond our current free CPU environment. FineWeb offers a `sample-10BT` configuration (about 27.6 GB); streaming a small, reproducible document sample could validate ingestion and tokenizer statistics, but it is not meaningful frontier pretraining and must not be presented as equivalent to corpus-scale training.
+- Retain the legal/provenance record. ODC-By attribution and Common Crawl terms must be respected.
