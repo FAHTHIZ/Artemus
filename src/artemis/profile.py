@@ -109,8 +109,10 @@ def profile_model(
                 else 1.0 - estimated_kv_bytes / full_mha_kv_bytes
             ),
             "note": (
-                "Theoretical compact KV-cache estimate. Current Artemis generation "
-                "does not yet implement an incremental KV cache."
+                "Estimated tensor payload for the incremental cache implemented by "
+                "forward_with_cache/generate. Actual peak memory also includes model "
+                "weights, activations, temporary expanded GQA tensors, allocator overhead, "
+                "and other runtime buffers."
             ),
         },
     }
