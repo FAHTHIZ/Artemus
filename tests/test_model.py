@@ -149,3 +149,71 @@ def test_factorized_embedding_old_config_keeps_legacy_weight_shapes():
     assert model.output.weight is model.token_embedding.weight
     assert isinstance(model.input_projection, torch.nn.Identity)
     assert isinstance(model.output_projection, torch.nn.Identity)
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        ModelConfig(vocab_size=512, block_size=24, n_layer=2, n_head=4, n_embd=64),
+        ModelConfig(
+            vocab_size=512, block_size=24, n_layer=2, n_head=4, n_embd=64,
+            n_kv_head=2, use_rope=True, use_qk_norm=True, use_swiglu=True,
+            embedding_dim=32,
+        ),
+    ],
+)
+def test_token_by_token_kv_cache_matches_full_forward(config):
+    torch.manual_seed(17)
+    model = ArtemisLM(config).eval()
+    tokens = torch.randint(0, config.vocab_size, (2, 11))
+    with torch.inference_mode():
+        expected, _ = model(tokens)
+        cache = None
+        chunks = []
+        for position in range(tokens.size(1)):
+            logits, cache = model.forward_with_cache(
+                tokens[:, position:position + 1],
+                cache,
+                position_offset=position,
+            )
+            chunks.append(logits)
+        actual = torch.cat(chunks, dim=1)
+    assert torch.allclose(actual, expected, atol=2e-5, rtol=2e-5)
+
+
+def test_multi_token_cached_chunk_uses_correct_non_square_causal_mask():
+    torch.manual_seed(23)
+    model = compact_model().eval()
+    tokens = torch.randint(0, 512, (2, 13))
+    with torch.inference_mode():
+        expected, _ = model(tokens)
+        first_logits, cache = model.forward_with_cache(tokens[:, :5])
+        second_logits, cache = model.forward_with_cache(
+            tokens[:, 5:10], cache, position_offset=5
+        )
+        third_logits, cache = model.forward_with_cache(
+            tokens[:, 10:], cache, position_offset=10
+        )
+        actual = torch.cat((first_logits, second_logits, third_logits), dim=1)
+    assert torch.allclose(actual, expected, atol=2e-5, rtol=2e-5)
+    assert cache[0][0].shape == (2, 2, 13, 16)
+    assert cache[0][1].shape == (2, 2, 13, 16)
+
+
+def test_gqa_cache_stores_kv_heads_not_expanded_query_heads():
+    model = compact_model().eval()
+    tokens = torch.randint(0, 512, (1, 7))
+    with torch.inference_mode():
+        _, cache = model.forward_with_cache(tokens)
+    for key, value in cache:
+        assert key.shape[1] == model.config.n_kv_head
+        assert value.shape[1] == model.config.n_kv_head
+
+
+def test_cached_forward_rejects_wrong_position_offset():
+    model = compact_model().eval()
+    tokens = torch.randint(0, 512, (1, 5))
+    with torch.inference_mode():
+        _, cache = model.forward_with_cache(tokens)
+        with pytest.raises(ValueError, match="position_offset must equal"):
+            model.forward_with_cache(tokens[:, :1], cache, position_offset=4)
