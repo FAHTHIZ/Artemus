@@ -61,12 +61,14 @@ jobs:
           artemus-train \
             --data artifacts/oasst1/train.txt \
             --validation-data artifacts/oasst1/validation.txt \
+            --tokenizer sentencepiece \
+            --vocab-size 2048 \
             --steps 1200 \
             --batch-size 8 \
-            --block-size 64 \
-            --layers 2 \
-            --heads 2 \
-            --embedding-size 64 \
+            --block-size 256 \
+            --layers 4 \
+            --heads 4 \
+            --embedding-size 128 \
             --learning-rate 0.0003 \
             --eval-interval 100 \
             --eval-iters 8 \
@@ -78,7 +80,20 @@ jobs:
         run: |
           artemus-generate \
             --checkpoint artifacts/artemis-oasst1.pt \
-            --prompt "<|prompter|>\\nWhat is a variable?\\n<|assistant|>\\n" \
+            --prompt             --tokens 80 \
+            --device cpu
+
+      - name: Upload model checkpoint, data manifest, and evaluation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artemis-oasst1-cpu-run
+          path: |
+            artifacts/artemis-oasst1.pt
+            artifacts/oasst1/manifest.json
+          if-no-files-found: warn
+          retention-days: 7
+<|prompter|>\nWhat is a variable?\n<|assistant|>\n' \
             --tokens 80 \
             --device cpu
 
