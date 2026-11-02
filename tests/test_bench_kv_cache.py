@@ -1,7 +1,11 @@
 import torch
 import pytest
 
-from artemis.bench_kv_cache import benchmark_generation, cache_payload_bytes
+from artemis.bench_kv_cache import (
+    benchmark_generation,
+    cache_payload_bytes,
+    static_cache_payload_bytes,
+)
 from artemis.config import ModelConfig
 from artemis.model import ArtemisLM
 
@@ -36,3 +40,18 @@ def test_benchmark_validates_prompt_and_repeats():
         benchmark_generation(model, prompt, new_tokens=1, repeats=0)
     with pytest.raises(ValueError, match="non-empty"):
         benchmark_generation(model, torch.empty((1, 0), dtype=torch.long), new_tokens=1)
+
+
+def test_static_cache_reports_active_and_preallocated_capacity_bytes():
+    model = ArtemisLM(ModelConfig(
+        vocab_size=257, block_size=16, n_layer=2, n_head=4, n_embd=32,
+        n_kv_head=2, use_rope=True,
+    )).eval()
+    cache = model.allocate_static_kv_cache(1)
+    with torch.inference_mode():
+        _, cache = model.forward_with_static_cache(torch.tensor([[1, 2, 3, 4]]), cache)
+    active = static_cache_payload_bytes(cache, active_only=True)
+    capacity = static_cache_payload_bytes(cache, active_only=False)
+    assert active > 0
+    assert capacity > active
+    assert capacity / active == 4
