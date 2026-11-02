@@ -2,7 +2,7 @@
 
 **Artemus is a from-scratch foundation-model and agent-systems project.** Its intended model, Artemis, is a general-purpose assistant with exceptional software-engineering capability.
 
-> **Current status:** Experiments 0001–0003 validated the initial pipeline, SentencePiece tokenization, and response-only loss masking. Experiment 0003 completed 1,200 CPU steps on a 1,085,056-parameter random-init model and verified checkpoint reload/generation; its sample output remains incoherent. Artemis is not yet a usable assistant. See the [Experiment 0003 report](docs/experiments/0003-oasst1-response-only.md).
+> **Current status:** Experiments 0001–0003 validated the initial pipeline, SentencePiece tokenization, and response-only loss masking. Experiment 0003 completed 1,200 CPU steps on a 1,085,056-parameter random-init model; its sample output remains incoherent. The next CPU experiment is currently training from random initialization on a pinned mixture of up to 30,000 OASST1 conversations plus GSM8K train-split math and MBPP official training-ID code tasks. All unit tests, source checksums, preprocessing, and mixture construction have passed; training and generation evaluation are still in progress. Artemis is not yet a usable assistant. See the [Experiment 0003 report](docs/experiments/0003-oasst1-response-only.md).
 
 ## Mission
 
@@ -48,6 +48,7 @@ See [Core Philosophy](docs/constitution/core-philosophy.md), [Compact Frontier-C
 - [Experiment 0001 report](docs/experiments/0001-cpu-smoke-test.md)
 - [Experiment 0002 — OASST1 CPU run](docs/experiments/0002-oasst1-cpu-run.md)
 - [Experiment 0003 — response-only supervision](docs/experiments/0003-oasst1-response-only.md)
+- [Current capability-mixture training run](https://github.com/FAHTHIZ/Artemus/actions/runs/41372200736)
 - [Training data source registry](docs/data/source-registry.md)
 - [Additional datasets and ingestion priorities](docs/data/next-sources.md)
 - [Core philosophy](docs/constitution/core-philosophy.md)
