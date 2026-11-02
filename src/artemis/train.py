@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
+import os
 import random
+from datetime import datetime, timezone
 from pathlib import Path
 
 import torch
@@ -177,6 +180,99 @@ def tokenizer_checkpoint_fields(
     return {"tokenizer": tokenizer.name, "tokenizer_model_b64": None}
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def build_checkpoint_metadata(
+    *,
+    args: argparse.Namespace,
+    config: ModelConfig,
+    tokenizer: ByteTokenizer | SentencePieceTokenizer,
+    device: torch.device,
+    start_step: int,
+    resume_payload: dict | None,
+    parent_checkpoint_sha256: str | None,
+) -> dict:
+    """Build an auditable, weights-only-safe record of model and data lineage."""
+    train_hash = sha256_file(args.data)
+    validation_hash = (
+        sha256_file(args.validation_data) if args.validation_data is not None else None
+    )
+    manifest_path = getattr(args, "data_manifest", None)
+    manifest_hash = (
+        sha256_file(manifest_path) if manifest_path is not None else None
+    )
+
+    previous_metadata = (
+        resume_payload.get("run_metadata", {}) if resume_payload is not None else {}
+    )
+    previous_lineage = previous_metadata.get("lineage", {})
+    if resume_payload is None:
+        lineage = {
+            "origin": "random_initialization",
+            "initialization_seed": int(args.seed),
+            "root_source_commit": os.environ.get("GITHUB_SHA"),
+            "root_parent_checkpoint_sha256": None,
+        }
+        previous_runs = []
+    elif previous_lineage:
+        lineage = dict(previous_lineage)
+        previous_runs = list(previous_metadata.get("runs", []))
+    else:
+        # A legacy checkpoint can be used, but its initialization ancestry is
+        # not reconstructed from assumptions or documentation alone.
+        lineage = {
+            "origin": "legacy_checkpoint_origin_unverified",
+            "initialization_seed": None,
+            "root_source_commit": None,
+            "root_parent_checkpoint_sha256": parent_checkpoint_sha256,
+        }
+        previous_runs = list(previous_metadata.get("runs", []))
+
+    run_record = {
+        "phase": str(getattr(args, "phase", "unspecified")),
+        "started_at_utc": datetime.now(timezone.utc).isoformat(),
+        "source_commit": os.environ.get("GITHUB_SHA"),
+        "workflow_run_id": os.environ.get("GITHUB_RUN_ID"),
+        "workflow_name": os.environ.get("GITHUB_WORKFLOW"),
+        "seed": int(args.seed),
+        "start_step": int(start_step),
+        "target_step": int(args.steps),
+        "optimizer": "AdamW",
+        "learning_rate": float(args.learning_rate),
+        "batch_size": int(args.batch_size),
+        "block_size": int(config.block_size),
+        "device": str(device),
+        "response_only": bool(args.response_only),
+        "objective_changed_from_parent": bool(
+            resume_payload is not None
+            and bool(resume_payload.get("response_only", False)) != bool(args.response_only)
+        ),
+        "parent_checkpoint_sha256": parent_checkpoint_sha256,
+        "train_text_sha256": train_hash,
+        "validation_text_sha256": validation_hash,
+        "data_manifest_sha256": manifest_hash,
+        "tokenizer": tokenizer.name,
+        "tokenizer_vocab_size": int(tokenizer.vocab_size),
+        "tokenizer_model_sha256": (
+            hashlib.sha256(tokenizer.serialized_model).hexdigest()
+            if isinstance(tokenizer, SentencePieceTokenizer)
+            else None
+        ),
+        "model_config": config.to_dict(),
+    }
+
+    return {
+        "lineage": lineage,
+        "runs": previous_runs + [run_record],
+    }
+
+
 def save_checkpoint(
     path: Path,
     model: ArtemisLM,
@@ -186,17 +282,19 @@ def save_checkpoint(
     losses: dict[str, float],
     *,
     response_only: bool,
+    run_metadata: dict,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(
         {
-            "format_version": 2,
+            "format_version": 3,
             "step": step,
             "model_config": model.config.to_dict(),
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "losses": losses,
             "response_only": response_only,
+            "run_metadata": run_metadata,
             "torch_rng_state": torch.get_rng_state(),
             "cuda_rng_states": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
             **tokenizer_checkpoint_fields(tokenizer),
@@ -211,6 +309,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--validation-data", type=Path, help="separate validation text file")
     parser.add_argument("--output", type=Path, default=Path("artifacts/artemis-tiny.pt"))
     parser.add_argument("--resume", type=Path, help="resume from a checkpoint created by this trainer")
+    parser.add_argument("--data-manifest", type=Path, help="source manifest used to create the training text")
+    parser.add_argument(
+        "--phase",
+        choices=("foundation_pretraining", "continued_pretraining", "instruction_sft", "task_sft", "post_training", "unspecified"),
+        default="unspecified",
+    )
+    parser.add_argument(
+        "--allow-objective-change",
+        action="store_true",
+        help="allow switching response-only loss when resuming from a checkpoint",
+    )
     parser.add_argument("--tokenizer", choices=("byte", "sentencepiece"), default="byte")
     parser.add_argument("--tokenizer-model", type=Path, help="existing SentencePiece .model file")
     parser.add_argument("--vocab-size", type=int, default=2048)
@@ -258,7 +367,7 @@ def main() -> None:
         if not args.resume.is_file():
             raise SystemExit(f"Checkpoint does not exist: {args.resume}")
         resume_payload = torch.load(args.resume, map_location=device, weights_only=True)
-        if resume_payload.get("format_version") not in {1, 2}:
+        if resume_payload.get("format_version") not in {1, 2, 3}:
             raise SystemExit("Unsupported checkpoint format")
 
     if args.tokenizer == "sentencepiece":
@@ -289,8 +398,14 @@ def main() -> None:
         raise SystemExit("--response-only currently requires --tokenizer sentencepiece")
 
     if resume_payload is not None:
-        if bool(resume_payload.get("response_only", False)) != args.response_only:
-            raise SystemExit("Resume checkpoint response_only setting does not match this run")
+        if (
+            bool(resume_payload.get("response_only", False)) != args.response_only
+            and not args.allow_objective_change
+        ):
+            raise SystemExit(
+                "Resume checkpoint response_only setting differs; pass "
+                "--allow-objective-change to record this explicit phase transition"
+            )
         config = ModelConfig.from_dict(resume_payload["model_config"])
     else:
         config = ModelConfig(
@@ -332,6 +447,9 @@ def main() -> None:
     model = ArtemisLM(config).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
     start_step = 0
+    parent_checkpoint_sha256 = (
+        sha256_file(args.resume) if args.resume is not None else None
+    )
     if resume_payload is not None:
         model.load_state_dict(resume_payload["model_state_dict"])
         optimizer.load_state_dict(resume_payload["optimizer_state_dict"])
@@ -352,6 +470,16 @@ def main() -> None:
         f"device={device} parameters={parameter_count:,} tokenizer={tokenizer.name} "
         f"vocab_size={tokenizer.vocab_size} train_tokens={train_data.numel():,} "
         f"validation_tokens={val_data.numel():,} start_step={start_step}"
+    )
+
+    run_metadata = build_checkpoint_metadata(
+        args=args,
+        config=config,
+        tokenizer=tokenizer,
+        device=device,
+        start_step=start_step,
+        resume_payload=resume_payload,
+        parent_checkpoint_sha256=parent_checkpoint_sha256,
     )
 
     latest_losses: dict[str, float] = {}
@@ -380,6 +508,7 @@ def main() -> None:
             save_checkpoint(
                 args.output, model, optimizer, tokenizer, step, latest_losses,
                 response_only=args.response_only,
+                run_metadata=run_metadata,
             )
 
     print(f"checkpoint_saved={args.output.resolve()}")
