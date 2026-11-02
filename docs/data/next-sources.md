@@ -77,3 +77,5 @@ Research snapshot: 2026-11-02. Dataset availability and licences can change; eve
 - These are foundation-pretraining candidates, not instruction-tuning datasets. Use a pinned release/configuration, retain source metadata, filter duplicates and quality issues, and create source/temporal held-out evaluation.
 - **Scale caveat:** the complete corpora are far beyond our current free CPU environment. A small reproducible streaming sample can validate ingestion and tokenizer statistics; it is not meaningful frontier pretraining and must not be presented as equivalent to corpus-scale training.
 - Retain the legal/provenance record. ODC-By attribution and Common Crawl terms must be respected.
+
+- **Privacy caveat:** the FineWeb card says email addresses and public IP addresses are anonymized, but residual personally identifiable information is still likely to be present; phone numbers are not regex-filtered due to false-positive concerns. Run our own privacy/PII screening and exclusion pipeline before ingestion. The card also notes that some toxic or harmful material remains and that code is not prevalent. Do not treat the upstream filters as a guarantee.
