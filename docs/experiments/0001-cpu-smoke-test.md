@@ -55,19 +55,20 @@ The falling loss indicates that the model learned patterns in this small demonst
 
 ## Verification
 
-- Unit tests on the local training copy: 4 passed.
+- Unit tests on the local training copy: **8 passed**.
 - Training: completed for 250 steps with finite loss.
 - Checkpoint: saved successfully (approximately 1.4 MiB).
 - Inference: checkpoint reloaded and generated 80 additional tokens.
-- Checkpoint SHA-256 is recorded in the accompanying run artifact.
+- Resume test: loaded the step-250 checkpoint, restored model/optimizer state, and completed five further steps to step 255; validation loss was 2.7912.
+- Checkpoint SHA-256 is recorded in the accompanying local run artifact.
 
 ## Important implementation note
 
-Review during the run identified that the token embedding and output projection shared a weight before recursive initialization, causing the shared matrix to be initialized twice. The repository baseline has been corrected so weights are initialized first and tied afterward. The run's local model used this corrected initialization order.
+Review during the run identified that the token embedding and output projection shared a weight before recursive initialization, causing the shared matrix to be initialized twice. The repository baseline has been corrected so weights are initialized first and tied afterward. The local run used this corrected initialization order.
 
 ## Artifacts
 
-The checkpoint and full local run package are intentionally kept outside Git because checkpoints are generated artifacts. The checkpoint is provided separately for reproducibility of this smoke test.
+The checkpoint and full local run package are intentionally kept outside Git because checkpoints are generated artifacts. The checkpoint and run package are supplied separately for reproducibility of this smoke test.
 
 ## Conclusion
 
