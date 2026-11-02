@@ -1,6 +1,8 @@
 """Decoder-only Transformer with compact architecture options and incremental KV caching."""
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -10,6 +12,25 @@ from artemis.config import ModelConfig
 # One per layer: (key, value), each [batch, kv_heads, cached_tokens, head_dim].
 LayerKVCache = tuple[torch.Tensor, torch.Tensor]
 KVCache = tuple[LayerKVCache, ...]
+
+
+@dataclass
+class StaticKVCache:
+    """Preallocated, per-layer K/V buffers for inference-only decoding."""
+
+    keys: tuple[torch.Tensor, ...]
+    values: tuple[torch.Tensor, ...]
+    length: int = 0
+
+    @property
+    def capacity(self) -> int:
+        if not self.keys:
+            return 0
+        return self.keys[0].size(2)
+
+    def reset(self) -> None:
+        """Reuse the allocated buffers from position zero without reallocating."""
+        self.length = 0
 
 
 class RMSNorm(nn.Module):
@@ -200,6 +221,66 @@ class CausalSelfAttention(nn.Module):
         # Cache stays at n_kv_head; never store the expanded query-head copy.
         return output, (k_all, v_all)
 
+    def forward_with_static_cache(
+        self,
+        x: torch.Tensor,
+        key_buffer: torch.Tensor,
+        value_buffer: torch.Tensor,
+        *,
+        cache_position: int,
+    ) -> torch.Tensor:
+        """Write new K/V into preallocated buffers and attend over the active prefix."""
+        batch, seq_len, width = x.shape
+        if cache_position < 0:
+            raise ValueError("cache_position must be non-negative")
+        end_position = cache_position + seq_len
+        expected_prefix = (batch, self.n_kv_head)
+        if (
+            key_buffer.ndim != 4
+            or value_buffer.ndim != 4
+            or key_buffer.shape != value_buffer.shape
+            or key_buffer.shape[:2] != expected_prefix
+            or key_buffer.size(3) != self.head_dim
+        ):
+            raise ValueError("static cache buffer shape is incompatible with this layer")
+        if end_position > key_buffer.size(2):
+            raise ValueError("static KV cache capacity exceeded")
+        q, new_k, new_v = self._project_qkv(x, position_offset=cache_position)
+        if (
+            key_buffer.device != new_k.device
+            or value_buffer.device != new_v.device
+            or key_buffer.dtype != new_k.dtype
+            or value_buffer.dtype != new_v.dtype
+        ):
+            raise ValueError("static KV cache device and dtype must match current inputs")
+
+        # Inference-only API: copy this step's compact K/V into fixed buffer slots.
+        key_buffer[:, :, cache_position:end_position, :].copy_(new_k)
+        value_buffer[:, :, cache_position:end_position, :].copy_(new_v)
+        k_all = key_buffer[:, :, :end_position, :]
+        v_all = value_buffer[:, :, :end_position, :]
+        k_attn, v_attn = self._expand_kv(k_all, v_all)
+
+        if cache_position == 0:
+            attended = F.scaled_dot_product_attention(
+                q, k_attn, v_attn,
+                dropout_p=self.dropout if self.training else 0.0,
+                is_causal=True,
+            )
+        else:
+            query_positions = cache_position + torch.arange(seq_len, device=x.device)
+            key_positions = torch.arange(end_position, device=x.device)
+            allowed = key_positions[None, :] <= query_positions[:, None]
+            attended = F.scaled_dot_product_attention(
+                q, k_attn, v_attn,
+                attn_mask=allowed,
+                dropout_p=self.dropout if self.training else 0.0,
+                is_causal=False,
+            )
+
+        attended = attended.transpose(1, 2).contiguous().view(batch, seq_len, width)
+        return self.resid_dropout(self.proj(attended))
+
 
 class FeedForward(nn.Module):
     def __init__(self, config: ModelConfig) -> None:
@@ -252,6 +333,23 @@ class TransformerBlock(nn.Module):
         )
         x = x + attended
         return x + self.feed_forward(self.norm2(x)), present
+
+    def forward_with_static_cache(
+        self,
+        x: torch.Tensor,
+        key_buffer: torch.Tensor,
+        value_buffer: torch.Tensor,
+        *,
+        cache_position: int,
+    ) -> torch.Tensor:
+        attended = self.attention.forward_with_static_cache(
+            self.norm1(x),
+            key_buffer,
+            value_buffer,
+            cache_position=cache_position,
+        )
+        x = x + attended
+        return x + self.feed_forward(self.norm2(x))
 
 
 class ArtemisLM(nn.Module):
@@ -375,6 +473,68 @@ class ArtemisLM(nn.Module):
         return logits, tuple(present)
 
     @torch.inference_mode()
+    def allocate_static_kv_cache(
+        self,
+        batch_size: int,
+        *,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ) -> StaticKVCache:
+        """Allocate fixed-capacity compact K/V buffers for inference."""
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive")
+        reference = next(self.parameters())
+        selected_device = reference.device if device is None else device
+        selected_dtype = reference.dtype if dtype is None else dtype
+        keys: list[torch.Tensor] = []
+        values: list[torch.Tensor] = []
+        kv_heads = self.config.n_head if self.config.n_kv_head is None else self.config.n_kv_head
+        head_dim = self.config.n_embd // self.config.n_head
+        shape = (batch_size, kv_heads, self.config.block_size, head_dim)
+        for _ in range(self.config.n_layer):
+            keys.append(torch.empty(shape, device=selected_device, dtype=selected_dtype))
+            values.append(torch.empty(shape, device=selected_device, dtype=selected_dtype))
+        return StaticKVCache(tuple(keys), tuple(values))
+
+    @torch.inference_mode()
+    def forward_with_static_cache(
+        self,
+        token_ids: torch.Tensor,
+        cache: StaticKVCache,
+    ) -> tuple[torch.Tensor, StaticKVCache]:
+        """Run inference using preallocated K/V buffers; no per-step K/V concatenation."""
+        if self.training:
+            raise RuntimeError("static KV cache is inference-only; call model.eval() first")
+        if token_ids.ndim != 2 or token_ids.size(1) == 0:
+            raise ValueError("token_ids must be a non-empty [batch, sequence] tensor")
+        batch, seq_len = token_ids.shape
+        end_position = cache.length + seq_len
+        if len(cache.keys) != self.config.n_layer or len(cache.values) != self.config.n_layer:
+            raise ValueError("static cache must contain one key and value buffer per layer")
+        if cache.length < 0 or end_position > self.config.block_size:
+            raise ValueError("static KV cache capacity exceeded")
+        if cache.capacity != self.config.block_size:
+            raise ValueError("static KV cache capacity does not match model block_size")
+
+        x = self.input_projection(self.token_embedding(token_ids))
+        if self.position_embedding is not None:
+            positions = torch.arange(cache.length, end_position, device=token_ids.device)
+            x = x + self.position_embedding(positions)[None, :, :]
+        x = self.embedding_dropout(x)
+
+        for index, block in enumerate(self.blocks):
+            x = block.forward_with_static_cache(
+                x,
+                cache.keys[index],
+                cache.values[index],
+                cache_position=cache.length,
+            )
+
+        logits = self.output(self.output_projection(self.final_norm(x)))
+        cache.length = end_position
+        return logits, cache
+
+    @torch.inference_mode()
     def generate(
         self,
         token_ids: torch.Tensor,
@@ -402,7 +562,10 @@ class ArtemisLM(nn.Module):
         try:
             if use_cache:
                 context = generated[:, -self.config.block_size :]
-                logits, cache = self.forward_with_cache(context)
+                cache = self.allocate_static_kv_cache(
+                    generated.size(0), device=generated.device
+                )
+                logits, cache = self.forward_with_static_cache(context, cache)
                 next_logits = logits[:, -1, :] / temperature
                 for step in range(max_new_tokens):
                     if top_k is not None:
@@ -417,16 +580,13 @@ class ArtemisLM(nn.Module):
                     if eos_token_id is not None and torch.all(next_token == eos_token_id):
                         break
                     if step + 1 < max_new_tokens:
-                        cache_len = cache[0][0].size(2)
-                        if cache_len < self.config.block_size:
-                            logits, cache = self.forward_with_cache(
-                                next_token, cache, position_offset=cache_len
-                            )
+                        if cache.length < self.config.block_size:
+                            logits, cache = self.forward_with_static_cache(next_token, cache)
                         else:
-                            # Sliding-window behaviour matches the uncached path:
-                            # rebuild the cache from the latest configured window.
+                            # Reuse the same buffers for the latest sliding context.
                             context = generated[:, -self.config.block_size :]
-                            logits, cache = self.forward_with_cache(context)
+                            cache.reset()
+                            logits, cache = self.forward_with_static_cache(context, cache)
                         next_logits = logits[:, -1, :] / temperature
             else:
                 for _ in range(max_new_tokens):
