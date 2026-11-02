@@ -8,7 +8,7 @@
 
 Build an independently trained model whose weights begin from random initialization—not a renamed or fine-tuned copy of an existing frontier model—and develop it through reproducible training, evaluation, and controlled iteration.
 
-The long-term ambition is frontier-class general intelligence with especially strong coding, debugging, repository understanding, mathematics, tool use, and long-horizon task execution. This is an objective to measure, not a capability claim or guarantee.
+The long-term ambition is a compact frontier flagship with strong coding, debugging, repository understanding, mathematics, general reasoning, multilingual capability, tool use, and long-horizon task execution. This is an objective to measure, not a capability claim or guarantee. The final parameter budget will be chosen by measured quality/compute/memory scaling curves rather than a fixed headline number.
 
 ## System at a glance
 
@@ -52,13 +52,14 @@ artemus-generate --checkpoint artifacts/artemis-tiny.pt --prompt "Artemis is" --
 
 The byte tokenizer and tiny model are temporary research baselines, not the final architecture or a useful assistant.
 
-## Initial next steps
+## Next milestones
 
-1. Record the available workstation hardware and storage.
-2. Select the development environment and accelerator backend.
-3. Build a properly sourced and licensed corpus and a held-out evaluation suite.
-4. Build OASIS as a separately testable runtime.
-5. Run controlled architecture and scaling experiments when sufficient compute is available.
+1. Complete and evaluate the current small multi-task CPU experiment without claiming frontier capability.
+2. Run matched baseline versus factorized-embedding/GQA architecture comparisons on identical data and token budgets.
+3. Implement and benchmark incremental KV caching; measure prefill/decode latency and peak memory.
+4. Build the licensed broad pretraining corpus and a protected evaluation suite, including Bangla/Banglish and code.
+5. Obtain appropriately sized accelerator compute for genuine foundation pretraining and controlled size/data scaling sweeps.
+6. Develop OASIS separately and measure base-model versus agent-system performance.
 
 ## Repository hygiene
 
