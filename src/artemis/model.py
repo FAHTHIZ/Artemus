@@ -87,17 +87,16 @@ class ArtemisLM(nn.Module):
         self.blocks = nn.Sequential(*(TransformerBlock(config) for _ in range(config.n_layer)))
         self.final_norm = RMSNorm(config.n_embd)
         self.output = nn.Linear(config.n_embd, config.vocab_size, bias=False)
-        self.output.weight = self.token_embedding.weight
         self.apply(self._initialise)
+        # Tie only after initialization, so the shared matrix is initialized once.
+        self.output.weight = self.token_embedding.weight
 
     @staticmethod
     def _initialise(module: nn.Module) -> None:
-        if isinstance(module, nn.Linear):
+        if isinstance(module, (nn.Linear, nn.Embedding)):
             nn.init.normal_(module.weight, mean=0.0, std=0.02)
-            if module.bias is not None:
+            if isinstance(module, nn.Linear) and module.bias is not None:
                 nn.init.zeros_(module.bias)
-        elif isinstance(module, nn.Embedding):
-            nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(
         self, token_ids: torch.Tensor, targets: torch.Tensor | None = None
