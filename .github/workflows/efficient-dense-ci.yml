@@ -78,3 +78,15 @@ jobs:
             --batch-size 1 \
             --context-length 256 \
             --dtype-bytes 2
+
+      - name: Profile the legacy dense baseline at the same width and vocabulary
+        run: |
+          artemus-profile \
+            --vocab-size 4096 \
+            --block-size 256 \
+            --layers 4 \
+            --heads 4 \
+            --embedding-size 128 \
+            --batch-size 1 \
+            --context-length 256 \
+            --dtype-bytes 2
