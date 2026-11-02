@@ -2,6 +2,13 @@ name: Artemis multi-task capability training
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/capability-training.yml"
+      - "src/artemis/**"
+      - "pyproject.toml"
 
 permissions:
   contents: read
@@ -96,12 +103,17 @@ jobs:
             --layers 4 \
             --heads 4 \
             --embedding-size 128 \
+            --embedding-dim 64 \
+            --kv-heads 2 \
+            --use-rope \
+            --use-qk-norm \
+            --use-swiglu \
             --learning-rate 0.0003 \
             --eval-interval 250 \
             --eval-iters 8 \
             --seed 1337 \
             --device cpu \
-            --output artifacts/artemis-capability-mix.pt
+            --output artifacts/artemis-capability-mix-compact.pt
 
       - name: Inspect generated math and coding samples
         run: |
@@ -118,7 +130,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: artemis-capability-mix-cpu-run
+          name: artemis-capability-mix-compact-cpu-run
           path: |
             artifacts/artemis-capability-mix.pt
             artifacts/capability-mixture/manifest.json
