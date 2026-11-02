@@ -16,6 +16,7 @@ This document records research that materially informs the Artemis flagship stra
 | ICLR 2026, *How Text Quality Interventions Reshape Neural Scaling Laws* | Large-scale experiments show filtering, deduplication, and text-quality interventions can change fitted scaling-law coefficients and exponents. | Treat the data pipeline as an experimental variable; preserve raw/filtered comparisons and quality labels. |
 | ICLR 2025, *Gated Delta Networks* | Gating and delta-rule updates can improve linear-attention memory control and retrieval; hybrid variants combine recurrent/linear layers with sliding-window attention. | Keep as a long-context research branch after dense baselines; test retrieval and reasoning, not only throughput. |
 | ACL 2026, *Native Hybrid Attention* | Combines recurrent long-term state with a local sliding-window token cache inside a unified attention operation. | Consider a from-scratch hybrid candidate only if long-context tests show a useful quality/latency trade-off. |
+| 2025–2026 optimizer studies (Muon, SOAP, AdamW) | Matrix-preconditioned optimizers can improve compute/time trade-offs in some regimes, but fair comparisons require optimizer-specific tuning and final-budget evaluation; reported gains shrink with model scale in systematic comparisons. | Keep AdamW as the reproducible baseline. Add Muon/other candidates only in matched, independently tuned sweeps; compare at the same token/FLOP budget and after the full schedule. |
 | EMNLP 2026, *Switch Attention* | Dynamically routes between full and sliding-window attention at token/layer granularity. | Treat dynamic routing as a later hypothesis; measure router overhead and global-recall regressions. |
 | OpenAI SWE-bench Verified analysis (2026) | Benchmark contamination weakens the value of Verified as a frontier coding measure; SWE-bench Pro is recommended. | Maintain private holdouts and use current, contamination-aware repository evaluations. |
 
@@ -34,6 +35,9 @@ This document records research that materially informs the Artemis flagship stra
 - Gated Delta Networks: https://proceedings.iclr.cc/paper_files/paper/2025/hash/4904fad153f6434a7bcf04465d4be2cc-Abstract-Conference.html
 - Native Hybrid Attention: https://aclanthology.org/2026.acl-long.176/
 - Switch Attention: https://aclanthology.org/2026.emnlp-main.2079/
+- Muon compute/time study: https://arxiv.org/abs/2505.02222
+- Optimizer comparison and tuning caveats: https://arxiv.org/abs/2509.02046
+- Muon scaling study: https://arxiv.org/abs/2502.16982
 - SWE-bench Verified contamination: https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/
 
 ## Interpretation
