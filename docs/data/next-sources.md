@@ -29,6 +29,16 @@ Research snapshot: 2026-11-02. Dataset availability and licences can change; eve
 - The dataset provides train/validation/test splits and extensive record provenance. Do not combine validation/test records into training.
 - Content is strongly encyclopedic and is not enough by itself for colloquial, conversational Bangla or Banglish.
 
+
+### B-CORE — large Bangla pretraining candidate
+
+- Dataset card: https://huggingface.co/datasets/nahid-hub/B-CORE-bengali-corpus
+- The current card reports approximately 16.47 million documents, 4.32 billion tokens, and 20.8 GB compressed. It advertises streaming access.
+- Dataset-level licence is stated as CC-BY-4.0, but the card explicitly notes that individual source components may carry their own attribution requirements. Review the source-data manifest and component licences before ingestion or release; do not treat the top-level label as blanket clearance for every underlying work.
+- This is a promising Bangla monolingual foundation source, but it does not replace colloquial Banglish, dialogue, code-switching, or English. Keep its contribution separately measured and avoid letting it dominate the multilingual mixture.
+- Its full compressed size is not suitable for our present free CPU CI workflow. A small streaming sample can test the loader, tokenizer fertility, source metadata, and PII checks; it is not a meaningful full-scale pretraining run.
+- Retain citation/attribution, immutable dataset revision, document IDs, source metadata, and hashes. Keep any source-level exclusions auditable.
+
 ### Bangladesh National Corpus
 - Landing page: https://www.bangladeshnationalcorpus.org/
 - Large reported collection and useful potential source, but this research pass did not establish a clear reuse/training licence for all materials.
