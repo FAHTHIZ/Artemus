@@ -31,3 +31,15 @@ def test_profile_validates_context_and_dtype():
         profile_model(config, context_length=33)
     with pytest.raises(ValueError, match="dtype_bytes"):
         profile_model(config, dtype_bytes=0)
+
+
+def test_factorized_embedding_profile_counts_projection_matrices():
+    config = ModelConfig(
+        vocab_size=4096, block_size=256, n_layer=4, n_head=4, n_embd=128,
+        n_kv_head=2, use_rope=True, use_qk_norm=True, use_swiglu=True,
+        embedding_dim=64,
+    )
+    report = profile_model(config, context_length=256)
+    assert report["parameters_by_component"]["token_embedding_and_output_tied"] == 4096 * 64
+    assert report["parameters_by_component"]["embedding_projections"] == 2 * 128 * 64
+    assert report["model_parameters"] == sum(report["parameters_by_component"].values())
