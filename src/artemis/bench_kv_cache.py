@@ -85,8 +85,12 @@ def benchmark_generation(
 
     model.eval()
     modes = ("static", "dynamic", "uncached")
-    for _ in range(warmup):
-        for mode in modes:
+    # Rotate mode order so one path does not always benefit from running first
+    # or suffer from being last during thermal/frequency/cache effects.
+    for warmup_index in range(warmup):
+        offset = warmup_index % len(modes)
+        warmup_order = modes[offset:] + modes[:offset]
+        for mode in warmup_order:
             _timed_generation(
                 model, prompt, new_tokens=new_tokens,
                 cache_mode=mode, device=selected_device,
@@ -94,8 +98,10 @@ def benchmark_generation(
 
     times: dict[str, list[float]] = {mode: [] for mode in modes}
     outputs: dict[str, torch.Tensor] = {}
-    for _ in range(repeats):
-        for mode in modes:
+    for repeat_index in range(repeats):
+        offset = repeat_index % len(modes)
+        timed_order = modes[offset:] + modes[:offset]
+        for mode in timed_order:
             elapsed, output = _timed_generation(
                 model, prompt, new_tokens=new_tokens,
                 cache_mode=mode, device=selected_device,
