@@ -64,6 +64,17 @@ jobs:
             --device cpu \
             --output artifacts/efficient-dense-smoke.pt
 
+      - name: Smoke-test cached checkpoint generation
+        run: |
+          artemus-generate \
+            --checkpoint artifacts/efficient-dense-smoke.pt \
+            --prompt "Artemis is" \
+            --tokens 12 --top-k 1 --device cpu
+          artemus-generate \
+            --checkpoint artifacts/efficient-dense-smoke.pt \
+            --prompt "Artemis is" \
+            --tokens 12 --top-k 1 --no-cache --device cpu
+
       - name: Profile compact GQA model parameters and theoretical KV cache
         run: |
           artemus-profile \
