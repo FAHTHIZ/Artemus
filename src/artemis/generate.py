@@ -21,6 +21,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=0.9)
     parser.add_argument("--top-k", type=int, default=40)
     parser.add_argument("--device", default="auto")
+    parser.add_argument(
+        "--no-cache", action="store_true", help="disable incremental KV caching for reference comparisons"
+    )
     return parser.parse_args()
 
 
@@ -70,6 +73,7 @@ def main() -> None:
         temperature=args.temperature,
         top_k=args.top_k,
         eos_token_id=tokenizer.stop_token_id,
+        use_cache=not args.no_cache,
     )[0].tolist()
     print(tokenizer.decode(output_ids))
     print("\nNOTE: generated text is experimental; evaluate it before treating it as useful advice.")
