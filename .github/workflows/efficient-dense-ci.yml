@@ -75,7 +75,7 @@ jobs:
             --prompt "Artemis is" \
             --tokens 12 --top-k 1 --no-cache --device cpu
 
-      - name: Profile compact GQA model parameters and theoretical KV cache
+      - name: Profile compact GQA model parameters and KV-cache payload
         run: |
           artemus-profile \
             --vocab-size 4096 \
