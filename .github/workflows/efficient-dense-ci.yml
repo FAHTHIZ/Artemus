@@ -124,6 +124,42 @@ jobs:
             --threads 2 \
             --device cpu
 
+      - name: Benchmark short-context static versus dynamic cache
+        run: |
+          artemus-bench-kv-cache \
+            --vocab-size 512 \
+            --block-size 64 \
+            --layers 2 \
+            --heads 4 \
+            --kv-heads 2 \
+            --embedding-size 64 \
+            --embedding-dim 32 \
+            --rope --qk-norm --swiglu \
+            --prompt-tokens 8 \
+            --new-tokens 24 \
+            --warmup 1 \
+            --repeats 5 \
+            --threads 2 \
+            --device cpu
+
+      - name: Benchmark near-window and rollover static versus dynamic cache
+        run: |
+          artemus-bench-kv-cache \
+            --vocab-size 512 \
+            --block-size 64 \
+            --layers 2 \
+            --heads 4 \
+            --kv-heads 2 \
+            --embedding-size 64 \
+            --embedding-dim 32 \
+            --rope --qk-norm --swiglu \
+            --prompt-tokens 56 \
+            --new-tokens 24 \
+            --warmup 1 \
+            --repeats 5 \
+            --threads 2 \
+            --device cpu
+
       - name: Profile future 10M, 30M, and 100M from-scratch model candidates
         run: |
           echo "=== ~10M compact candidate ==="
