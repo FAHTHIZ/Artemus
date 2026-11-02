@@ -13,7 +13,7 @@ import time
 import torch
 
 from artemis.config import ModelConfig
-from artemis.model import ArtemisLM
+from artemis.model import ArtemisLM, StaticKVCache
 from artemis.train import choose_device
 
 
@@ -24,6 +24,19 @@ def synchronise(device: torch.device) -> None:
 
 def cache_payload_bytes(cache: tuple[tuple[torch.Tensor, torch.Tensor], ...]) -> int:
     return sum(tensor.numel() * tensor.element_size() for layer in cache for tensor in layer)
+
+
+
+
+
+def static_cache_payload_bytes(cache: StaticKVCache, *, active_only: bool) -> int:
+    """Count active tensor payload or the full preallocated K/V capacity."""
+    length = cache.length if active_only else cache.capacity
+    return sum(
+        tensor[:, :, :length, :].numel() * tensor.element_size()
+        for tensor_group in (cache.keys, cache.values)
+        for tensor in tensor_group
+    )
 
 
 def _timed_generation(
@@ -96,9 +109,13 @@ def benchmark_generation(
         raise RuntimeError("benchmark did not produce generation outputs")
     outputs_match = bool(torch.equal(cached_output, uncached_output))
 
+    static_cache = model.allocate_static_kv_cache(
+        prompt.size(0), device=selected_device
+    )
     with torch.inference_mode():
-        _, cache = model.forward_with_cache(prompt)
-    cache_bytes = cache_payload_bytes(cache)
+        _, static_cache = model.forward_with_static_cache(prompt, static_cache)
+    cache_bytes = static_cache_payload_bytes(static_cache, active_only=True)
+    cache_capacity_bytes = static_cache_payload_bytes(static_cache, active_only=False)
     batch_size = prompt.size(0)
     context_length = prompt.size(1)
     dtype_bytes = next(model.parameters()).element_size()
@@ -134,7 +151,8 @@ def benchmark_generation(
             uncached_median / cached_median if cached_median > 0 else None
         ),
         "cached_and_uncached_outputs_match": outputs_match,
-        "kv_cache_payload_bytes": cache_bytes,
+        "kv_cache_active_payload_bytes": cache_bytes,
+        "kv_cache_allocated_capacity_bytes": cache_capacity_bytes,
         "full_mha_cache_estimate_bytes": estimated_full_mha_bytes,
         "kv_cache_payload_reduction_fraction": (
             1.0 - cache_bytes / estimated_full_mha_bytes
@@ -142,7 +160,8 @@ def benchmark_generation(
             else 0.0
         ),
         "warning": (
-            "Latency includes prompt prefill and token sampling. Results depend on "
+            "The cached generation path uses preallocated static K/V buffers. Latency "
+            "includes prompt prefill and token sampling. Results depend on "
             "device, PyTorch kernels, context, and model configuration; do not generalise "
             "from a random-init smoke model to trained-model quality."
         ),
