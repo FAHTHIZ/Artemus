@@ -17,6 +17,7 @@ dev = ["pytest>=8", "ruff>=0.6"]
 artemus-train = "artemis.train:main"
 artemus-generate = "artemis.generate:main"
 artemus-profile = "artemis.profile:main"
+artemus-bench-kv-cache = "artemis.bench_kv_cache:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
