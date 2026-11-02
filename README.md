@@ -2,7 +2,7 @@
 
 **Artemus is a from-scratch foundation-model and agent-systems project.** Its intended model, Artemis, is a general-purpose assistant with exceptional software-engineering capability.
 
-> **Current status:** Experiments 0001–0003 validated the initial pipeline, SentencePiece tokenization, and response-only loss masking. Experiment 0003 completed 1,200 CPU steps on a 1,085,056-parameter random-init model and verified checkpoint reload/generation; its sample output remains incoherent. Artemis is not yet a usable assistant. See the [Experiment 0003 report](docs/experiments/0003-oasst1-response-only.md).
+> **Current status:** Architecture documentation and a tiny CPU training baseline are committed. Experiment 0001 completed 250 training steps and verified checkpoint reload and generation. This remains a pipeline smoke test—not a capable assistant or frontier-model training run.
 
 ## Mission
 
@@ -19,12 +19,6 @@ The long-term ambition is frontier-class general intelligence with especially st
 - **Knowledge and memory services:** Retrieval over approved external information and durable project/session state.
 
 The model, agent runtime, training platform, and external memory are separate components with explicit interfaces. See [the system architecture](docs/architecture/system-overview.md).
-
-## Core philosophy
-
-Artemis is an independently trained model whose foundation weights begin from random initialization. No renamed or hidden pretrained checkpoint is allowed. The project optimises capability per parameter and unit of compute, and treats frontier-level capability as a measurable ambition rather than a claim. It aims for candid, intellectually open responses without arbitrary viewpoint-based refusals, while preserving explicit privacy, consent, legal, and serious-harm boundaries.
-
-See [Core Philosophy](docs/constitution/core-philosophy.md), [Compact Frontier-Capability Strategy](docs/architecture/compact-frontier-strategy.md), and [Frontier Comparison Plan](docs/evaluation/frontier-targets.md).
 
 ## Design principles
 
@@ -46,13 +40,6 @@ See [Core Philosophy](docs/constitution/core-philosophy.md), [Compact Frontier-C
 - [Engineering roadmap](docs/engineering/roadmap.md)
 - [First training run](docs/engineering/first-training-run.md)
 - [Experiment 0001 report](docs/experiments/0001-cpu-smoke-test.md)
-- [Experiment 0002 — OASST1 CPU run](docs/experiments/0002-oasst1-cpu-run.md)
-- [Experiment 0003 — response-only supervision](docs/experiments/0003-oasst1-response-only.md)
-- [Training data source registry](docs/data/source-registry.md)
-- [Additional datasets and ingestion priorities](docs/data/next-sources.md)
-- [Core philosophy](docs/constitution/core-philosophy.md)
-- [Compact frontier strategy](docs/architecture/compact-frontier-strategy.md)
-- [Frontier comparison plan](docs/evaluation/frontier-targets.md)
 
 ## Run locally
 

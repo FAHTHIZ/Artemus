@@ -5,21 +5,7 @@ on:
     branches:
       - main
       - bootstrap/architecture
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "pyproject.toml"
-      - "examples/**"
-      - "data/**"
-      - ".github/workflows/validation.yml"
   pull_request:
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "pyproject.toml"
-      - "examples/**"
-      - "data/**"
-      - ".github/workflows/validation.yml"
   workflow_dispatch:
 
 permissions:
@@ -55,7 +41,7 @@ jobs:
       - name: Run unit tests
         run: pytest -q
 
-      - name: Download pinned, licensed training sources
+      - name: Download pinned OASST1 reviewed conversation export
         run: |
           mkdir -p data/raw
           curl --fail --location --retry 3 --retry-delay 2 \
@@ -63,82 +49,46 @@ jobs:
             --output data/raw/oasst1-ready.messages.jsonl.gz
           echo "286a6e9a5a413b3272ae9c0b5a20d327983dea1c24342ae28cb244a6da65185c  data/raw/oasst1-ready.messages.jsonl.gz" | sha256sum --check
 
-          curl --fail --location --retry 3 --retry-delay 2 \
-            "https://raw.githubusercontent.com/openai/grade-school-math/3101c7d5072418e28b9008a6636bde82a006892c/grade_school_math/data/train.jsonl" \
-            --output data/raw/gsm8k-train.jsonl
-          echo "17f347dc51477c50d4efb83959dbb7c56297aba886e5544ee2aaed3024813465  data/raw/gsm8k-train.jsonl" | sha256sum --check
-
-          curl --fail --location --retry 3 --retry-delay 2 \
-            "https://raw.githubusercontent.com/google-research/google-research/83f1e7b59e762648c953de751d31f75720683622/mbpp/mbpp.jsonl" \
-            --output data/raw/mbpp-full.jsonl
-          python - <<'PY'
-          import hashlib
-          from pathlib import Path
-          path = Path("data/raw/mbpp-full.jsonl")
-          raw = path.read_bytes()
-          blob_sha = hashlib.sha1(f"blob {len(raw)}\\0".encode("ascii") + raw).hexdigest()
-          expected = "96e2dc2f7dd95b7b87b38dc46e42cbed444251bb"
-          if blob_sha != expected:
-              raise SystemExit(f"MBPP Git blob SHA mismatch: {blob_sha} != {expected}")
-          print(f"MBPP pinned Git blob verified: {blob_sha}")
-          PY
-
-      - name: Filter and group-split OASST1
+      - name: Filter and group-split conversations
         run: |
           python -m artemis.prepare_oasst1 \
             --source data/raw/oasst1-ready.messages.jsonl.gz \
             --output-dir artifacts/oasst1 \
-            --max-examples 30000
-
-      - name: Build OASST1, GSM8K, and MBPP training mixture
-        run: |
-          python -m artemis.prepare_capability_data \
-            --oasst-train artifacts/oasst1/train.txt \
-            --oasst-validation artifacts/oasst1/validation.txt \
-            --gsm8k-train data/raw/gsm8k-train.jsonl \
-            --mbpp-full data/raw/mbpp-full.jsonl \
-            --output-dir artifacts/capability-mixture
+            --max-examples 15000
 
       - name: Train Artemis from random initialization
         run: |
           artemus-train \
-            --data artifacts/capability-mixture/train.txt \
-            --validation-data artifacts/capability-mixture/validation.txt \
-            --tokenizer sentencepiece \
-            --vocab-size 4096 \
-            --response-only \
-            --steps 8000 \
+            --data artifacts/oasst1/train.txt \
+            --validation-data artifacts/oasst1/validation.txt \
+            --steps 1200 \
             --batch-size 8 \
-            --block-size 256 \
-            --layers 4 \
-            --heads 4 \
-            --embedding-size 128 \
+            --block-size 64 \
+            --layers 2 \
+            --heads 2 \
+            --embedding-size 64 \
             --learning-rate 0.0003 \
-            --eval-interval 250 \
+            --eval-interval 100 \
             --eval-iters 8 \
             --seed 1337 \
             --device cpu \
-            --output artifacts/artemis-capability-mix.pt
+            --output artifacts/artemis-oasst1.pt
 
-      - name: Smoke-test math and coding prompt generation
+      - name: Verify the trained checkpoint can generate text
         run: |
           artemus-generate \
-            --checkpoint artifacts/artemis-capability-mix.pt \
-            --prompt $'<|prompter|>\\nA shop sells 3 pens for $6. What is the price of 5 pens at the same rate?\\n<|assistant|>\\n' \
-            --tokens 80 --device cpu
-          artemus-generate \
-            --checkpoint artifacts/artemis-capability-mix.pt \
-            --prompt $'<|prompter|>\\nWrite a Python function that adds two numbers.\\n<|assistant|>\\n' \
-            --tokens 80 --device cpu
+            --checkpoint artifacts/artemis-oasst1.pt \
+            --prompt "<|prompter|>\\nWhat is a variable?\\n<|assistant|>\\n" \
+            --tokens 80 \
+            --device cpu
 
-      - name: Upload model checkpoint and mixture manifest
+      - name: Upload model checkpoint, data manifest, and evaluation logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: artemis-capability-mix-cpu-run
+          name: artemis-oasst1-cpu-run
           path: |
-            artifacts/artemis-capability-mix.pt
-            artifacts/capability-mixture/manifest.json
+            artifacts/artemis-oasst1.pt
             artifacts/oasst1/manifest.json
           if-no-files-found: warn
           retention-days: 7

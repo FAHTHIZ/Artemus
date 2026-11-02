@@ -225,6 +225,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--layers", type=int, default=2)
     parser.add_argument("--heads", type=int, default=2)
     parser.add_argument("--embedding-size", type=int, default=64)
+    parser.add_argument("--kv-heads", type=int, help="GQA key/value head count; defaults to full MHA")
+    parser.add_argument("--use-rope", action="store_true", help="use rotary position embeddings")
+    parser.add_argument("--use-qk-norm", action="store_true", help="normalise query/key heads")
+    parser.add_argument("--use-swiglu", action="store_true", help="use a gated SwiGLU feed-forward block")
+    parser.add_argument("--rope-theta", type=float, default=10000.0)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--eval-interval", type=int, default=25)
     parser.add_argument("--eval-iters", type=int, default=5)
@@ -295,6 +300,11 @@ def main() -> None:
             n_head=args.heads,
             n_embd=args.embedding_size,
             dropout=0.0,
+            n_kv_head=args.kv_heads,
+            use_rope=args.use_rope,
+            use_qk_norm=args.use_qk_norm,
+            use_swiglu=args.use_swiglu,
+            rope_theta=args.rope_theta,
         )
     if config.vocab_size != tokenizer.vocab_size:
         raise SystemExit(

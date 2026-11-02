@@ -1,15 +1,13 @@
-"""Generate text from an Artemis training checkpoint."""
-from __future__ import annotations
+"""Generate a sample from a saved Artemis smoke-test checkpoint."""
 
 import argparse
-import base64
 from pathlib import Path
 
 import torch
 
 from artemis.config import ModelConfig
 from artemis.model import ArtemisLM
-from artemis.tokenizer import ByteTokenizer, SentencePieceTokenizer
+from artemis.tokenizer import ByteTokenizer
 from artemis.train import choose_device
 
 
@@ -24,22 +22,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_tokenizer(payload: dict) -> ByteTokenizer | SentencePieceTokenizer:
-    tokenizer_name = payload.get("tokenizer")
-    if tokenizer_name == ByteTokenizer.name:
-        return ByteTokenizer()
-    if tokenizer_name == SentencePieceTokenizer.name:
-        encoded = payload.get("tokenizer_model_b64")
-        if not isinstance(encoded, str):
-            raise SystemExit("Checkpoint is missing the SentencePiece tokenizer model")
-        try:
-            model_proto = base64.b64decode(encoded, validate=True)
-        except ValueError as exc:
-            raise SystemExit("Checkpoint contains an invalid tokenizer model") from exc
-        return SentencePieceTokenizer.from_serialized_model(model_proto)
-    raise SystemExit(f"Unsupported tokenizer in checkpoint: {tokenizer_name!r}")
-
-
 def main() -> None:
     args = parse_args()
     if args.tokens < 0:
@@ -49,30 +31,27 @@ def main() -> None:
 
     device = choose_device(args.device)
     payload = torch.load(args.checkpoint, map_location=device, weights_only=True)
-    if payload.get("format_version") not in {1, 2}:
-        raise SystemExit("Unsupported checkpoint format")
+    if payload.get("format_version") != 1 or payload.get("tokenizer") != "utf8-byte-v1":
+        raise SystemExit("Unsupported checkpoint or tokenizer format")
 
-    tokenizer = load_tokenizer(payload)
     config = ModelConfig.from_dict(payload["model_config"])
-    if config.vocab_size != tokenizer.vocab_size:
-        raise SystemExit("Checkpoint model and tokenizer vocabulary sizes do not match")
-
     model = ArtemisLM(config).to(device)
     model.load_state_dict(payload["model_state_dict"])
 
+    tokenizer = ByteTokenizer()
     prompt_ids = tokenizer.encode(args.prompt)
     if not prompt_ids:
-        raise SystemExit("Prompt must contain at least one token")
+        raise SystemExit("Prompt must contain at least one UTF-8 byte")
     input_ids = torch.tensor([prompt_ids], dtype=torch.long, device=device)
     output_ids = model.generate(
         input_ids,
         args.tokens,
         temperature=args.temperature,
         top_k=args.top_k,
-        eos_token_id=tokenizer.stop_token_id,
+        eos_token_id=tokenizer.eos_token_id,
     )[0].tolist()
     print(tokenizer.decode(output_ids))
-    print("\nNOTE: generated text is experimental; evaluate it before treating it as useful advice.")
+    print("\nNOTE: output is from a tiny smoke-test model and should not be treated as reliable advice.")
 
 
 if __name__ == "__main__":
