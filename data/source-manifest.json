@@ -1,0 +1,17 @@
+{
+  "project": "Artemus / Artemis",
+  "purpose": "Initial small-scale conversation-model data experiment",
+  "sources": [
+    {
+      "id": "oasst1-ready-messages",
+      "license": "Apache-2.0 (as stated by upstream Hugging Face dataset card)",
+      "revision": "a4992e1595393714c9e6c567b1ed645bbf7d00ee",
+      "archive": "2023-04-12_oasst_ready.messages.jsonl.gz",
+      "sha256": "286a6e9a5a413b3272ae9c0b5a20d327983dea1c24342ae28cb244a6da65185c",
+      "url": "https://huggingface.co/datasets/OpenAssistant/oasst1/resolve/a4992e1595393714c9e6c567b1ed645bbf7d00ee/2023-04-12_oasst_ready.messages.jsonl.gz"
+    }
+  ],
+  "raw_data_committed": false,
+  "processed_data_committed": false,
+  "checkpoint_committed": false
+}
