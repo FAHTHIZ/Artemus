@@ -1,24 +1,38 @@
-name: Artemis data, training, and validation
+name: Artemis validation
 
 on:
   push:
     branches:
       - main
-      - bootstrap/architecture
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "examples/**"
+      - ".github/workflows/**"
+      - "README.md"
+      - "docs/**"
   pull_request:
-  workflow_dispatch:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "examples/**"
+      - ".github/workflows/**"
+      - "README.md"
+      - "docs/**"
 
 permissions:
   contents: read
 
 concurrency:
-  group: artemis-training-${{ github.ref }}
+  group: artemis-validation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  train:
+  tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 20
     env:
       OMP_NUM_THREADS: "2"
       MKL_NUM_THREADS: "2"
@@ -38,57 +52,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Run unit tests
+      - name: Run unit and data-integrity tests
         run: pytest -q
 
-      - name: Download pinned OASST1 reviewed conversation export
-        run: |
-          mkdir -p data/raw
-          curl --fail --location --retry 3 --retry-delay 2 \
-            "https://huggingface.co/datasets/OpenAssistant/oasst1/resolve/a4992e1595393714c9e6c567b1ed645bbf7d00ee/2023-04-12_oasst_ready.messages.jsonl.gz" \
-            --output data/raw/oasst1-ready.messages.jsonl.gz
-          echo "286a6e9a5a413b3272ae9c0b5a20d327983dea1c24342ae28cb244a6da65185c  data/raw/oasst1-ready.messages.jsonl.gz" | sha256sum --check
-
-      - name: Filter and group-split conversations
-        run: |
-          python -m artemis.prepare_oasst1 \
-            --source data/raw/oasst1-ready.messages.jsonl.gz \
-            --output-dir artifacts/oasst1 \
-            --max-examples 15000
-
-      - name: Train Artemis from random initialization
-        run: |
-          artemus-train \
-            --data artifacts/oasst1/train.txt \
-            --validation-data artifacts/oasst1/validation.txt \
-            --steps 1200 \
-            --batch-size 8 \
-            --block-size 64 \
-            --layers 2 \
-            --heads 2 \
-            --embedding-size 64 \
-            --learning-rate 0.0003 \
-            --eval-interval 100 \
-            --eval-iters 8 \
-            --seed 1337 \
-            --device cpu \
-            --output artifacts/artemis-oasst1.pt
-
-      - name: Verify the trained checkpoint can generate text
-        run: |
-          artemus-generate \
-            --checkpoint artifacts/artemis-oasst1.pt \
-            --prompt "<|prompter|>\\nWhat is a variable?\\n<|assistant|>\\n" \
-            --tokens 80 \
-            --device cpu
-
-      - name: Upload model checkpoint, data manifest, and evaluation logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: artemis-oasst1-cpu-run
-          path: |
-            artifacts/artemis-oasst1.pt
-            artifacts/oasst1/manifest.json
-          if-no-files-found: warn
-          retention-days: 7
+      - name: Check Python syntax
+        run: python -m compileall -q src tests

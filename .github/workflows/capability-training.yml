@@ -1,0 +1,127 @@
+name: Artemis multi-task capability training
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artemis-capability-training-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install project and development tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run unit and data-integrity tests
+        run: pytest -q
+
+      - name: Download pinned, licensed training sources
+        run: |
+          mkdir -p data/raw
+          curl --fail --location --retry 3 --retry-delay 2 \
+            "https://huggingface.co/datasets/OpenAssistant/oasst1/resolve/a4992e1595393714c9e6c567b1ed645bbf7d00ee/2023-04-12_oasst_ready.messages.jsonl.gz" \
+            --output data/raw/oasst1-ready.messages.jsonl.gz
+          echo "286a6e9a5a413b3272ae9c0b5a20d327983dea1c24342ae28cb244a6da65185c  data/raw/oasst1-ready.messages.jsonl.gz" | sha256sum --check
+
+          curl --fail --location --retry 3 --retry-delay 2 \
+            "https://raw.githubusercontent.com/openai/grade-school-math/3101c7d5072418e28b9008a6636bde82a006892c/grade_school_math/data/train.jsonl" \
+            --output data/raw/gsm8k-train.jsonl
+          echo "17f347dc51477c50d4efb83959dbb7c56297aba886e5544ee2aaed3024813465  data/raw/gsm8k-train.jsonl" | sha256sum --check
+
+          curl --fail --location --retry 3 --retry-delay 2 \
+            "https://raw.githubusercontent.com/google-research/google-research/83f1e7b59e762648c953de751d31f75720683622/mbpp/mbpp.jsonl" \
+            --output data/raw/mbpp-full.jsonl
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          raw = Path("data/raw/mbpp-full.jsonl").read_bytes()
+          header = b"blob " + str(len(raw)).encode("ascii") + bytes([0])
+          actual = hashlib.sha1(header + raw).hexdigest()
+          expected = "96e2dc2f7dd95b7b87b38dc46e42cbed444251bb"
+          if actual != expected:
+              raise SystemExit(f"MBPP Git blob SHA mismatch: {actual} != {expected}")
+          print(f"MBPP pinned Git blob verified: {actual}")
+          PY
+
+      - name: Filter and group-split OASST1 conversations
+        run: |
+          python -m artemis.prepare_oasst1 \
+            --source data/raw/oasst1-ready.messages.jsonl.gz \
+            --output-dir artifacts/oasst1 \
+            --max-examples 30000
+
+      - name: Build OASST1, GSM8K, and MBPP task mixture
+        run: |
+          python -m artemis.prepare_capability_data \
+            --oasst-train artifacts/oasst1/train.txt \
+            --oasst-validation artifacts/oasst1/validation.txt \
+            --gsm8k-train data/raw/gsm8k-train.jsonl \
+            --mbpp-full data/raw/mbpp-full.jsonl \
+            --output-dir artifacts/capability-mixture
+
+      - name: Train random-init Artemis task-SFT experiment
+        run: |
+          artemus-train \
+            --data artifacts/capability-mixture/train.txt \
+            --validation-data artifacts/capability-mixture/validation.txt \
+            --data-manifest artifacts/capability-mixture/manifest.json \
+            --phase task_sft \
+            --tokenizer sentencepiece \
+            --vocab-size 4096 \
+            --response-only \
+            --steps 8000 \
+            --batch-size 8 \
+            --block-size 256 \
+            --layers 4 \
+            --heads 4 \
+            --embedding-size 128 \
+            --learning-rate 0.0003 \
+            --eval-interval 250 \
+            --eval-iters 8 \
+            --seed 1337 \
+            --device cpu \
+            --output artifacts/artemis-capability-mix.pt
+
+      - name: Inspect generated math and coding samples
+        run: |
+          artemus-generate \
+            --checkpoint artifacts/artemis-capability-mix.pt \
+            --prompt $'<|prompter|>\\nA shop sells 3 pens for $6. What is the price of 5 pens at the same rate?\\n<|assistant|>\\n' \
+            --tokens 80 --device cpu
+          artemus-generate \
+            --checkpoint artifacts/artemis-capability-mix.pt \
+            --prompt $'<|prompter|>\\nWrite a Python function that adds two numbers.\\n<|assistant|>\\n' \
+            --tokens 80 --device cpu
+
+      - name: Upload checkpoint and provenance manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artemis-capability-mix-cpu-run
+          path: |
+            artifacts/artemis-capability-mix.pt
+            artifacts/capability-mixture/manifest.json
+            artifacts/oasst1/manifest.json
+          if-no-files-found: warn
+          retention-days: 14

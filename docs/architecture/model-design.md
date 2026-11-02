@@ -1,134 +1,70 @@
-# Artemis — Model Design and Research Plan
+# Artemis — Model Design and Flagship Research Plan
 
-**Status:** Research proposal; no model dimensions are committed.
+**Status:** Active research program; the production-scale dimensions are deliberately not fixed until matched-budget scaling experiments justify them.
 
-## 1. Training-from-scratch requirement
+## 1. Identity and initialization
 
-Artemis's foundation weights must begin from random initialization. The project may study published architectures, open research, public benchmarks, and external models as references. Those references do not become Artemis's hidden base model.
+Artemis is an independently developed foundation model. Official foundation checkpoints begin with random initialization inside this repository. No imported pretrained weights or hidden foreign base model are permitted. See [Core Philosophy](../constitution/core-philosophy.md).
 
-External models may be used as optional evaluators or comparison points, subject to their terms and the task's data policies. They must not be used to generate unlicensed training corpora or to disguise copied weights as scratch training.
+## 2. Current implemented architecture options
 
-## 2. Initial architecture hypothesis
+The current decoder-only Transformer supports two paths:
 
-Start with a **decoder-only Transformer** as the experimental baseline because it is well understood and allows us to validate the complete training pipeline.
+- **Legacy-compatible dense path:** full multi-head attention, learned absolute positions, GELU feed-forward block, tied token/output weights. This is preserved for historical checkpoint compatibility.
+- **Compact research path:** grouped-query attention (GQA), RoPE, optional per-head QK RMSNorm, optional SwiGLU, and optional factorized token embeddings/output projection.
 
-Research candidates for later experiments:
+The compact path passes forward/backward, causal-mask, profile, and legacy-checkpoint tests. It has not yet won a matched-quality comparison. The current generator recomputes the full context for every token and does not have an incremental KV cache; GQA's cache saving is therefore theoretical until a cache-aware implementation is measured.
 
-- Dense feed-forward blocks as the simplest baseline.
-- Sparse Mixture-of-Experts blocks with a learned router.
-- Different attention layouts and positional encoding choices.
-- Grouped-query or other memory-efficient attention variants.
-- KV-cache optimisations for inference.
-- Optional multi-token prediction or auxiliary training objectives.
+Research candidates for later:
+- Multi-head Latent Attention (MLA) for compact key/value state.
+- Sparse Mixture-of-Experts (MoE) only at a scale where routing and communication overhead can be justified.
+- Slimmable experts/adaptive compute, recurrent depth, and early exit.
+- Memory-efficient attention kernels and sequence packing.
 
-A sparse MoE model may eventually be attractive because it can maintain a large total parameter pool while activating only selected experts for a token. It is not free: routing, load balancing, expert parallelism, communication overhead, and training stability are significant engineering challenges. Shared layers are still used, and a dense model's layer-by-layer computation is not equivalent to fetching a few arbitrary pages from disk.
+## 3. Tokenizer and language coverage
 
-The decision between dense and MoE must be based on matched-budget experiments: quality, active compute, wall-clock time, memory, communication overhead, and inference throughput.
+SentencePiece BPE with byte fallback is the current tokenizer experiment; the byte tokenizer remains available for legacy checkpoints. A production tokenizer is not selected yet.
 
-## 3. Tokenizer and input representation
-
-Evaluate tokenization on representative samples of:
+Evaluate:
 - English prose and technical writing.
-- Bengali text and mixed Bengali/English usage.
-- Source code, identifiers, punctuation, and whitespace.
-- Shell commands, paths, stack traces, and structured data.
-- Mathematical notation and common scientific symbols.
+- Standard Bangla, colloquial Bangla, and Banglish.
+- Source code identifiers, punctuation, whitespace, shell commands, paths, and stack traces.
+- Mathematics, scientific notation, JSON, and structured tool-call text.
 
-Report fertility (tokens per character/word), round-trip behaviour, unknown or pathological cases, code splitting, and language balance. Do not select a tokenizer based only on English benchmark performance.
+Report fertility, round-trip behaviour, control-token integrity, and per-language sequence cost. Train tokenizer models only on the training split.
 
-Tokenizer vocabulary size, algorithm, normalization, and special tokens remain undecided until corpus analysis is complete.
+## 4. Capability priorities
 
-## 4. Capability targets
+Software engineering is the first specialist priority: code synthesis, repository comprehension, debugging, test repair, build/CI diagnosis, API integration, code review, and long-horizon changes. General flagship goals remain broad: knowledge, mathematics, reasoning, multilingual dialogue, tool use, factuality, and reliable instruction following.
 
-General-purpose capabilities:
-- Reading comprehension and instruction following.
-- Knowledge synthesis with calibrated uncertainty.
-- Mathematical and scientific problem solving.
-- Multilingual communication, including Bengali.
-- Planning, abstraction, summarisation, and explanation.
-- Structured output and reliable tool-call generation.
+Do not assume a narrow coding benchmark measures general intelligence. Use the separate capability scorecard in [Frontier Comparison and Evaluation](../evaluation/frontier-targets.md).
 
-Priority capability: software engineering:
-- Code comprehension across files and repositories.
-- Implementation from specifications.
-- Debugging and root-cause analysis.
-- Testing, build systems, dependency management, and CI.
-- Refactoring and performance reasoning.
-- API, database, systems, and infrastructure work.
-- Secure code review and vulnerability explanation.
-- Long-running work with state tracking and verification.
+## 5. Training curriculum
 
-Capability specialisation should emerge from training and be measured. Do not assume experts will specialise exactly according to human-assigned labels.
+1. **Pipeline validation:** tokenizer, data, loss mask, checkpoint/resume, and inference tests.
+2. **Foundation pretraining:** broad next-token prediction from random initialization using high-quality, licensed, deduplicated general, technical, scientific, code, mathematics, and multilingual data.
+3. **Domain-adaptive continued pretraining:** deeper code, maths, technical, and Bangla data while retaining general-domain mixture to reduce forgetting.
+4. **Instruction SFT:** reviewed human-authored prompts/responses with response-only loss where appropriate.
+5. **Verified capability training:** compiler, unit-test, exact-answer, theorem, and API-schema validated tasks.
+6. **Outcome optimisation:** optimise verifiable task outcomes; separately evaluate reward hacking and regressions.
+7. **High-quality anneal:** rebalance general language, code, reasoning, and multilingual performance.
 
-## 5. Training stages
+The current OASST1 + GSM8K + MBPP run is an early task-SFT experiment from random initialization. It is not broad foundation pretraining.
 
-1. **Pipeline validation:** tokenizer tests, data loader tests, deterministic small runs, loss monitoring, checkpoint save/resume, and inference.
-2. **Small random-init baseline:** train a small dense model to establish the first end-to-end capability baseline.
-3. **Foundation pretraining:** next-token prediction over a quality-controlled, licensed, deduplicated corpus.
-4. **Capability balancing:** measure and adjust mixture proportions for code, mathematics, technical material, multilingual content, and general language.
-5. **Supervised post-training:** instruction following, explanations, structured outputs, and tool-call formats.
-6. **Reasoning and task training:** multi-step problem solving, code tasks, debugging traces, and verified solution workflows.
-7. **Outcome-based optimisation:** use tests, compiler results, exact answers, and other deterministic outcomes where available. Use human preference evaluation for qualities that are not mechanically verifiable.
-8. **Regression and release:** compare candidates with the prior checkpoint on protected evaluations before promotion.
+## 6. Data quality and licence
 
-The exact loss functions, optimiser, learning-rate schedule, precision, batch size, context length, token budget, and training mixture must be set by experiments.
+Every data source needs a versioned manifest with source, revision, licence/permission, attribution, content type, language, hashes, split, preprocessing, deduplication, privacy filtering, and known contamination.
 
-## 6. Data quality and provenance requirements
-
-Every dataset component must record:
-- Source and acquisition method.
-- Licence or documented permission basis.
-- Collection date and source revision where available.
-- Content type, language, and approximate size.
-- Deduplication and filtering procedure.
-- Privacy and sensitive-data handling.
-- Benchmark-contamination assessment.
-- Transformation and preprocessing version.
-
-For source code, track repository origin, licence, language, build metadata when available, test availability, and dependency requirements. A code file is not automatically a high-quality training example.
-
-Do not place secrets, access tokens, personal data without a valid basis, or private repository content into training corpora. Keep data deletion and exclusion mechanisms in the ingestion design.
+FineWeb is a large general-English candidate, but ODC-By attribution and Common Crawl terms apply, and the source card warns that residual PII and harmful content may remain. It is not a code corpus. For source code, use only a carefully filtered and traceable licence set; maintain original repository/file provenance and follow opt-out removals. For Bangla corpora, review ShareAlike conditions before any weight distribution.
 
 ## 7. Scaling methodology
 
-Use small-to-large scaling experiments rather than choosing a headline parameter count first.
+Do not select a headline parameter count first. Compare candidate sizes and architecture configurations at controlled token/FLOP budgets. Fit our own empirical scaling curves for data quality, model size, architecture, and training compute. Use the smallest candidate on the quality/latency/memory Pareto frontier that still meets the full capability requirement.
 
-For each experiment, record:
-- Model architecture and parameter counts (total and active where relevant).
-- Training tokens and data mixture.
-- Accelerator type/count and wall-clock time.
-- Peak device memory and throughput.
-- Optimiser and schedule.
-- Training loss and validation loss.
-- Evaluation results by capability.
-- Inference latency, throughput, and memory.
-- Cost and energy estimates where measurable.
+All reports include total/active parameters, training tokens by source, FLOPs where measurable, hardware, wall time, peak memory, inference latency, tokens/s, per-capability scores, and regressions.
 
-A larger model should be approved only when its expected capability gain justifies its training, deployment, and maintenance cost.
+## 8. Checkpoint integrity and release
 
-## 8. Checkpoints and reproducibility
+Every checkpoint records random-init root lineage, seed, source commit, model config, tokenizer hash, data manifest/hash, parent checkpoint hash, optimizer/scheduler state, training phase, compute environment, and evaluation report. Preserve immutable milestone checkpoints and rollback routes.
 
-Each checkpoint must point to:
-- Exact source-code revision.
-- Training configuration.
-- Tokenizer version.
-- Dataset manifest and hashes.
-- Parent checkpoint, if any.
-- Optimiser/scheduler state where needed for resume.
-- Random seeds and distributed topology.
-- Training logs and evaluation report.
-
-Keep immutable milestone checkpoints and define rollback procedures. Never overwrite the only known-good checkpoint.
-
-## 9. Model release requirements
-
-A candidate must pass:
-- Training stability and artifact-integrity checks.
-- General and coding evaluation.
-- Tool-use and long-horizon task evaluation.
-- Factuality and uncertainty calibration tests.
-- Regression checks against previous releases.
-- Security and policy tests appropriate to the deployment profile.
-- Inference resource and latency checks.
-
-Frontier status is an empirical claim, not a design property. Do not claim parity or superiority without comparable evaluation conditions and reproducible results.
+Frontier capability is an empirical release claim, not a design property. A model cannot be promoted on falling loss or parameter count alone.

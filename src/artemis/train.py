@@ -334,6 +334,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--layers", type=int, default=2)
     parser.add_argument("--heads", type=int, default=2)
     parser.add_argument("--embedding-size", type=int, default=64)
+    parser.add_argument("--embedding-dim", type=int, help="factorised token embedding width; defaults to model width")
     parser.add_argument("--kv-heads", type=int, help="GQA key/value head count; defaults to full MHA")
     parser.add_argument("--use-rope", action="store_true", help="use rotary position embeddings")
     parser.add_argument("--use-qk-norm", action="store_true", help="normalise query/key heads")
@@ -415,6 +416,7 @@ def main() -> None:
             n_head=args.heads,
             n_embd=args.embedding_size,
             dropout=0.0,
+            embedding_dim=args.embedding_dim,
             n_kv_head=args.kv_heads,
             use_rope=args.use_rope,
             use_qk_norm=args.use_qk_norm,
