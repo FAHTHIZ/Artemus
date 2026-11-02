@@ -25,7 +25,9 @@ def test_sentencepiece_round_trips_unicode_and_chat_markers(tmp_path: Path):
     text = "<|prompter|> বাংলা test <|assistant|> A variable stores a value."
     ids = tokenizer.encode(text)
     assert tokenizer.decode(ids) == text
-    assert tokenizer.encode("<|assistant|>")[0] == tokenizer.processor.piece_to_id("<|assistant|>")
+    assert tokenizer.encode("<|prompter|>") == [tokenizer.processor.piece_to_id("<|prompter|>")]
+    assert tokenizer.encode("<|assistant|>") == [tokenizer.processor.piece_to_id("<|assistant|>")]
+    assert tokenizer.stop_token_id == tokenizer.processor.piece_to_id("<|end|>")
     assert tokenizer.encode("hello", add_eos=True)[-1] == tokenizer.eos_token_id
 
 
