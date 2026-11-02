@@ -89,3 +89,24 @@ Research snapshot: 2026-11-02. Dataset availability and licences can change; eve
 - Retain the legal/provenance record. ODC-By attribution and Common Crawl terms must be respected.
 
 - **Privacy caveat:** the FineWeb card says email addresses and public IP addresses are anonymized, but residual personally identifiable information is still likely to be present; phone numbers are not regex-filtered due to false-positive concerns. Run our own privacy/PII screening and exclusion pipeline before ingestion. The card also notes that some toxic or harmful material remains and that code is not prevalent. Do not treat the upstream filters as a guarantee.
+
+## Additional foundation and specialist pretraining candidates
+
+### DCLM-Baseline — curated general-English pretraining
+- Dataset card: https://huggingface.co/datasets/mlfoundations/dclm-baseline-1.0
+- The card reports CC-BY-4.0 and describes a research baseline derived from Common Crawl, with a much larger DCLM-Pool behind it.
+- The dataset is explicitly described as a research baseline, not intended by its authors as a production-ready corpus or as a specialist code/math source.
+- The underlying Common Crawl source terms and original-content rights still need review. Retain the dataset card, revision, attribution, source metadata, and any upstream restrictions. Do not equate a collection-level CC-BY tag with blanket clearance for every original webpage.
+
+### Dolma — diverse English pretraining corpus
+- Dataset: https://huggingface.co/datasets/allenai/dolma
+- The published corpus is approximately 3 trillion tokens from web, academic publications, code, books, and encyclopedic sources. Dolma v1.6 has a sample release described as roughly 10B tokens and 16.4 GB compressed.
+- Dataset-level licence: ODC-BY. The dataset card explicitly says original source licences and terms of use still apply. The mixture includes sources such as Common Crawl, The Stack, Reddit, and academic content; review component-level permissions and opt-out state before selecting any subset.
+- The Dolma curation toolkit is separate from the dataset and is Apache-2.0. Reusing the toolkit does not grant additional rights to the corpus.
+
+### OpenWebMath — mathematics-domain continuation
+- Dataset: https://huggingface.co/datasets/open-web-math/open-web-math
+- The current card reports 6.3 million rows and about 27.4 GB. It focuses on English mathematical web text and LaTeX extraction.
+- Dataset-level licence: ODC-BY 1.0; Common Crawl terms apply, and the project states it does not change the licences of underlying data.
+- Best considered for a math-heavy continued-pretraining mixture after broad foundation pretraining—not as a replacement for verified arithmetic, theorem, or code-execution tasks.
+
