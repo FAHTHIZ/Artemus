@@ -130,3 +130,31 @@ Research snapshot: 2026-11-02. Dataset availability and licences can change; eve
 - FineWeb and FineWeb-Edu remain the highest-priority broad English pretraining candidates for future accelerator-backed training. Both are labelled ODC-By on their Hugging Face dataset cards. FineWeb is sourced from Common Crawl and its card explicitly acknowledges that residual PII may remain despite email/IP anonymisation. Apply Artemis's own PII and provenance filters, retain attribution, and review Common Crawl terms before use.
 - B-CORE remains the most promising identified large Bangla-only candidate: its card reports 16.5M documents and about 4.32B tokens under a top-level CC-BY-4.0 label. The card notes that underlying components may have separate attribution/rights requirements. Audit its source manifest before any download or use.
 
+
+### OpenScientificCodeRegistry (OSCR) — preferred code-corpus pilot
+
+- Dataset: https://huggingface.co/datasets/OpenScientificCodeRegistry/Database
+- Data specification and licence guide: https://openscicode.org/help/data/
+- The current Hugging Face viewer reports roughly 755,000 unique files across 28 language labels. Each row contains a source text SHA-256, language, file size, line count, and code content.
+- OSCR publishes source files only when the originating repository licence permits redistribution. Repository manifests record the source repository, commit, licence, how the licence was confirmed, and per-file path/hash/language/row location.
+- **Important:** OSCR does not replace the original file licence with one universal licence. Each script keeps its source repository's licence; for example, non-commercial licences remain non-commercial. The project must filter by an explicit allowed SPDX list appropriate to Artemis's intended distribution, preserve source attribution/NOTICE obligations, and avoid treating all 755k files as uniformly licensed.
+- OSCR's public guide asks users to download only what they need, once, and not crawl faster than a person would read. Use block Parquet files and repository manifests; do not hammer the web interface.
+- The sample viewer contains older code and multiple languages, so ingestion needs language selection, age/staleness checks, syntax/parse validation, generated/vendor-code filters, secret/PII scanning, deduplication, and repository-level split grouping.
+- **Decision:** prioritise a small OSCR Python pilot after the present continuation run. Keep source commit, repository licence, licence-confirmation method, file path, and file hash beside every training example. Quarantine uncertain/NC/SA/copyleft files until a source-specific policy is approved.
+
+### The Stack v2 — scale candidate, not immediate free-run input
+
+- Dataset card: https://huggingface.co/datasets/bigcode/the-stack-v2
+- It spans 600+ programming/markup languages and reports about 67.5 TB full / 32.1 TB deduplicated and roughly 900B training tokens for the full training release.
+- Access to bulk content requires an agreement with Software Heritage/INRIA. The card requires compliance with Software Heritage's principles, original repository licences, source provenance, attribution, and updates that incorporate validated removal requests.
+- The Stack opt-out process allows repository/account owners to request removal from current and future training: https://github.com/bigcode-project/opt-out-v2
+- Software Heritage's principles call for open model availability, precise source identification using SWHIDs, and mechanisms for author opt-out. See https://www.softwareheritage.org/2023/10/19/swh-statement-on-llm-for-code/
+- **Decision:** no bulk acquisition on our current free CPU workflow. Revisit only with an access agreement, legal/source review, an auditable SWHID manifest, removal-update process, and appropriate model release terms.
+
+### CodeSearchNet — task/evaluation candidate pending licence review
+
+- Dataset card: https://huggingface.co/datasets/irds/codesearchnet
+- The viewer reports approximately 2.07M code/docstring documents across Python, JavaScript, Ruby, Go, Java, and PHP.
+- The original project describes repository-grouped splits for semantic code search; that makes it potentially useful for code retrieval and docstring-to-code evaluation.
+- **Decision:** do not ingest until the dataset's exact file-level source licensing, provenance, and redistribution conditions have been established. Dataset availability and a task benchmark description are not blanket training clearance.
+
