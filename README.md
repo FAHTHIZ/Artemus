@@ -2,7 +2,7 @@
 
 **Artemus** is the repository name. **Artemis** is the independently developed foundation model and flagship assistant being built here.
 
-> **Current status (2026-11-02):** The training pipeline, data-ingestion checks, checkpoint loading, and compact-architecture smoke tests work. The 1.085M-parameter response-only model from Experiment 0003 was incoherent. Experiment 0007 completed 8,000 CPU steps on an OASST1/GSM8K/MBPP multi-task mixture, but its math and Python generations were still incoherent. The newer 1.25M compact GQA/RoPE/QKNorm/SwiGLU candidate and 1.005M factorized-embedding candidate pass architecture tests and reduce parameter counts, but have not yet passed matched-quality capability comparisons. The incremental KV cache is now implemented and verified, with 47 tests passing and preliminary 1.27–1.40× speed ratios on a tiny random-init CPU benchmark. **Artemis is not yet a usable assistant or a frontier-capable model.**
+> **Current status (2026-11-03):** Artemis has a verified 1,004,928-parameter compact checkpoint, trained for 8,000 steps from random initialization on the current OASST1/GSM8K/MBPP task-SFT mixture. Validation loss fell from 8.31 to 4.67, but its math and Python generations remain incoherent. A new continuation run is now resuming that exact checkpoint, verifying data hashes, and targeting step 16,000 with a lower cosine-decayed learning rate. The workflow also runs eight scripted two-turn dialogues (general conversation, mathematics, coding, science, reasoning, Bengali, Banglish, and writing) and archives the transcripts for review. Those generated conversations are evaluation traces—not automatic training data. **Artemis is not yet a usable assistant or a frontier-capable model.**
 
 ## Mission
 
