@@ -2,6 +2,7 @@ from argparse import Namespace
 from pathlib import Path
 
 import torch
+import pytest
 
 from artemis.config import ModelConfig
 from artemis.tokenizer import ByteTokenizer
@@ -94,3 +95,52 @@ def test_legacy_checkpoint_metadata_is_not_mislabelled_as_random_init(tmp_path: 
     )
     assert metadata["lineage"]["origin"] == "legacy_checkpoint_origin_unverified"
     assert metadata["lineage"]["initialization_seed"] is None
+
+
+def test_resume_data_hashes_must_match(tmp_path: Path):
+    from artemis.train import validate_resume_data
+
+    args = make_args(tmp_path)
+    expected = {
+        "train_text_sha256": __import__("artemis.train", fromlist=["sha256_file"]).sha256_file(args.data),
+        "validation_text_sha256": __import__("artemis.train", fromlist=["sha256_file"]).sha256_file(args.validation_data),
+        "data_manifest_sha256": __import__("artemis.train", fromlist=["sha256_file"]).sha256_file(args.data_manifest),
+    }
+    payload = {"run_metadata": {"runs": [expected]}}
+    assert validate_resume_data(args=args, resume_payload=payload) is False
+
+    args.data.write_text("changed training data", encoding="utf-8")
+    with pytest.raises(SystemExit, match="Refusing to silently change"):
+        validate_resume_data(args=args, resume_payload=payload)
+
+
+def test_resume_data_change_requires_explicit_override(tmp_path: Path):
+    from artemis.train import sha256_file, validate_resume_data
+
+    args = make_args(tmp_path)
+    payload = {"run_metadata": {"runs": [{
+        "train_text_sha256": "0" * 64,
+        "validation_text_sha256": sha256_file(args.validation_data),
+        "data_manifest_sha256": sha256_file(args.data_manifest),
+    }]}}
+    with pytest.raises(SystemExit, match="--allow-data-change"):
+        validate_resume_data(args=args, resume_payload=payload)
+
+    args.allow_data_change = True
+    assert validate_resume_data(args=args, resume_payload=payload) is True
+
+
+def test_cosine_learning_rate_warmup_and_decay():
+    from artemis.train import learning_rate_at_step
+
+    kwargs = {
+        "start_step": 8000,
+        "target_step": 16000,
+        "base_learning_rate": 1e-4,
+        "min_learning_rate": 1e-5,
+        "warmup_steps": 100,
+        "schedule": "cosine",
+    }
+    assert learning_rate_at_step(step=8001, **kwargs) > 1e-5
+    assert learning_rate_at_step(step=8100, **kwargs) == pytest.approx(1e-4)
+    assert learning_rate_at_step(step=16000, **kwargs) == pytest.approx(1e-5)
