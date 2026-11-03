@@ -32,6 +32,10 @@ def make_args(tmp_path: Path) -> Namespace:
         seed=1337,
         steps=20,
         learning_rate=0.0003,
+        min_learning_rate=0.0,
+        lr_schedule="constant",
+        warmup_steps=0,
+        allow_data_change=False,
         batch_size=4,
         response_only=False,
     )
