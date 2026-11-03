@@ -1,7 +1,20 @@
-name: Artemis multi-task capability training
+name: Artemis checkpoint continuation and multi-turn training
 
 on:
   workflow_dispatch:
+    inputs:
+      resume_run_id:
+        description: "Successful prior run containing the checkpoint (or latest)"
+        required: false
+        default: latest
+        type: string
+      additional_steps:
+        description: "Additional optimizer steps to train"
+        required: false
+        default: "8000"
+        type: string
+  schedule:
+    - cron: "30 2 * * *"
   push:
     branches:
       - main
@@ -9,9 +22,11 @@ on:
       - ".github/workflows/capability-training.yml"
       - "src/artemis/**"
       - "pyproject.toml"
+      - "data/evaluation/dialogues.jsonl"
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: artemis-capability-training-${{ github.ref }}
@@ -25,6 +40,9 @@ jobs:
       OMP_NUM_THREADS: "2"
       MKL_NUM_THREADS: "2"
       TOKENIZERS_PARALLELISM: "false"
+      GH_TOKEN: ${{ github.token }}
+      ADDITIONAL_STEPS: ${{ inputs.additional_steps || '8000' }}
+      REQUESTED_RESUME_RUN_ID: ${{ inputs.resume_run_id || 'latest' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -87,17 +105,85 @@ jobs:
             --mbpp-full data/raw/mbpp-full.jsonl \
             --output-dir artifacts/capability-mixture
 
-      - name: Train random-init Artemis task-SFT experiment
+      - name: Resolve previous successful checkpoint run
+        id: previous
+        shell: bash
+        run: |
+          if [[ "$REQUESTED_RESUME_RUN_ID" == "latest" ]]; then
+            RUN_ID="$(gh run list \
+              --workflow capability-training.yml \
+              --branch main \
+              --status success \
+              --json databaseId \
+              --limit 10 | jq -r '.[0].databaseId // empty')"
+          else
+            RUN_ID="$REQUESTED_RESUME_RUN_ID"
+          fi
+          if [[ -z "$RUN_ID" || ! "$RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "No valid successful checkpoint run was found." >&2
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Resuming from successful workflow run $RUN_ID"
+
+      - name: Download prior Artemis checkpoint artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: artemis-capability-mix-compact-cpu-run
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.previous.outputs.run_id }}
+          path: artifacts/resume
+
+      - name: Verify prior checkpoint and calculate next global step
+        id: checkpoint
+        run: |
+          CHECKPOINT="artifacts/resume/artemis-capability-mix-compact.pt"
+          test -s "$CHECKPOINT"
+          python - <<'PY'
+          import torch
+          path = "artifacts/resume/artemis-capability-mix-compact.pt"
+          payload = torch.load(path, map_location="cpu", weights_only=True)
+          if payload.get("format_version") != 3:
+              raise SystemExit("Only provenance-enabled checkpoint format v3 may continue.")
+          metadata = payload.get("run_metadata") or {}
+          if metadata.get("lineage", {}).get("origin") != "random_initialization":
+              raise SystemExit("Checkpoint lineage is not verified as random initialization.")
+          if not metadata.get("runs"):
+              raise SystemExit("Checkpoint is missing run metadata.")
+          if payload.get("response_only") is not True:
+              raise SystemExit("Expected a response-only task-SFT checkpoint.")
+          print(f"checkpoint_step={payload['step']}")
+          print(f"checkpoint_parameters={sum(t.numel() for t in payload['model_state_dict'].values()):,}")
+          print(f"parent_data_hash={metadata['runs'][-1].get('train_text_sha256')}")
+          with open("artifacts/resume/checkpoint-step.txt", "w") as stream:
+              stream.write(str(int(payload["step"])))
+          PY
+          START_STEP="$(cat artifacts/resume/checkpoint-step.txt)"
+          if [[ ! "$ADDITIONAL_STEPS" =~ ^[0-9]+$ ]] || (( ADDITIONAL_STEPS < 1 )); then
+            echo "additional_steps must be a positive integer" >&2
+            exit 1
+          fi
+          TARGET_STEP=$((START_STEP + ADDITIONAL_STEPS))
+          echo "target_step=$TARGET_STEP" >> "$GITHUB_OUTPUT"
+          echo "Continuing from step $START_STEP to step $TARGET_STEP"
+
+      - name: Continue the same Artemis model with verified data lineage
         run: |
           artemus-train \
             --data artifacts/capability-mixture/train.txt \
             --validation-data artifacts/capability-mixture/validation.txt \
             --data-manifest artifacts/capability-mixture/manifest.json \
+            --resume artifacts/resume/artemis-capability-mix-compact.pt \
             --phase task_sft \
             --tokenizer sentencepiece \
-            --vocab-size 4096 \
             --response-only \
-            --steps 8000 \
+            --override-resume-learning-rate \
+            --lr-schedule cosine \
+            --learning-rate 0.0001 \
+            --min-learning-rate 0.00001 \
+            --warmup-steps 200 \
+            --steps ${{ steps.checkpoint.outputs.target_step }} \
             --batch-size 8 \
             --block-size 256 \
             --layers 4 \
@@ -108,25 +194,37 @@ jobs:
             --use-rope \
             --use-qk-norm \
             --use-swiglu \
-            --learning-rate 0.0003 \
             --eval-interval 250 \
             --eval-iters 8 \
             --seed 1337 \
             --device cpu \
             --output artifacts/artemis-capability-mix-compact.pt
 
-      - name: Inspect generated math and coding samples
+      - name: Run scripted multi-turn conversations across capabilities
+        run: |
+          artemus-dialogue-eval \
+            --checkpoint artifacts/artemis-capability-mix-compact.pt \
+            --scenarios data/evaluation/dialogues.jsonl \
+            --output-dir artifacts/dialogue-eval \
+            --max-new-tokens 64 \
+            --top-k 1 \
+            --temperature 1.0 \
+            --seed 1337 \
+            --device cpu
+          cat artifacts/dialogue-eval/summary.json
+
+      - name: Inspect math and coding checkpoint samples
         run: |
           artemus-generate \
             --checkpoint artifacts/artemis-capability-mix-compact.pt \
-            --prompt $'<|prompter|>\\nA shop sells 3 pens for $6. What is the price of 5 pens at the same rate?\\n<|assistant|>\\n' \
-            --tokens 80 --device cpu
+            --prompt $'<|prompter|>\nA shop sells 3 pens for $6. What is the price of 5 pens at the same rate?\n<|assistant|>\n' \
+            --tokens 80 --top-k 1 --device cpu
           artemus-generate \
             --checkpoint artifacts/artemis-capability-mix-compact.pt \
-            --prompt $'<|prompter|>\\nWrite a Python function that adds two numbers.\\n<|assistant|>\\n' \
-            --tokens 80 --device cpu
+            --prompt $'<|prompter|>\nWrite a Python function that adds two numbers.\n<|assistant|>\n' \
+            --tokens 80 --top-k 1 --device cpu
 
-      - name: Upload checkpoint and provenance manifests
+      - name: Upload checkpoint, provenance, and dialogue traces
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -135,5 +233,6 @@ jobs:
             artifacts/artemis-capability-mix-compact.pt
             artifacts/capability-mixture/manifest.json
             artifacts/oasst1/manifest.json
+            artifacts/dialogue-eval/
           if-no-files-found: warn
           retention-days: 14
