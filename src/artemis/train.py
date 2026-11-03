@@ -188,6 +188,76 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def validate_resume_data(
+    *,
+    args: argparse.Namespace,
+    resume_payload: dict | None,
+) -> bool:
+    """Require exact dataset/manifest identity when continuing a checkpoint."""
+    if resume_payload is None:
+        return False
+    metadata = resume_payload.get("run_metadata") or {}
+    runs = metadata.get("runs") or []
+    if not runs:
+        raise SystemExit(
+            "Resume checkpoint has no auditable run metadata; refusing an unverified continuation"
+        )
+    parent = runs[-1]
+    current = {
+        "train_text_sha256": sha256_file(args.data),
+        "validation_text_sha256": (
+            sha256_file(args.validation_data) if args.validation_data is not None else None
+        ),
+        "data_manifest_sha256": (
+            sha256_file(args.data_manifest)
+            if getattr(args, "data_manifest", None) is not None
+            else None
+        ),
+    }
+    differences = {
+        key: {"checkpoint": parent.get(key), "current": value}
+        for key, value in current.items()
+        if parent.get(key) != value
+    }
+    if differences and not args.allow_data_change:
+        raise SystemExit(
+            "Resume data/manifest hashes differ from the checkpoint. "
+            "Refusing to silently change the training distribution. "
+            "Pass --allow-data-change only for a deliberate curriculum transition. "
+            + str(differences)
+        )
+    return bool(differences)
+
+
+def learning_rate_at_step(
+    *,
+    step: int,
+    start_step: int,
+    target_step: int,
+    base_learning_rate: float,
+    min_learning_rate: float,
+    warmup_steps: int,
+    schedule: str,
+) -> float:
+    if schedule == "constant":
+        return base_learning_rate
+    if schedule != "cosine":
+        raise ValueError(f"unsupported learning-rate schedule: {schedule}")
+    if not 0.0 <= min_learning_rate <= base_learning_rate:
+        raise ValueError("min_learning_rate must be between zero and the base learning rate")
+    elapsed = max(0, step - start_step)
+    if warmup_steps > 0 and elapsed <= warmup_steps:
+        fraction = elapsed / warmup_steps
+        return min_learning_rate + fraction * (base_learning_rate - min_learning_rate)
+    decay_steps = max(1, target_step - start_step - warmup_steps)
+    decay_elapsed = min(decay_steps, max(0, elapsed - warmup_steps))
+    progress = decay_elapsed / decay_steps
+    import math
+    return min_learning_rate + 0.5 * (base_learning_rate - min_learning_rate) * (
+        1.0 + math.cos(math.pi * progress)
+    )
+
+
 def build_checkpoint_metadata(
     *,
     args: argparse.Namespace,
@@ -245,6 +315,12 @@ def build_checkpoint_metadata(
         "target_step": int(args.steps),
         "optimizer": "AdamW",
         "learning_rate": float(args.learning_rate),
+        "learning_rate_schedule": str(args.lr_schedule),
+        "minimum_learning_rate": float(args.min_learning_rate),
+        "warmup_steps": int(args.warmup_steps),
+        "data_changed_from_parent": bool(
+            getattr(args, "_resume_data_changed", False)
+        ),
         "batch_size": int(args.batch_size),
         "block_size": int(config.block_size),
         "device": str(device),
@@ -320,6 +396,24 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="allow switching response-only loss when resuming from a checkpoint",
     )
+    parser.add_argument(
+        "--allow-data-change",
+        action="store_true",
+        help="allow a deliberate dataset/manifest change when resuming; record it in lineage",
+    )
+    parser.add_argument(
+        "--override-resume-learning-rate",
+        action="store_true",
+        help="apply --learning-rate after restoring the optimizer state",
+    )
+    parser.add_argument(
+        "--lr-schedule",
+        choices=("constant", "cosine"),
+        default="constant",
+        help="learning-rate schedule for this run segment",
+    )
+    parser.add_argument("--min-learning-rate", type=float, default=0.0)
+    parser.add_argument("--warmup-steps", type=int, default=0)
     parser.add_argument("--tokenizer", choices=("byte", "sentencepiece"), default="byte")
     parser.add_argument("--tokenizer-model", type=Path, help="existing SentencePiece .model file")
     parser.add_argument("--vocab-size", type=int, default=2048)
@@ -356,6 +450,10 @@ def main() -> None:
         raise SystemExit("batch-size must be positive and learning-rate must be > 0")
     if args.block_size < 2:
         raise SystemExit("block-size must be at least 2")
+    if args.warmup_steps < 0 or args.min_learning_rate < 0:
+        raise SystemExit("warmup-steps and min-learning-rate must be non-negative")
+    if args.lr_schedule == "cosine" and args.min_learning_rate > args.learning_rate:
+        raise SystemExit("min-learning-rate must not exceed learning-rate for cosine scheduling")
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -423,6 +521,12 @@ def main() -> None:
             use_swiglu=args.use_swiglu,
             rope_theta=args.rope_theta,
         )
+    resume_data_changed = validate_resume_data(
+        args=args,
+        resume_payload=resume_payload,
+    )
+    args._resume_data_changed = resume_data_changed
+
     if config.vocab_size != tokenizer.vocab_size:
         raise SystemExit(
             f"Tokenizer vocabulary ({tokenizer.vocab_size}) does not match model "
@@ -455,6 +559,9 @@ def main() -> None:
     if resume_payload is not None:
         model.load_state_dict(resume_payload["model_state_dict"])
         optimizer.load_state_dict(resume_payload["optimizer_state_dict"])
+        if args.override_resume_learning_rate:
+            for parameter_group in optimizer.param_groups:
+                parameter_group["lr"] = args.learning_rate
         start_step = int(resume_payload["step"])
         rng_state = resume_payload.get("torch_rng_state")
         if rng_state is not None:
@@ -486,6 +593,17 @@ def main() -> None:
 
     latest_losses: dict[str, float] = {}
     for step in range(start_step + 1, args.steps + 1):
+        scheduled_lr = learning_rate_at_step(
+            step=step,
+            start_step=start_step,
+            target_step=args.steps,
+            base_learning_rate=args.learning_rate,
+            min_learning_rate=args.min_learning_rate,
+            warmup_steps=args.warmup_steps,
+            schedule=args.lr_schedule,
+        )
+        for parameter_group in optimizer.param_groups:
+            parameter_group["lr"] = scheduled_lr
         model.train()
         x, y = get_batch(
             train_data, args.batch_size, config.block_size, device, train_mask
@@ -505,7 +623,7 @@ def main() -> None:
             )
             print(
                 f"step={step:>5} train_loss={latest_losses['train']:.4f} "
-                f"val_loss={latest_losses['val']:.4f}"
+                f"val_loss={latest_losses['val']:.4f} lr={scheduled_lr:.7f}"
             )
             save_checkpoint(
                 args.output, model, optimizer, tokenizer, step, latest_losses,
