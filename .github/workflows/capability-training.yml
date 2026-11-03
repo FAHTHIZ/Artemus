@@ -43,6 +43,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       ADDITIONAL_STEPS: ${{ inputs.additional_steps || '8000' }}
       REQUESTED_RESUME_RUN_ID: ${{ inputs.resume_run_id || 'latest' }}
+      MAX_STEPS_ON_DATASET_VERSION: "16000"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -154,7 +155,7 @@ jobs:
           if payload.get("response_only") is not True:
               raise SystemExit("Expected a response-only task-SFT checkpoint.")
           print(f"checkpoint_step={payload['step']}")
-          print(f"checkpoint_parameters={sum(t.numel() for t in payload['model_state_dict'].values()):,}")
+          print(f"checkpoint_format={payload['format_version']}")
           print(f"parent_data_hash={metadata['runs'][-1].get('train_text_sha256')}")
           with open("artifacts/resume/checkpoint-step.txt", "w") as stream:
               stream.write(str(int(payload["step"])))
@@ -164,11 +165,26 @@ jobs:
             echo "additional_steps must be a positive integer" >&2
             exit 1
           fi
-          TARGET_STEP=$((START_STEP + ADDITIONAL_STEPS))
+          if (( START_STEP >= MAX_STEPS_ON_DATASET_VERSION )); then
+            mkdir -p artifacts
+            cp "$CHECKPOINT" artifacts/artemis-capability-mix-compact.pt
+            TARGET_STEP="$START_STEP"
+            SHOULD_TRAIN="false"
+            echo "This exact data mixture has reached its $MAX_STEPS_ON_DATASET_VERSION-step budget."
+            echo "The checkpoint will still receive the scheduled multi-turn conversation evaluation."
+          else
+            TARGET_STEP=$((START_STEP + ADDITIONAL_STEPS))
+            if (( TARGET_STEP > MAX_STEPS_ON_DATASET_VERSION )); then
+              TARGET_STEP="$MAX_STEPS_ON_DATASET_VERSION"
+            fi
+            SHOULD_TRAIN="true"
+            echo "Continuing from step $START_STEP to step $TARGET_STEP"
+          fi
           echo "target_step=$TARGET_STEP" >> "$GITHUB_OUTPUT"
-          echo "Continuing from step $START_STEP to step $TARGET_STEP"
+          echo "should_train=$SHOULD_TRAIN" >> "$GITHUB_OUTPUT"
 
       - name: Continue the same Artemis model with verified data lineage
+        if: steps.checkpoint.outputs.should_train == 'true'
         run: |
           artemus-train \
             --data artifacts/capability-mixture/train.txt \
