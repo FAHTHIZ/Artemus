@@ -54,6 +54,7 @@ Our current research direction is documented in:
 - [Efficient Dense Architecture V2](docs/architecture/efficient-dense-v2.md)
 - [Model Design](docs/architecture/model-design.md)
 - [Frontier Comparison and Evaluation Plan](docs/evaluation/frontier-targets.md)
+- [Flagship Capability Roadmap](docs/evaluation/capability-roadmap.md)
 - [Training Strategy](docs/training/training-strategy.md)
 - [Data Source Registry](docs/data/source-registry.md)
 - [Additional Data Sources and Ingestion Priorities](docs/data/next-sources.md)
@@ -72,7 +73,7 @@ The current OASST1/GSM8K/MBPP mixture is an early **task-SFT** experiment. It is
 - `efficient-dense-ci.yml`: compact architecture smoke training, parameter profiling, cache correctness, and cached/uncached CPU benchmarking.
 - `capability-training.yml`: manual `workflow_dispatch` plus automatic main-branch runs when training/data/tokenizer code changes; longer multi-task CPU experiment.
 
-The 8,000-step completed run is recorded at [GitHub Actions run 41372200736](https://github.com/FAHTHIZ/Artemus/actions/runs/41372200736). The artifact is retained until 2026-11-09.
+The latest 8,000-step compact checkpoint is recorded at [GitHub Actions run 41391963776](https://github.com/FAHTHIZ/Artemus/actions/runs/41391963776). The continuation workflow resumes prior v3 checkpoints only after matching data hashes, trains in bounded cosine-decayed segments up to 16,000 steps on this exact mixture, and runs an eight-domain multi-turn dialogue evaluation each day. New data versions require a deliberate curriculum transition; the same small dataset is not repeated indefinitely.
 
 ## Run locally
 
