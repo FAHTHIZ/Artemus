@@ -18,6 +18,7 @@ artemus-train = "artemis.train:main"
 artemus-generate = "artemis.generate:main"
 artemus-profile = "artemis.profile:main"
 artemus-bench-kv-cache = "artemis.bench_kv_cache:main"
+artemus-dialogue-eval = "artemis.dialogue_eval:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
