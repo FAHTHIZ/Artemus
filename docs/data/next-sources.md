@@ -110,3 +110,23 @@ Research snapshot: 2026-11-02. Dataset availability and licences can change; eve
 - Dataset-level licence: ODC-BY 1.0; Common Crawl terms apply, and the project states it does not change the licences of underlying data.
 - Best considered for a math-heavy continued-pretraining mixture after broad foundation pretraining—not as a replacement for verified arithmetic, theorem, or code-execution tasks.
 
+
+## Capability-specific source decisions (2026-11-03)
+
+### Math instruction corpora
+
+- **OpenMathInstruct-2**: https://huggingface.co/datasets/nvidia/OpenMathInstruct-2
+- Its Hugging Face card currently declares CC-BY-4.0 and reports about 14 million problem/solution pairs. The card says the solutions were generated using Llama 3.1 405B Instruct.
+- **Artemis decision: do not ingest by default.** Even though this is a dataset rather than imported weights, its externally model-generated solution traces create a distillation/provenance dependency that does not fit our strongest independent-training preference. Reconsider only if the project explicitly approves model-generated data and audits the dataset card, source problems, and attribution obligations.
+
+### Science and commonsense evaluation
+
+- AI2 ARC: https://huggingface.co/datasets/allenai/ai2_arc
+- The benchmark is useful for grade-school science QA and has public train/validation/test splits, but its current metadata says CC-BY-SA-4.0 while the dataset card's licensing section has been reported as incomplete/“More Information Needed”. Treat it as **evaluation-only / licence review required** for now; do not ingest its training split until the underlying rights and ShareAlike implications are verified.
+- Publicly accessible data is not automatically reusable training data. Keep benchmark splits protected even when the underlying dataset is downloadable.
+
+### General pretraining
+
+- FineWeb and FineWeb-Edu remain the highest-priority broad English pretraining candidates for future accelerator-backed training. Both are labelled ODC-By on their Hugging Face dataset cards. FineWeb is sourced from Common Crawl and its card explicitly acknowledges that residual PII may remain despite email/IP anonymisation. Apply Artemis's own PII and provenance filters, retain attribution, and review Common Crawl terms before use.
+- B-CORE remains the most promising identified large Bangla-only candidate: its card reports 16.5M documents and about 4.32B tokens under a top-level CC-BY-4.0 label. The card notes that underlying components may have separate attribution/rights requirements. Audit its source manifest before any download or use.
+
