@@ -42,3 +42,23 @@ def test_unreviewed_or_unknown_source_cannot_be_saved(tmp_path):
             source_type="model_self_training",
             checkpoint_sha256="b" * 64,
         )
+
+
+def test_format_sft_text_preserves_prior_multi_turn_context():
+    sample = format_sft_text(
+        "What did the second result mean?",
+        "It was the validation result.",
+        history=[
+            {"role": "user", "content": "Compare these two results."},
+            {"role": "assistant", "content": "The first is training; the second is validation."},
+        ],
+    )
+    assert sample.count("<|prompter|>") == 2
+    assert sample.count("<|assistant|>") == 2
+    assert "Compare these two results." in sample
+    assert "What did the second result mean?" in sample
+
+
+def test_format_sft_text_rejects_unknown_history_roles():
+    with pytest.raises(ValueError, match="history messages"):
+        format_sft_text("Prompt", "Answer", history=[{"role": "system", "content": "No"}])

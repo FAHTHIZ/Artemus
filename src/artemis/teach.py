@@ -21,16 +21,34 @@ from artemis.model import ArtemisLM
 from artemis.train import choose_device
 
 
-def format_sft_text(prompt: str, answer: str) -> str:
+def format_sft_text(
+    prompt: str,
+    answer: str,
+    history: list[dict[str, str]] | None = None,
+) -> str:
+    """Format a reviewed answer with the prior user/assistant turns that informed it."""
     if not prompt.strip() or not answer.strip():
         raise ValueError("prompt and answer must not be empty")
-    return (
+    segments: list[str] = []
+    for message in history or []:
+        role = message.get("role")
+        content = message.get("content", "")
+        if role not in {"user", "assistant"} or not isinstance(content, str):
+            raise ValueError("history messages must have user/assistant roles and string content")
+        if not content.strip():
+            continue
+        marker = "<|prompter|>" if role == "user" else "<|assistant|>"
+        segments.append(f"{marker}\n{content.strip()}\n<|end|>")
+    segments.append(
         "<|prompter|>\n"
         + prompt.strip()
         + "\n<|assistant|>\n"
         + answer.strip()
         + "\n<|end|>"
     )
+    return "\n".join(segments)
+
+
 
 
 def write_candidate(
@@ -42,17 +60,19 @@ def write_candidate(
     turn: int,
     source_type: str,
     checkpoint_sha256: str,
+    history: list[dict[str, str]] | None = None,
 ) -> None:
     if source_type not in {"human_correction", "human_approved_model_output"}:
         raise ValueError("unsupported teaching source type")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     record = {
-        "text": format_sft_text(prompt, answer),
+        "text": format_sft_text(prompt, answer, history),
         "source": "interactive_human_teaching",
         "source_type": source_type,
         "human_reviewed": True,
         "session_id": session_id,
         "turn": turn,
+        "context_turns": len(history or []),
         "checkpoint_sha256": checkpoint_sha256,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
     }
@@ -175,6 +195,7 @@ def main() -> None:
                 turn=turn,
                 source_type=source_type,
                 checkpoint_sha256=checkpoint_hash,
+                history=history,
             )
             print(f"[Saved reviewed candidate to {args.output}]")
 

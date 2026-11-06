@@ -152,3 +152,12 @@ The GPU notebook now samples FineWeb-Edu and FineWeb2 `ben_Beng` together **befo
 The general pretraining filter additionally rejects conservative phone-like number patterns, including Bangla numerals. This can create false positives (for example, some date-like or long numeric text); the manifest reports the rejection count. Regex filtering is a first-pass hygiene measure, not a guarantee that a corpus contains no personal data.
 
 The new `artemus-prepare-mixture` command builds deterministic document-weighted corpora from already curated train/validation JSONL pairs. It removes exact duplicates across sources, prevents selected train documents from leaking into validation, preserves the original provenance fields, and records input hashes and actual per-source document/character counts. Document weights are not token weights; measure the final tokenizer's source-level token shares before interpreting or scaling the experiment.
+
+
+### Human teaching keeps conversational context
+
+The interactive `artemus-teach` loop records the earlier user/assistant turns that informed a correction or explicitly approved response. It writes a complete multi-turn chat sequence using the model's user, assistant, and end-of-turn markers. The session-level train/validation splitter still keeps every turn from one teaching session in one split. This makes corrections to follow-up questions usable as context-aware demonstrations rather than incorrectly treating the final question as a standalone prompt.
+
+### Code adaptation with general replay
+
+The optional OSCR stage now constructs a second deterministic mixture: 85% of the current multilingual foundation replay and 15% selected, verified Python source files by document quota. It resumes the existing checkpoint rather than training a separate model and records the mixed source manifest. Inspect actual per-source token counts before scaling; document proportions are not token proportions. This replay is a forgetting-control measure, not a guarantee against forgetting.
