@@ -249,7 +249,7 @@ def prepare_mixture(
         "method": "deterministic_weighted_document_sampling",
         "seed": seed,
         "text_field": text_field,
-        "document_weights_are_approximate_token_weights": True,
+        "document_weights_are_not_token_weights": True,
         "warning": (
             "Document quotas do not guarantee token quotas. Measure per-source token "
             "shares after fitting the actual tokenizer; adjust document weights if necessary."
