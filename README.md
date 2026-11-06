@@ -56,7 +56,7 @@ The old 16k-step checkpoint is a task-SFT experiment, not the foundation model. 
 - [Kaggle GPU training notebook](notebooks/kaggle-gpu-training.ipynb): pinned FineWeb-Edu sample, provenance-preserving filtering, tokenizer training, mixed-precision GPU training, evaluation, optional OSCR code adaptation, and export.
 - [Machine-readable training curriculum](data/training-curriculum.json): source revisions, stages, licences, and promotion gates.
 
-**Direct human teaching:** install the project and run `artemus-teach --checkpoint <checkpoint.pt>`. You can correct an answer, explicitly approve it, or skip it. Corrections become candidate supervised data with checkpoint/session provenance; they do not silently update the model. Reviewed candidate data must pass a separate curation and evaluation step before SFT.
+**Direct human teaching:** install the project and run `artemus-teach --checkpoint <checkpoint.pt>`. You can correct an answer, explicitly approve it, or skip it. Corrections become candidate supervised data with checkpoint/session provenance; they do not silently update the model. Curate them with `artemus-prepare-teaching --input candidates.jsonl --output-dir prepared/`; it keeps whole teaching sessions together across train/validation. Then use the prepared JSONL splits in a separate response-only SFT run after reviewing the samples and manifest.
 
 The new trainer supports independent-document JSONL inputs, one end-of-document token per record, gradient accumulation, and CUDA FP16/BF16 mixed precision. GPU training is not run automatically by GitHub Actions: the Kaggle notebook must be opened in an account with an available GPU allocation. No cloud GPU has been provisioned by this repository workflow.
 

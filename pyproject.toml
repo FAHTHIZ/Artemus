@@ -23,6 +23,7 @@ artemus-dialogue-eval = "artemis.dialogue_eval:main"
 artemus-prepare-hf = "artemis.prepare_pretraining_data:main"
 artemus-prepare-oscr = "artemis.prepare_oscr_code:main"
 artemus-teach = "artemis.teach:main"
+artemus-prepare-teaching = "artemis.prepare_teaching_data:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

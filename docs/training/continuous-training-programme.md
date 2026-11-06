@@ -72,6 +72,33 @@ For each response, the teacher can correct it, explicitly approve it, or skip it
 
 Teaching data is not training data until it is reviewed and selected for a later SFT run. This avoids silently converting model hallucinations or private conversation material into weight updates.
 
+Prepare a reviewed set with a session-grouped validation split:
+
+```bash
+artemus-prepare-teaching \
+  --input artifacts/human-teaching/candidates.jsonl \
+  --output-dir artifacts/human-teaching/prepared
+```
+
+Then run a separate SFT segment against a checkpoint. `--steps` is the target **global** step, not an additional-step count; choose a value greater than the checkpoint's recorded step:
+
+```bash
+artemus-train \
+  --data artifacts/human-teaching/prepared/train.jsonl \
+  --validation-data artifacts/human-teaching/prepared/validation.jsonl \
+  --data-manifest artifacts/human-teaching/prepared/manifest.json \
+  --document-format jsonl --text-field text \
+  --resume artifacts/artemus-checkpoint.pt \
+  --tokenizer sentencepiece --phase instruction_sft --response-only \
+  --allow-data-change --allow-objective-change --override-resume-learning-rate \
+  --learning-rate 0.00005 --lr-schedule cosine --min-learning-rate 0.000005 \
+  --steps <checkpoint_global_step_plus_1000> \
+  --batch-size 4 --gradient-accumulation-steps 4 --device auto \
+  --output artifacts/artemus-human-taught.pt
+```
+
+Keep the preparation manifest and candidate JSONL beside the checkpoint. Review the train/validation counts and samples before launching this command. A successful training run still needs independent instruction-following and regression evaluation before promotion.
+
 ## 6. Other learning channels
 
 - **Verified code training:** pair each prompt with a reference implementation and offline tests; use execution results as independent correctness evidence.
