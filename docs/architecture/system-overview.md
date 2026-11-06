@@ -1,11 +1,11 @@
 # Artemis / OASIS — System Architecture
 
 **Status:** Initial architecture baseline (v0.1)  
-**Decision maturity:** Proposed. Implementation choices remain subject to hardware discovery and measured experiments.
+**Decision maturity:** Initial proposal. This document is retained for its model, training, and execution-interface notes. Its original model-plus-agent framing is superseded at the product-identity and top-level-control level by [Artemus Cognitive System Architecture](artemus-cognitive-system.md).
 
 ## 1. Product objective
 
-Build a general-purpose foundation model from random initialization, then surround it with a reliable agent system. Coding and software engineering are first-class capability targets, not a narrow plugin.
+Build Artemus as a general cognitive system. The independently trained ArtemisLM is one neural component inside that system; it is not the whole product. The broader system must coordinate perception, world state, memory, reasoning, goals, planning, action, verification, and evaluated learning. Coding and software engineering remain important capability targets, not the full definition of the system.
 
 The project has two distinct names and responsibilities:
 
