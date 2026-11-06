@@ -126,7 +126,7 @@ Each training segment must:
 
 ## 8. First runnable route
 
-Open notebooks/kaggle-gpu-training.ipynb in Kaggle, enable a GPU, and run the notebook top to bottom. It:
+Open notebooks/kaggle-gpu-training.ipynb in Kaggle or Google Colab, enable a GPU, and run the notebook top to bottom. It:
 - checks GPU allocation;
 - clones and records the Artemus commit;
 - streams a bounded FineWeb-Edu sample at a pinned dataset revision;
@@ -137,4 +137,4 @@ Open notebooks/kaggle-gpu-training.ipynb in Kaggle, enable a GPU, and run the no
 - evaluates dialogue health and exports checkpoint/provenance artifacts;
 - optionally continues on a selected OSCR code subset.
 
-The first run is a pipeline-scale experiment, not a frontier model training run. Increase the scale after measuring tokens/second, peak GPU memory, validation behavior, and data quality.
+The notebook detects Kaggle versus Colab working directories and exports a ZIP archive. The first run is a pipeline-scale experiment, not a frontier model training run. Increase the scale after measuring tokens/second, peak GPU memory, validation behavior, and data quality.

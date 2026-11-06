@@ -53,7 +53,7 @@ The old 16k-step checkpoint is a task-SFT experiment, not the foundation model. 
 
 - [Continuous training programme](docs/training/continuous-training-programme.md): F0 foundation pretraining → F1 domain adaptation → SFT → verified outcomes → human preferences → bounded environment optimisation → multimodal research.
 - [Cloud compute options](docs/training/cloud-compute.md): Kaggle/Colab free allocations, institutional compute, and careful paid fallbacks.
-- [Kaggle GPU training notebook](notebooks/kaggle-gpu-training.ipynb): pinned FineWeb-Edu sample, provenance-preserving filtering, tokenizer training, mixed-precision GPU training, evaluation, optional OSCR code adaptation, and export.
+- [Kaggle/Colab GPU training notebook](notebooks/kaggle-gpu-training.ipynb): pinned FineWeb-Edu sample, provenance-preserving filtering, tokenizer training, mixed-precision GPU training, evaluation, optional OSCR code adaptation, and export.
 - [Machine-readable training curriculum](data/training-curriculum.json): source revisions, stages, licences, and promotion gates.
 
 **Direct human teaching:** install the project and run `artemus-teach --checkpoint <checkpoint.pt>`. You can correct an answer, explicitly approve it, or skip it. Corrections become candidate supervised data with checkpoint/session provenance; they do not silently update the model. Curate them with `artemus-prepare-teaching --input candidates.jsonl --output-dir prepared/`; it keeps whole teaching sessions together across train/validation. Then use the prepared JSONL splits in a separate response-only SFT run after reviewing the samples and manifest.
