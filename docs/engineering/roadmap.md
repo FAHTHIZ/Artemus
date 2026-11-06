@@ -1,6 +1,8 @@
 # Artemus — Engineering Roadmap
 
-**Status:** Initial sequence; dates are not estimated until hardware and available compute are known.
+**Status:** Initial model-and-runtime roadmap; dates are not estimated until hardware and available compute are known.
+
+> **System-level priority:** This roadmap's original model/runtime stages do not implement the full Artemus cognitive system. Use [Artemus Cognitive System Architecture](../architecture/artemus-cognitive-system.md) and [First Cognitive Kernel milestone](first-cognitive-kernel.md) for the new system-first implementation sequence.
 
 ## Guiding rule
 
