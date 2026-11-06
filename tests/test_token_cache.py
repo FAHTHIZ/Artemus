@@ -29,7 +29,7 @@ def test_jsonl_token_cache_adds_eos_per_document_and_reuses_verified_cache(tmp_p
 
     expected = []
     for row in docs:
-        expected.extend(tokenizer.encode(row["text"], add_eos=True))
+        expected.extend(tokenizer.encode(row["text"].strip(), add_eos=True))
     assert first.dtype == torch.int32
     assert first.tolist() == expected
     assert second.tolist() == expected
