@@ -8,7 +8,7 @@
 
 **Artemus is the complete cognitive system. It is not synonymous with an LLM.** A language model is one possible reasoning and communication component inside a larger system that must perceive, maintain state, learn from experience, plan, act, and evaluate outcomes.
 
-The repository currently contains a small, independently trained decoder-only model under `src/artemis`, plus training, checkpoint, data-preparation, and evaluation utilities. It also contains proposed OASIS runtime documentation. It does **not** yet contain an implemented general cognitive runtime, persistent cognitive memory, a predictive world model, multimodal perception, a general planner, or a verified lifelong-learning loop.
+The repository contains a small, independently trained decoder-only model under `src/artemis`, plus training, checkpoint, data-preparation, and evaluation utilities. It now also contains an initial K0 cognitive-kernel slice under `src/artemus`: typed goal/action/observation contracts, a deterministic mock reasoner, a simulated environment, permission checks, independent goal verification, and an append-only SQLite task-event ledger. This is a testable control-loop foundation, **not** a complete general cognitive runtime. A predictive world model, richer provenance-aware memory, recovery/replay, real tool adapters, multimodal perception, and a verified learning loop remain unimplemented.
 
 Keep these concepts distinct:
 
@@ -179,18 +179,19 @@ The control loop must support pause, cancellation, interruption, durable checkpo
 
 ## 5. First implementation boundary
 
-Do not begin by implementing every modality, training a much larger model, or creating a distributed swarm of agents. The first milestone is a deterministic cognitive kernel that can complete a small, observable task in a simulated environment using a mock reasoner.
+Do not begin by implementing every modality, training a much larger model, or creating a distributed swarm of agents. The initial K0 control-loop slice is now implemented in `src/artemus` and deliberately works without a trained language model.
 
-The first vertical slice should prove:
-- A goal can be represented with explicit acceptance criteria.
-- The kernel can retrieve scoped memory and inspect world state.
-- A plan can be converted into a permission-checked action.
-- The environment returns an observation.
-- The verifier can detect success and failure independently.
-- The resulting episode can be persisted and replayed.
-- A failed step can be resumed without inventing success.
+K0 currently proves:
+- A goal carries explicit key/value success conditions and a bounded action budget.
+- A replaceable reasoner protocol can propose actions; the included deterministic reasoner is only a test baseline.
+- The kernel records observations and checks them with an independent verifier.
+- Proposed actions pass through a permission check before the environment can execute them.
+- The simulated environment returns structured action results and subsequent observations.
+- SQLite stores append-only task events across process restarts.
 
-Only after this works should ArtemisLM be connected as one reasoning adapter. The model's raw capability and the integrated system's performance must remain separately measurable.
+K0 does **not** yet implement task resumption, idempotent external actions, cancellation, a structured world model, semantic/procedural memory, real tool adapters, or learned planning. Those are subsequent milestones, not capabilities to infer from the small simulated environment.
+
+Only after the control contracts and quality gates remain stable should ArtemisLM be connected as one reasoning adapter. The model's raw capability and the integrated system's performance must remain separately measurable.
 
 ## 6. Non-goals for the first milestone
 
