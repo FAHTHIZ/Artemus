@@ -26,10 +26,10 @@ def format_sft_text(
     answer: str,
     history: list[dict[str, str]] | None = None,
 ) -> str:
-    """Format a reviewed answer with the prior user/assistant turns that informed it."""
+    """Format a reviewed final answer with earlier turns as non-target prompt context."""
     if not prompt.strip() or not answer.strip():
         raise ValueError("prompt and answer must not be empty")
-    segments: list[str] = []
+    context_lines: list[str] = []
     for message in history or []:
         role = message.get("role")
         content = message.get("content", "")
@@ -37,17 +37,22 @@ def format_sft_text(
             raise ValueError("history messages must have user/assistant roles and string content")
         if not content.strip():
             continue
-        marker = "<|prompter|>" if role == "user" else "<|assistant|>"
-        segments.append(f"{marker}\n{content.strip()}\n<|end|>")
-    segments.append(
+        label = "Earlier user message" if role == "user" else "Earlier assistant response (context only)"
+        context_lines.append(f"{label}: {content.strip()}")
+    if context_lines:
+        prompt = (
+            "Conversation context (earlier assistant responses are input context, not targets):\n"
+            + "\n".join(context_lines)
+            + "\n\nCurrent user message:\n"
+            + prompt.strip()
+        )
+    return (
         "<|prompter|>\n"
         + prompt.strip()
         + "\n<|assistant|>\n"
         + answer.strip()
         + "\n<|end|>"
     )
-    return "\n".join(segments)
-
 
 
 

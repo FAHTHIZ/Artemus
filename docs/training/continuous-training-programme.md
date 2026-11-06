@@ -156,7 +156,7 @@ The new `artemus-prepare-mixture` command builds deterministic document-weighted
 
 ### Human teaching keeps conversational context
 
-The interactive `artemus-teach` loop records the earlier user/assistant turns that informed a correction or explicitly approved response. It writes a complete multi-turn chat sequence using the model's user, assistant, and end-of-turn markers. The session-level train/validation splitter still keeps every turn from one teaching session in one split. This makes corrections to follow-up questions usable as context-aware demonstrations rather than incorrectly treating the final question as a standalone prompt.
+The interactive `artemus-teach` loop records the earlier user/assistant turns that informed a correction or explicitly approved response. Earlier turns are embedded as context text inside the user prompt; only the final, reviewed answer is marked as the assistant target. This prevents earlier unreviewed model replies from accidentally becoming supervised training targets. The session-level train/validation splitter still keeps every turn from one teaching session in one split.
 
 ### Code adaptation with general replay
 

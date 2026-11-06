@@ -53,8 +53,9 @@ def test_format_sft_text_preserves_prior_multi_turn_context():
             {"role": "assistant", "content": "The first is training; the second is validation."},
         ],
     )
-    assert sample.count("<|prompter|>") == 2
-    assert sample.count("<|assistant|>") == 2
+    assert sample.count("<|prompter|>") == 1
+    assert sample.count("<|assistant|>") == 1
+    assert "Earlier assistant response (context only)" in sample
     assert "Compare these two results." in sample
     assert "What did the second result mean?" in sample
 
