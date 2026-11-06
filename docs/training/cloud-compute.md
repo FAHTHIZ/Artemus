@@ -11,12 +11,18 @@ Official notebook documentation reports limited free GPU availability (T4 class)
 Official docs: https://www.kaggle.com/docs/notebooks
 
 ### Google Colab free tier — useful fallback
-Google says free access to GPUs/TPUs is provided on a best-effort basis. Resource availability and usage limits fluctuate; GPU types vary; free notebooks can run for up to 12 hours depending on availability and usage. It is not a guaranteed long-running training server.
+Google says free access to GPUs/TPUs is provided on a best-effort basis. Resource availability and usage limits fluctuate and are not published as fixed allowances; GPU types vary. The free managed tier also prohibits remote-control/web-service use and distributed workers, so keep Artemus training inside the interactive notebook workflow. It is not a guaranteed long-running training server.
 
 Official FAQ: https://research.google.com/colaboratory/faq.html
 
 ### University / school / hackathon resources
 Potentially the best zero-cost route for longer experiments: university research labs, coursework GPU pools, AI clubs, hackathons, open-source research programmes, and cloud credits attached to legitimate student/research programmes. Ask for a time-limited GPU VM and a persistent volume, not indefinite GPU allocation. Do not claim eligibility for a programme until its terms are checked.
+
+### Lightning AI Studios — optional free-credit GPU route
+Lightning AI currently advertises a free CPU Studio and conditional introductory GPU credits; its official documentation says GPU-credit eligibility and availability can vary, and that the service is not available in every country. Treat GPU time as a limited trial, not an always-free training server. Check the live pricing and account terms before selecting a GPU; do not enable pay-as-you-go or attach a payment method without an approved budget.
+
+Official pages: https://lightning.ai/docs/platform/build/ai-studio  
+Pricing and free-tier details: https://lightning.ai/pricing
 
 ## 2. Paid, on-demand GPU rental
 

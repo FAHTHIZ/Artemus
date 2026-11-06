@@ -47,6 +47,15 @@
           "id": "HuggingFaceFW/fineweb-edu",
           "revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
           "license": "ODC-By-1.0"
+        },
+        {
+          "id": "HuggingFaceFW/fineweb-2",
+          "config": "ben_Beng",
+          "status": "candidate_after_pinning_current_commit_and_privacy_sample_review",
+          "license": "ODC-By-1.0 plus Common Crawl terms",
+          "split": "filtered train only; never upstream test or _removed",
+          "use": "bounded Bangla continued-pretraining with general-English replay",
+          "caveats": "20.2 TB full corpus; Bengali subset about 22.25 GB on disk; residual PII likely and phone numbers not upstream-filtered"
         }
       ],
       "promotion": "domain uplift without unacceptable general or multilingual forgetting"
@@ -129,6 +138,7 @@
       "Vast.ai",
       "institutional GPU"
     ],
-    "github_actions": "CPU smoke tests and data integrity only; do not treat as a GPU training service"
+    "github_actions": "CPU smoke tests and data integrity only; do not treat as a GPU training service",
+    "potential_intro_gpu_provider": "Lightning AI Studios (conditional free credits; eligibility and country availability vary; never assume zero-cost GPU time)"
   }
 }

@@ -167,3 +167,13 @@ This update pins candidate metadata for reproducibility; it is not a legal opini
 - The original project describes repository-grouped splits for semantic code search; that makes it potentially useful for code retrieval and docstring-to-code evaluation.
 - **Decision:** do not ingest until the dataset's exact file-level source licensing, provenance, and redistribution conditions have been established. Dataset availability and a task benchmark description are not blanket training clearance.
 
+
+
+### FineWeb2 — multilingual continuation, including Bangla
+
+- Official dataset: https://huggingface.co/datasets/HuggingFaceFW/fineweb-2
+- The current dataset card lists 1,868 language-script subsets and about 20.2 TB across the full corpus. The Bengali subset is `ben_Beng`; the card's table reports about 6.15 billion words, 15.19 million documents, 87.04 GB of UTF-8 text and 22.25 GB on disk for that subset.
+- Dataset licence: ODC-By 1.0, with Common Crawl terms also applying. The corpus comes from 96 Common Crawl snapshots (2013–2024). The maintainers anonymised email addresses and public IP addresses, but explicitly warn residual PII is likely; phone numbers were not regex-filtered. Our own privacy filtering and sample review remain mandatory.
+- FineWeb2 has filtered and `_removed` subsets; use the filtered `train` subset for a first pilot. Do not train on the upstream `test` split. The maintainers do not publish small sample variants, but document streaming with `load_dataset(..., name="ben_Beng", split="train", streaming=True)` and a bounded limit.
+- **Decision:** promote FineWeb2-Bangla to the next multilingual pilot after resolving and recording the exact dataset commit SHA at run start, reviewing a sample, and adding an explicit phone-number/privacy check. Keep it as a bounded language-adaptation stage with an English replay fraction, not a huge one-language replacement for general pretraining. Do not fetch the 20.2 TB corpus wholesale.
+
