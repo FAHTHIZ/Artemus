@@ -23,9 +23,10 @@ def profile_model(
 ) -> dict[str, int | float | str | dict]:
     """Return unique parameter counts and an estimated compact KV-cache size.
 
-    The KV-cache estimate assumes keys and values are stored using n_kv_head
-    heads without expansion. Current Artemis generation does not yet implement
-    an incremental cache, so this is a target-memory estimate, not measured use.
+    The KV-cache estimate describes the persistent compact cache payload used
+    by the incremental forward_with_cache/generate path. It is not peak runtime
+    memory: temporary expanded GQA tensors, activations, allocator overhead,
+    and other buffers are excluded.
     """
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
