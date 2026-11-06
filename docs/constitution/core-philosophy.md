@@ -1,9 +1,9 @@
 # Artemis Core Philosophy
 
 **Status:** Foundational project invariant  
-**Applies to:** model weights, data, architecture, training, evaluation, inference, and product behaviour.
+**Applies to:** the ArtemisLM neural-model component, its data, architecture, training, evaluation, and inference. Whole-system principles for Artemus are defined in [Artemus Cognitive System Architecture](../architecture/artemus-cognitive-system.md).
 
-## 1. Artemis is our own model
+## 1. ArtemisLM is our independently trained model component
 
 Artemis is an independently designed and independently trained foundation model. Every official foundation checkpoint must have a traceable lineage that begins with random initialization inside this project.
 
