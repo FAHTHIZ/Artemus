@@ -29,7 +29,7 @@ Do not jump to preference/RL training while the base model cannot reliably follo
 
 ### Start now: small, reproducible pilots
 
-- **FineWeb-Edu sample-10BT** — broad educational English text for an initial foundation-pretraining pilot. Dataset revision pinned in the GPU notebook to 87f09149ef4734204d70ed1d046ddc9ca3f2b8f9; the card declares ODC-By 1.0. Common Crawl source terms and residual PII caveats remain applicable. The notebook samples a bounded number of documents; it does not download 10 billion tokens.
+- **FineWeb-Edu sample-10BT + FineWeb2 `ben_Beng`** — an initial bounded multilingual foundation mixture. FineWeb-Edu is pinned to 87f09149ef4734204d70ed1d046ddc9ca3f2b8f9. FineWeb2 resolves its exact dataset SHA once at notebook start and records it before streaming up to 5,000 accepted Bengali documents from filtered `train`. Both declare ODC-By 1.0; Common Crawl terms and residual PII caveats apply. The notebook filters phone-like sequences as well as email/IP/secret patterns, but this is not a complete privacy audit. The full FineWeb2 corpus is not downloaded.
 - **OSCR Python** — code-domain continuation through selected repository manifests and referenced Parquet blocks only. Dataset revision pinned to b0e3fadb276678880f7f3d764308fbebd3bcd044. Each repository/file keeps its own licence and source commit; exact-SPDX allowlisting and per-file SHA verification are mandatory.
 - **OASST1** — already pinned to a4992e1595393714c9e6c567b1ed645bbf7d00ee, Apache-2.0 per its dataset card; retain the existing tree-grouped split and quality filters.
 - **GSM8K** — use official train only for math SFT; keep test locked for evaluation. Pinned data revision and hash are in prepare_capability_data.py.
@@ -143,3 +143,12 @@ The notebook detects Kaggle versus Colab working directories and exports a ZIP a
 ### Disk-backed token caching for larger corpora
 
 For JSONL pretraining and continued-pretraining mixtures, pass `--token-cache-dir artifacts/token-cache`. The trainer tokenizes each document once, adds one EOS marker per document, records the source/tokenizer/cache hashes, and memory-maps the int32 stream for batch sampling. This reduces peak RAM use and avoids rebuilding tokens on every run when the source and tokenizer identities are unchanged. The cache is disposable: it can be regenerated from the pinned JSONL source and tokenizer. Keep the JSONL source and provenance manifest as the authoritative record.
+
+
+### Multilingual foundation mix and Bangla privacy filter
+
+The GPU notebook now samples FineWeb-Edu and FineWeb2 `ben_Beng` together **before** fitting the tokenizer and before random initialization. This avoids starting with an English-only tokenizer and then discovering that Bangla is represented inefficiently by byte fallback. The first mix uses 85% FineWeb-Edu and 15% FineWeb2 by accepted document quota; after fitting SentencePiece, the notebook measures actual token shares and records them. Rebalance the document weights if the token shares diverge materially from the intended mixture.
+
+The general pretraining filter additionally rejects conservative phone-like number patterns, including Bangla numerals. This can create false positives (for example, some date-like or long numeric text); the manifest reports the rejection count. Regex filtering is a first-pass hygiene measure, not a guarantee that a corpus contains no personal data.
+
+The new `artemus-prepare-mixture` command builds deterministic document-weighted corpora from already curated train/validation JSONL pairs. It removes exact duplicates across sources, prevents selected train documents from leaking into validation, preserves the original provenance fields, and records input hashes and actual per-source document/character counts. Document weights are not token weights; measure the final tokenizer's source-level token shares before interpreting or scaling the experiment.

@@ -21,7 +21,14 @@ def stable_bucket(value: str, buckets: int = 10_000) -> int:
 
 
 def obvious_sensitive_content(text: str) -> bool:
-    return any(pattern.search(text) for pattern in (EMAIL_RE, IPV4_RE, PRIVATE_KEY_RE, TOKEN_RE))
+    if any(pattern.search(text) for pattern in (EMAIL_RE, IPV4_RE, PRIVATE_KEY_RE, TOKEN_RE)):
+        return True
+    # Conservative phone-like pattern; false positives are possible, so every
+    # rejected document is counted in the source manifest for audit.
+    return any(
+        9 <= sum(char.isdigit() for char in match.group()) <= 15
+        for match in PHONE_LIKE_RE.finditer(text)
+    )
 
 
 def quality_rejection_reason(
@@ -172,13 +179,13 @@ def prepare_stream(
             "min_alpha_ratio": min_alpha_ratio,
             "filters": [
                 "missing/non-string text",
-                "obvious email/IP/private-key/token patterns",
+                "obvious email/IP/private-key/token and phone-like number patterns",
                 "length and low alphanumeric ratio",
                 "highly repetitive lines",
                 "exact duplicate content",
             ],
             "limitations": [
-                "Regex filters are not comprehensive PII or secrets detection.",
+                "Regex filters are not comprehensive PII or secrets detection; phone-like filtering can create false positives.",
                 "Exact deduplication does not detect semantic or near-duplicate documents.",
                 "A dataset-level licence label does not replace upstream terms or component-level rights review.",
             ],
