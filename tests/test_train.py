@@ -148,3 +148,45 @@ def test_cosine_learning_rate_warmup_and_decay():
     assert learning_rate_at_step(step=8001, **kwargs) > 1e-5
     assert learning_rate_at_step(step=8100, **kwargs) == pytest.approx(1e-4)
     assert learning_rate_at_step(step=16000, **kwargs) == pytest.approx(1e-5)
+
+
+
+def test_load_tokens_jsonl_adds_eos_per_document(tmp_path: Path) -> None:
+    import json
+    from artemis.train import load_tokens
+
+    training_path = tmp_path / "train.jsonl"
+    validation_path = tmp_path / "validation.jsonl"
+    training_docs = [
+        {"text": "alpha beta gamma delta " * 10, "source": "one"},
+        {"text": "epsilon zeta eta theta " * 10, "source": "two"},
+    ]
+    validation_docs = [{"text": "validation material " * 20}]
+    training_path.write_text(
+        "".join(json.dumps(row) + "\n" for row in training_docs),
+        encoding="utf-8",
+    )
+    validation_path.write_text(
+        "".join(json.dumps(row) + "\n" for row in validation_docs),
+        encoding="utf-8",
+    )
+
+    train_ids, val_ids = load_tokens(
+        training_path,
+        validation_path,
+        ByteTokenizer(),
+        document_format="jsonl",
+    )
+    assert int((train_ids == ByteTokenizer.eos_token_id).sum()) == 2
+    assert int((val_ids == ByteTokenizer.eos_token_id).sum()) == 1
+    assert train_ids[-1].item() == ByteTokenizer.eos_token_id
+
+
+def test_load_tokens_jsonl_rejects_missing_text_field(tmp_path: Path) -> None:
+    import json
+    from artemis.train import load_tokens
+
+    path = tmp_path / "bad.jsonl"
+    path.write_text(json.dumps({"body": "no text field"}) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="must contain string field"):
+        load_tokens(path, path, ByteTokenizer(), document_format="jsonl")

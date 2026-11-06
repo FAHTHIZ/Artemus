@@ -1,4 +1,4 @@
-name: Artemis checkpoint continuation and multi-turn training
+name: Artemis historical task-SFT continuation and dialogue health check
 
 on:
   workflow_dispatch:
@@ -9,20 +9,12 @@ on:
         default: latest
         type: string
       additional_steps:
-        description: "Additional optimizer steps to train"
+        description: "Additional CPU task-SFT optimizer steps (capped at 16k for this dataset version)"
         required: false
         default: "8000"
         type: string
   schedule:
     - cron: "30 2 * * *"
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/capability-training.yml"
-      - "src/artemis/**"
-      - "pyproject.toml"
-      - "data/evaluation/dialogues.jsonl"
 
 permissions:
   contents: read
@@ -131,11 +123,11 @@ jobs:
             RUN_ID="$REQUESTED_RESUME_RUN_ID"
           fi
           if [[ -z "$RUN_ID" || ! "$RUN_ID" =~ ^[0-9]+$ ]]; then
-            echo "No valid successful checkpoint run was found." >&2
+            echo "No completed run with a usable checkpoint artifact was found." >&2
             exit 1
           fi
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "Resuming from successful workflow run $RUN_ID"
+          echo "Using completed workflow run $RUN_ID containing a verified checkpoint artifact"
 
       - name: Download prior Artemis checkpoint artifact
         uses: actions/download-artifact@v4

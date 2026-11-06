@@ -2,6 +2,15 @@
 
 Research snapshot: 2026-11-02. Dataset availability and licences can change; every ingestion run must pin an immutable source revision and repeat its licence review.
 
+
+## Re-verified source metadata — 2026-11-06
+
+- **FineWeb-Edu** current repository revision used by the initial GPU notebook: `87f09149ef4734204d70ed1d046ddc9ca3f2b8f9`. The Hugging Face API reports ODC-By metadata and exposes `sample-10BT`, `sample-100BT`, and `sample-350BT` configurations. This project pins `sample-10BT` and streams a bounded document sample; it does not download the full 10-billion-token sample.
+- **OSCR Database** current pinned revision in the importer: `b0e3fadb276678880f7f3d764308fbebd3bcd044`. The current Hugging Face viewer reports 805k unique files across 28 language labels. OSCR's official access guide confirms 64 rows per Parquet row group, immutable blocks, and repository manifests that preserve commit, licence, licence-confirmation evidence, and file-level path/hash/row. Every source script retains its original repository licence; there is no universal licence for all scripts. Download only selected manifests and their referenced blocks.
+- **B-CORE** remains a promising Bangla source, but no B-CORE content is included in the first GPU notebook. Its top-level CC-BY-4.0 label does not remove the need to review component-level source and attribution obligations.
+
+This update pins candidate metadata for reproducibility; it is not a legal opinion or blanket training clearance. Always re-check source terms before each expanded ingestion and before distributing trained weights.
+
 ## Priority 1 — Small, verifiable capability datasets
 
 ### GSM8K — mathematics

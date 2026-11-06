@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "project": "Artemus",
+  "purpose": "staged, provenance-first general-purpose learning; independent base-model and integrated-system evaluation",
+  "default_policy": {
+    "never_ingest_private_or_access_controlled_material": true,
+    "require_pinned_revision": true,
+    "require_explicit_license_review_note": true,
+    "require_source_level_provenance": true,
+    "keep_validation_and_test_splits_protected": true,
+    "model_generated_data_default": "candidate_only; human_review_and_independent_verification_required",
+    "online_weight_updates": false
+  },
+  "stages": [
+    {
+      "id": "F0",
+      "name": "foundation_pretraining",
+      "method": "next-token prediction from random initialization",
+      "initial_dataset": "HuggingFaceFW/fineweb-edu",
+      "config": "sample-10BT",
+      "revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
+      "license": "ODC-By-1.0",
+      "max_documents_initial": 20000,
+      "training_entry": "notebooks/kaggle-gpu-training.ipynb",
+      "promotion": "held-out loss, source/time holdouts, privacy and contamination review"
+    },
+    {
+      "id": "F1",
+      "name": "domain_adaptive_pretraining",
+      "method": "continued next-token training with a bounded general-data replay mixture",
+      "datasets": [
+        {
+          "id": "OpenScientificCodeRegistry/Database",
+          "revision": "b0e3fadb276678880f7f3d764308fbebd3bcd044",
+          "license_policy": "repository/file exact SPDX allowlist; default permissive allowlist only",
+          "filter": "Python syntax, source hash, repository grouped split, obvious secret/contact patterns"
+        },
+        {
+          "id": "open-web-math/open-web-math",
+          "status": "candidate_after_source_and_terms_review"
+        },
+        {
+          "id": "nahid-hub/B-CORE-bengali-corpus",
+          "status": "candidate_after_component_source_license_review"
+        },
+        {
+          "id": "HuggingFaceFW/fineweb-edu",
+          "revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
+          "license": "ODC-By-1.0"
+        }
+      ],
+      "promotion": "domain uplift without unacceptable general or multilingual forgetting"
+    },
+    {
+      "id": "S1",
+      "name": "instruction_sft",
+      "method": "response-only supervised fine-tuning",
+      "datasets": [
+        {
+          "id": "OpenAssistant/oasst1",
+          "revision": "a4992e1595393714c9e6c567b1ed645bbf7d00ee",
+          "license": "Apache-2.0"
+        },
+        {
+          "id": "human_teaching_candidates",
+          "status": "human_corrected_or_explicitly_human_approved_only"
+        }
+      ],
+      "promotion": "protected instruction-following and multilingual test suite"
+    },
+    {
+      "id": "S2",
+      "name": "task_sft",
+      "method": "task-specific supervised fine-tuning",
+      "datasets": [
+        {
+          "id": "openai/grade-school-math",
+          "revision": "3101c7d5072418e28b9008a6636bde82a006892c",
+          "license": "MIT",
+          "split": "train only"
+        },
+        {
+          "id": "google-research/MBPP",
+          "revision": "83f1e7b59e762648c953de751d31f75720683622",
+          "license": "CC-BY-4.0",
+          "split": "approved training IDs only"
+        }
+      ],
+      "promotion": "exact-answer, compile and unit-test evaluation"
+    },
+    {
+      "id": "V1",
+      "name": "verified_outcome_training",
+      "method": "train only on examples with independent exact validators",
+      "datasets": [
+        "offline code task suite",
+        "math exact-answer suite",
+        "structured tool/API tasks"
+      ],
+      "promotion": "sandbox isolation, hidden tests, no reward hacking"
+    },
+    {
+      "id": "P1",
+      "name": "human_preference_learning",
+      "method": "DPO-like preference optimization from human chosen/rejected pairs",
+      "status": "not_implemented",
+      "promotion": "human preference agreement and regression checks"
+    },
+    {
+      "id": "R1",
+      "name": "environment_outcome_optimization",
+      "method": "RL/GRPO-style outcome optimisation in bounded environments",
+      "status": "not_implemented",
+      "promotion": "verified rewards, matched budgets, rollback and reward-hacking analysis"
+    },
+    {
+      "id": "M1",
+      "name": "multimodal",
+      "method": "modality-specific supervised/contrastive training",
+      "status": "future",
+      "promotion": "modality-specific source rights and protected evaluations"
+    }
+  ],
+  "compute": {
+    "first_gpu_target": "Kaggle Notebook GPU allocation when available",
+    "fallback": "Google Colab free GPU allocation when available",
+    "paid_options": [
+      "RunPod",
+      "Vast.ai",
+      "institutional GPU"
+    ],
+    "github_actions": "CPU smoke tests and data integrity only; do not treat as a GPU training service"
+  }
+}

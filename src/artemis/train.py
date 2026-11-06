@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+from contextlib import nullcontext
 import os
 import random
 from datetime import datetime, timezone
@@ -31,12 +32,43 @@ def load_tokens(
     path: Path,
     validation_path: Path | None,
     tokenizer: ByteTokenizer | SentencePieceTokenizer,
+    *,
+    document_format: str = "text",
+    text_field: str = "text",
 ) -> tuple[torch.Tensor, torch.Tensor]:
+    """Load a corpus; JSONL mode appends EOS after every independently curated document."""
+    if document_format not in {"text", "jsonl"}:
+        raise ValueError("document_format must be 'text' or 'jsonl'")
+    if not text_field.strip():
+        raise ValueError("text_field must not be empty")
+
     def read_ids(source: Path) -> torch.Tensor:
         if not source.is_file():
-            raise FileNotFoundError(f"Dataset text file does not exist: {source}")
-        text = source.read_text(encoding="utf-8")
-        ids = torch.tensor(tokenizer.encode(text, add_eos=True), dtype=torch.long)
+            raise FileNotFoundError(f"Dataset file does not exist: {source}")
+        if document_format == "text":
+            text = source.read_text(encoding="utf-8")
+            ids_list = tokenizer.encode(text, add_eos=True)
+        else:
+            import json
+
+            ids_list: list[int] = []
+            with source.open("r", encoding="utf-8") as stream:
+                for line_number, line in enumerate(stream, start=1):
+                    if not line.strip():
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError as exc:
+                        raise ValueError(f"Invalid JSONL at {source}:{line_number}") from exc
+                    if not isinstance(row, dict) or not isinstance(row.get(text_field), str):
+                        raise ValueError(
+                            f"JSONL row at {source}:{line_number} must contain string field "
+                            f"{text_field!r}"
+                        )
+                    document = row[text_field].strip()
+                    if document:
+                        ids_list.extend(tokenizer.encode(document, add_eos=True))
+        ids = torch.tensor(ids_list, dtype=torch.long)
         if ids.numel() < 40:
             raise ValueError(f"Dataset split is too short (at least 40 tokens): {source}")
         return ids
@@ -325,6 +357,22 @@ def build_checkpoint_metadata(
         "block_size": int(config.block_size),
         "device": str(device),
         "response_only": bool(args.response_only),
+        "document_format": str(getattr(args, "document_format", "text")),
+        "text_field": str(getattr(args, "text_field", "text")),
+        "precision": str(getattr(args, "precision", "fp32")),
+        "gradient_accumulation_steps": int(
+            getattr(args, "gradient_accumulation_steps", 1)
+        ),
+        "estimated_tokens_per_optimizer_step": int(
+            args.batch_size * config.block_size
+            * int(getattr(args, "gradient_accumulation_steps", 1))
+        ),
+        "estimated_tokens_processed_this_run": int(
+            max(0, args.steps - start_step)
+            * args.batch_size
+            * config.block_size
+            * int(getattr(args, "gradient_accumulation_steps", 1))
+        ),
         "objective_changed_from_parent": bool(
             resume_payload is not None
             and bool(resume_payload.get("response_only", False)) != bool(args.response_only)
@@ -387,6 +435,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--resume", type=Path, help="resume from a checkpoint created by this trainer")
     parser.add_argument("--data-manifest", type=Path, help="source manifest used to create the training text")
     parser.add_argument(
+        "--document-format",
+        choices=("text", "jsonl"),
+        default="text",
+        help="JSONL mode reads one independent document from --text-field and appends EOS per document",
+    )
+    parser.add_argument("--text-field", default="text", help="string field containing each JSONL document")
+    parser.add_argument(
         "--phase",
         choices=("foundation_pretraining", "continued_pretraining", "instruction_sft", "task_sft", "post_training", "unspecified"),
         default="unspecified",
@@ -424,6 +479,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--steps", type=int, default=100)
     parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument(
+        "--gradient-accumulation-steps",
+        type=int,
+        default=1,
+        help="microbatches per optimiser update; increases effective batch size",
+    )
+    parser.add_argument(
+        "--precision",
+        choices=("fp32", "fp16", "bf16"),
+        default="fp32",
+        help="CUDA mixed precision; use fp16 for T4-class GPUs or bf16 on supported accelerators",
+    )
     parser.add_argument("--block-size", type=int, default=64)
     parser.add_argument("--layers", type=int, default=2)
     parser.add_argument("--heads", type=int, default=2)
@@ -448,6 +515,8 @@ def main() -> None:
         raise SystemExit("steps, eval-interval, and eval-iters must be positive")
     if args.batch_size < 1 or args.learning_rate <= 0:
         raise SystemExit("batch-size must be positive and learning-rate must be > 0")
+    if args.gradient_accumulation_steps < 1:
+        raise SystemExit("gradient-accumulation-steps must be positive")
     if args.block_size < 2:
         raise SystemExit("block-size must be at least 2")
     if args.warmup_steps < 0 or args.min_learning_rate < 0:
@@ -533,7 +602,13 @@ def main() -> None:
             f"configuration ({config.vocab_size})"
         )
 
-    train_data, val_data = load_tokens(args.data, args.validation_data, tokenizer)
+    train_data, val_data = load_tokens(
+        args.data,
+        args.validation_data,
+        tokenizer,
+        document_format=args.document_format,
+        text_field=args.text_field,
+    )
     if train_data.numel() <= config.block_size + 1:
         raise SystemExit("Training split is too small for block-size; reduce block-size or add data")
     if val_data.numel() <= config.block_size + 1:
@@ -578,7 +653,8 @@ def main() -> None:
     print(
         f"device={device} parameters={parameter_count:,} tokenizer={tokenizer.name} "
         f"vocab_size={tokenizer.vocab_size} train_tokens={train_data.numel():,} "
-        f"validation_tokens={val_data.numel():,} start_step={start_step}"
+        f"validation_tokens={val_data.numel():,} start_step={start_step} "
+        f"precision={args.precision} grad_accum={args.gradient_accumulation_steps}"
     )
 
     run_metadata = build_checkpoint_metadata(
@@ -589,6 +665,18 @@ def main() -> None:
         start_step=start_step,
         resume_payload=resume_payload,
         parent_checkpoint_sha256=parent_checkpoint_sha256,
+    )
+
+    if args.precision != "fp32" and device.type != "cuda":
+        raise SystemExit("--precision fp16/bf16 currently requires a CUDA device")
+    if args.precision == "bf16" and not torch.cuda.is_bf16_supported():
+        raise SystemExit("This CUDA GPU does not report bfloat16 support; use --precision fp16")
+    use_amp = args.precision != "fp32"
+    amp_dtype = torch.float16 if args.precision == "fp16" else torch.bfloat16
+    scaler = (
+        torch.cuda.amp.GradScaler(enabled=True)
+        if args.precision == "fp16"
+        else None
     )
 
     latest_losses: dict[str, float] = {}
@@ -605,16 +693,36 @@ def main() -> None:
         for parameter_group in optimizer.param_groups:
             parameter_group["lr"] = scheduled_lr
         model.train()
-        x, y = get_batch(
-            train_data, args.batch_size, config.block_size, device, train_mask
-        )
-        _, loss = model(x, y)
-        if loss is None or not torch.isfinite(loss):
-            raise RuntimeError(f"non-finite or missing training loss at step {step}")
         optimizer.zero_grad(set_to_none=True)
-        loss.backward()
+        for micro_step in range(args.gradient_accumulation_steps):
+            x, y = get_batch(
+                train_data, args.batch_size, config.block_size, device, train_mask
+            )
+            with (
+                torch.autocast(device_type="cuda", dtype=amp_dtype)
+                if use_amp
+                else nullcontext()
+            ):
+                _, loss = model(x, y)
+                if loss is None or not torch.isfinite(loss):
+                    raise RuntimeError(
+                        f"non-finite or missing training loss at step {step}, "
+                        f"micro-step {micro_step + 1}"
+                    )
+                scaled_loss = loss / args.gradient_accumulation_steps
+            if scaler is not None:
+                scaler.scale(scaled_loss).backward()
+            else:
+                scaled_loss.backward()
+
+        if scaler is not None:
+            scaler.unscale_(optimizer)
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        optimizer.step()
+        if scaler is not None:
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            optimizer.step()
 
         if step == 1 or step % args.eval_interval == 0 or step == args.steps:
             latest_losses = estimate_loss(

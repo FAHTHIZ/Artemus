@@ -2,7 +2,7 @@
 
 **Artemus is the complete cognitive-system research project—not a single LLM.** The current `ArtemisLM` implementation is one experimental neural-model component within that larger system. The full Artemus architecture is intended to coordinate perception, world modelling, memory, multiple reasoning methods, planning, action, verification, and controlled learning.
 
-> **Latest documented model-component status (2026-11-03):** The repository reports a 1,004,928-parameter compact `ArtemisLM` checkpoint trained for 8,000 steps from random initialization on an OASST1/GSM8K/MBPP task-SFT mixture. Validation loss fell from 8.31 to 4.67, but its mathematics and Python generations remained incoherent. The continuation workflow targeted step 16,000. Its eight scripted two-turn dialogues are evaluation traces, not automatic training data. **This is an early neural-model experiment, not evidence of AGI or a usable general assistant.**
+> **Latest documented model-component status (2026-11-06):** A 1,004,928-parameter compact `ArtemisLM` checkpoint from random initialization completed 16,000 task-SFT steps on an OASST1/GSM8K/MBPP mixture. The recovery/evaluation workflow now completes all 16 scripted dialogue turns (16 non-empty, zero context overflows; one old history window trimmed). However, direct math and Python spot checks remain incoherent. This is still an early experimental checkpoint—not a useful general assistant, foundation-pretrained model, or evidence of AGI.
 
 ## Mission
 
@@ -46,6 +46,20 @@ The incremental-cache benchmark is documented in [Experiment 0008](docs/experime
 
 The 0007 checkpoint used format v2 and did not embed run metadata. Its sidecar report records the workflow commit, configuration, data manifests, and artifact/checkpoint hashes. New training runs use checkpoint format v3 with provenance metadata.
 
+
+## General-purpose training programme
+
+The old 16k-step checkpoint is a task-SFT experiment, not the foundation model. The next model-learning phase therefore starts from **fresh random initialization** on broad, pinned pretraining data, then adds reviewed specialist and human-taught data in separate stages.
+
+- [Continuous training programme](docs/training/continuous-training-programme.md): F0 foundation pretraining → F1 domain adaptation → SFT → verified outcomes → human preferences → bounded environment optimisation → multimodal research.
+- [Cloud compute options](docs/training/cloud-compute.md): Kaggle/Colab free allocations, institutional compute, and careful paid fallbacks.
+- [Kaggle GPU training notebook](notebooks/kaggle-gpu-training.ipynb): pinned FineWeb-Edu sample, provenance-preserving filtering, tokenizer training, mixed-precision GPU training, evaluation, optional OSCR code adaptation, and export.
+- [Machine-readable training curriculum](data/training-curriculum.json): source revisions, stages, licences, and promotion gates.
+
+**Direct human teaching:** install the project and run `artemus-teach --checkpoint <checkpoint.pt>`. You can correct an answer, explicitly approve it, or skip it. Corrections become candidate supervised data with checkpoint/session provenance; they do not silently update the model. Reviewed candidate data must pass a separate curation and evaluation step before SFT.
+
+The new trainer supports independent-document JSONL inputs, one end-of-document token per record, gradient accumulation, and CUDA FP16/BF16 mixed precision. GPU training is not run automatically by GitHub Actions: the Kaggle notebook must be opened in an account with an available GPU allocation. No cloud GPU has been provisioned by this repository workflow.
+
 ## Neural-model research (ArtemisLM)
 
 The current model-component research direction is documented in:
@@ -71,11 +85,11 @@ The current OASST1/GSM8K/MBPP mixture is an early **task-SFT** experiment. It is
 
 ## GitHub Actions
 
-- `validation.yml`: quick tests and syntax checks on changes.
+- `validation.yml`: unit/data-integrity tests and Python syntax checks.
 - `efficient-dense-ci.yml`: compact architecture smoke training, parameter profiling, cache correctness, and cached/uncached CPU benchmarking.
-- `capability-training.yml`: manual `workflow_dispatch` plus automatic main-branch runs when training/data/tokenizer code changes; longer multi-task CPU experiment.
+- `capability-training.yml`: manual CPU continuation plus a scheduled dialogue-health check for the historical OASST1/GSM8K/MBPP task-SFT checkpoint. It no longer starts a full CPU training run on every model-code push.
 
-The latest 8,000-step compact checkpoint is recorded at [GitHub Actions run 41391963776](https://github.com/FAHTHIZ/Artemus/actions/runs/41391963776). The continuation workflow resumes prior v3 checkpoints only after matching data hashes, trains in bounded cosine-decayed segments up to 16,000 steps on this exact mixture, and runs an eight-domain multi-turn dialogue evaluation each day. New data versions require a deliberate curriculum transition; the same small dataset is not repeated indefinitely.
+The 16,000-step checkpoint and successful context-trimmed dialogue evaluation are archived in [GitHub Actions run 42233796727](https://github.com/FAHTHIZ/Artemus/actions/runs/42233796727). The checkpoint can be downloaded from that run's artifact. It remains incoherent on the recorded mathematics and Python spot checks; use the new F0 notebook for broad pretraining rather than repeating this same task mixture.
 
 ## Run locally
 
@@ -104,7 +118,7 @@ The byte tokenizer, tiny demo corpus, and smoke model are engineering baselines�
 4. Add explicit goal graphs, bounded planning, permission-checked actions, and independent verification.
 5. Connect ArtemisLM behind a replaceable reasoning adapter; benchmark base-model and full-system results separately.
 6. Build protected evaluations for generalisation, reasoning, mathematics, coding, multilingual use, memory, long-horizon work, and reliability.
-7. Upgrade the data pipeline and continue model experiments only where controlled results justify the compute.
+7. Run the pinned FineWeb-Edu GPU foundation-pretraining pilot, then add OSCR/Bangla/math/code sources under their own provenance and licensing reviews.
 8. Make any frontier or AGI capability claim only after broad, independent, reproducible evidence.
 
 ## Repository hygiene
