@@ -16,13 +16,33 @@
       "id": "F0",
       "name": "foundation_pretraining",
       "method": "next-token prediction from random initialization",
-      "initial_dataset": "HuggingFaceFW/fineweb-edu",
+      "initial_dataset": [
+        "HuggingFaceFW/fineweb-edu",
+        "HuggingFaceFW/fineweb-2"
+      ],
       "config": "sample-10BT",
       "revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
       "license": "ODC-By-1.0",
       "max_documents_initial": 20000,
       "training_entry": "notebooks/kaggle-gpu-training.ipynb",
-      "promotion": "held-out loss, source/time holdouts, privacy and contamination review"
+      "promotion": "held-out loss, source/time holdouts, privacy and contamination review",
+      "datasets": [
+        {
+          "id": "HuggingFaceFW/fineweb-edu",
+          "config": "sample-10BT",
+          "revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
+          "license": "ODC-By-1.0",
+          "document_weight": 0.85
+        },
+        {
+          "id": "HuggingFaceFW/fineweb-2",
+          "config": "ben_Beng",
+          "revision": "resolved_at_runtime_and_recorded_in_manifest",
+          "license": "ODC-By-1.0 plus Common Crawl terms",
+          "document_weight": 0.15,
+          "notes": "filtered train only; conservative PII/phone checks; token share measured with fitted tokenizer"
+        }
+      ]
     },
     {
       "id": "F1",
@@ -51,10 +71,10 @@
         {
           "id": "HuggingFaceFW/fineweb-2",
           "config": "ben_Beng",
-          "status": "candidate_after_pinning_current_commit_and_privacy_sample_review",
+          "status": "used_in_bounded_F0_multilingual_foundation_mixture",
           "license": "ODC-By-1.0 plus Common Crawl terms",
           "split": "filtered train only; never upstream test or _removed",
-          "use": "bounded Bangla continued-pretraining with general-English replay",
+          "use": "85/15 document-weight mixture with FineWeb-Edu before tokenizer training; actual token share recorded",
           "caveats": "20.2 TB full corpus; Bengali subset about 22.25 GB on disk; residual PII likely and phone numbers not upstream-filtered"
         }
       ],
@@ -65,6 +85,29 @@
       "name": "instruction_sft",
       "method": "response-only supervised fine-tuning",
       "datasets": [
+        {
+          "id": "CohereLabs/aya_dataset",
+          "license": "Apache-2.0",
+          "status": "bounded_human_annotated_multilingual_sft",
+          "languages": "65 languages / 71 with dialects and scripts; Bengali ben listed mid-resource",
+          "max_examples_initial": 10000,
+          "fields_used": [
+            "inputs",
+            "targets",
+            "language",
+            "language_code",
+            "annotation_type"
+          ],
+          "fields_discarded": [
+            "user_id",
+            "age_range",
+            "gender",
+            "languages",
+            "dialects"
+          ],
+          "split": "prompt-hash grouped train/validation split",
+          "loss": "response-only"
+        },
         {
           "id": "OpenAssistant/oasst1",
           "revision": "a4992e1595393714c9e6c567b1ed645bbf7d00ee",
@@ -128,6 +171,28 @@
       "method": "modality-specific supervised/contrastive training",
       "status": "future",
       "promotion": "modality-specific source rights and protected evaluations"
+    },
+    {
+      "id": "A1",
+      "name": "audio_speech_branch",
+      "method": "ASR/speech encoder supervised learning; separate from text-only ArtemisLM",
+      "datasets": [
+        {
+          "id": "google/fleurs",
+          "license": "CC-BY-4.0",
+          "languages": 102,
+          "bengali": true,
+          "status": "candidate_after_audio_model_and_loader"
+        },
+        {
+          "id": "Mozilla Common Voice Scripted Speech 27.0",
+          "license": "CC0-1.0",
+          "bengali": true,
+          "status": "candidate_after_audio_model_and_loader",
+          "notes": "Current Bengali listing about 24.85 GB MP3"
+        }
+      ],
+      "promotion": "word/character error rates, speaker-held-out generalisation, noise robustness, attribution/privacy review"
     }
   ],
   "compute": {

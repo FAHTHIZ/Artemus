@@ -177,3 +177,32 @@ This update pins candidate metadata for reproducibility; it is not a legal opini
 - FineWeb2 has filtered and `_removed` subsets; use the filtered `train` subset for a first pilot. Do not train on the upstream `test` split. The maintainers do not publish small sample variants, but document streaming with `load_dataset(..., name="ben_Beng", split="train", streaming=True)` and a bounded limit.
 - **Decision:** promote FineWeb2-Bangla to the next multilingual pilot after resolving and recording the exact dataset commit SHA at run start, reviewing a sample, and adding an explicit phone-number/privacy check. Keep it as a bounded language-adaptation stage with an English replay fraction, not a huge one-language replacement for general pretraining. Do not fetch the 20.2 TB corpus wholesale.
 
+
+
+## Multilingual instruction and speech sources
+
+### Aya Dataset — preferred human-annotated multilingual SFT candidate
+
+- Dataset: https://huggingface.co/datasets/CohereLabs/aya_dataset
+- The current card reports 204,114 prompt/completion annotations across 65 languages (71 including dialects/scripts), under Apache-2.0. Bengali (`ben`) is explicitly listed as a mid-resource language. The source includes original human annotations and human re-annotations; the card also contains annotator IDs and demographic data.
+- **Artemus ingestion policy:** use only `inputs`, `targets`, language and annotation-type fields. Discard `user_id`, age, gender, dialect and other annotator demographic fields. Split identical prompts together, filter obvious contact/secret patterns, preserve per-example language and provenance, and use response-only loss. The dedicated adapter `artemus-prepare-aya` implements these boundaries.
+- This is a strong multilingual instruction-tuning source, not foundation-pretraining text. Human annotations can still be factually wrong; retain held-out language/task evaluations and do not equate the dataset's human-authored status with correctness.
+
+### Aya Collection — large follow-on, not the first SFT run
+
+- Dataset: https://huggingface.co/datasets/CohereLabs/aya_collection
+- The current card reports about 513.8 million multilingual prompt/completion instances across 115 languages and Apache-2.0. It is assembled from templates applied to 44 datasets, translations of 19 datasets into 101 languages, and the human-annotated Aya Dataset. The Bengali row reports about 4.15 million instances.
+- The card describes Aya Dataset as the only entirely human-annotated subset. Start with that smaller subset. Treat other Aya Collection components as translated or templated data, record component/source IDs, inspect source licenses/quality, deduplicate against the human set, and evaluate translated-task artifacts before adding them.
+
+### CulturaX — large multilingual web-text candidate, legal review required
+
+- Dataset: https://huggingface.co/datasets/uonlp/CulturaX
+- The project reports 6.3 trillion tokens across 167 languages, combining mC4 3.1.0 and accessible OSCAR releases, with about 16 TB of Parquet data (about 27 TB unpacked). Its Bangla (`bn`) table reports roughly 12.44 million documents and 9.57 billion tokens.
+- The card says licence terms strictly follow mC4 and OSCAR. This is not a single simple licence grant; review the component terms, source rights and any release obligations before use. The size is far beyond a free notebook pilot.
+- **Decision:** shortlist only for later, permission-reviewed multilingual pretraining, not for immediate download or blind bulk ingestion.
+
+### Speech/audio sources — for a separate audio-capable model branch
+
+- **FLEURS:** https://huggingface.co/datasets/google/fleurs — 102 languages including Bengali, CC-BY-4.0, with roughly 10 hours of supervised training audio per language and separate validation/test speaker sets. It is useful for ASR/speech research, not a large text pretraining corpus. Preserve the official speaker splits and attribution.
+- **Mozilla Common Voice Scripted Speech 27.0:** https://commonvoice.mozilla.org/en/datasets — the current Bengali release is listed as CC0-1.0 and about 24.85 GB of MP3. Mozilla announced v27.0 includes 295 languages and 42,593 hours overall. The current spontaneous-speech v5.0 release includes Bengali among its languages, with 302 hours of validated transcripts across all 80 languages. Use audio/transcript pairs only after a speech model/data loader exists; do not dump audio metadata into the text-only LM pipeline.
+

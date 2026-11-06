@@ -161,3 +161,10 @@ The interactive `artemus-teach` loop records the earlier user/assistant turns th
 ### Code adaptation with general replay
 
 The optional OSCR stage now constructs a second deterministic mixture: 85% of the current multilingual foundation replay and 15% selected, verified Python source files by document quota. It resumes the existing checkpoint rather than training a separate model and records the mixed source manifest. Inspect actual per-source token counts before scaling; document proportions are not token proportions. This replay is a forgetting-control measure, not a guarantee against forgetting.
+
+
+### Aya multilingual response-only SFT
+
+The GPU notebook's final supervised stage resolves the current Aya Dataset revision, streams a bounded 10,000-example sample, and records the exact revision in its manifest. `artemus-prepare-aya` retains only prompts, responses, language labels, and annotation types; it discards annotator IDs and demographics. It groups identical prompts into the same split, then resumes the multilingual foundation checkpoint with response-only loss for a bounded 1,000 additional optimizer steps. Inspect per-language counts and protected task regressions before accepting the resulting checkpoint.
+
+Audio training is a separate future model branch: FLEURS and Mozilla Common Voice provide Bengali-capable ASR data, but the current ArtemisLM training pipeline is text-only. A speech encoder, audio frontend, alignment objective, and audio-specific evaluation must exist before those files are used.
