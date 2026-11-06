@@ -13,7 +13,7 @@ The current decoder-only Transformer supports two paths:
 - **Legacy-compatible dense path:** full multi-head attention, learned absolute positions, GELU feed-forward block, tied token/output weights. This is preserved for historical checkpoint compatibility.
 - **Compact research path:** grouped-query attention (GQA), RoPE, optional per-head QK RMSNorm, optional SwiGLU, and optional factorized token embeddings/output projection.
 
-The compact path passes forward/backward, causal-mask, profile, and legacy-checkpoint tests. It has not yet won a matched-quality comparison. The current generator recomputes the full context for every token and does not have an incremental KV cache; GQA's cache saving is therefore theoretical until a cache-aware implementation is measured.
+The compact path passes forward/backward, causal-mask, profile, legacy-checkpoint, and cache-equivalence tests. It has not yet won a matched-quality comparison. The current generator supports incremental KV caching through `forward_with_cache`; Experiment 0008 reports exact cached/uncached output agreement and preliminary 1.27–1.40× speed ratios on a tiny random-initialized CPU smoke model. Those measurements are not representative of trained or larger models. The implementation still expands GQA keys/values temporarily for the current SDPA path, and a preallocated/static cache plus native GQA-kernel benchmarking remain future work.
 
 Research candidates for later:
 - Multi-head Latent Attention (MLA) for compact key/value state.
