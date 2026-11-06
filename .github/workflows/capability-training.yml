@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       resume_run_id:
-        description: "Successful prior run containing the checkpoint (or latest)"
+        description: "Completed prior run containing a checkpoint artifact (or latest)"
         required: false
         default: latest
         type: string
@@ -106,17 +106,27 @@ jobs:
             --mbpp-full data/raw/mbpp-full.jsonl \
             --output-dir artifacts/capability-mixture
 
-      - name: Resolve previous successful checkpoint run
+      - name: Resolve newest completed run containing a checkpoint artifact
         id: previous
         shell: bash
         run: |
           if [[ "$REQUESTED_RESUME_RUN_ID" == "latest" ]]; then
-            RUN_ID="$(gh run list \
+            RUN_ID=""
+            while IFS= read -r CANDIDATE; do
+              ARTIFACT_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${CANDIDATE}/artifacts" \
+                --jq '.artifacts[]? | select(.name == "artemis-capability-mix-compact-cpu-run" and .expired == false) | .id' \
+                | head -n 1)"
+              if [[ -n "$ARTIFACT_ID" ]]; then
+                RUN_ID="$CANDIDATE"
+                echo "Selected run $RUN_ID with checkpoint artifact $ARTIFACT_ID"
+                break
+              fi
+            done < <(gh run list \
               --workflow capability-training.yml \
               --branch main \
-              --status success \
+              --status completed \
               --json databaseId \
-              --limit 10 | jq -r '.[0].databaseId // empty')"
+              --limit 20 --jq '.[].databaseId')
           else
             RUN_ID="$REQUESTED_RESUME_RUN_ID"
           fi

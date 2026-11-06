@@ -34,6 +34,36 @@ def build_dialogue_prompt(history: list[dict[str, str]], user_text: str) -> str:
     return "".join(parts)
 
 
+def fit_dialogue_context(
+    tokenizer: Any,
+    history: list[dict[str, str]],
+    user_text: str,
+    block_size: int,
+) -> tuple[str, list[int], int]:
+    """Fit a dialogue prompt by dropping the oldest complete turns first.
+
+    The current user turn is never silently truncated. If it cannot fit on its
+    own, fail with an explicit error rather than feeding an invalid context.
+    """
+    if block_size < 1:
+        raise ValueError("block_size must be positive")
+    retained_history = list(history)
+    dropped_messages = 0
+    while True:
+        prompt = build_dialogue_prompt(retained_history, user_text)
+        prompt_ids = tokenizer.encode(prompt)
+        if len(prompt_ids) <= block_size:
+            return prompt, prompt_ids, dropped_messages
+        if not retained_history:
+            raise ValueError(
+                f"current user turn uses {len(prompt_ids)} tokens after history trimming; "
+                f"context window is {block_size}"
+            )
+        drop_count = min(2, len(retained_history))
+        del retained_history[:drop_count]
+        dropped_messages += drop_count
+
+
 def extract_assistant_response(
     tokenizer: Any,
     generated_token_ids: list[int],
@@ -119,21 +149,19 @@ def run_dialogues(
     total_turns = 0
     nonempty_turns = 0
     ended_turns = 0
-    over_context = 0
+    context_trimmed_turn_count = 0
+    history_messages_dropped = 0
 
     with transcript_path.open("w", encoding="utf-8") as output:
         for scenario in scenarios:
             history: list[dict[str, str]] = []
             turn_records: list[dict[str, Any]] = []
             for turn_index, user_text in enumerate(scenario["turns"], start=1):
-                prompt = build_dialogue_prompt(history, user_text)
-                prompt_ids = tokenizer.encode(prompt)
-                if len(prompt_ids) > config.block_size:
-                    over_context += 1
-                    raise ValueError(
-                        f"scenario {scenario['id']} turn {turn_index} prompt uses "
-                        f"{len(prompt_ids)} tokens, exceeding context {config.block_size}"
-                    )
+                prompt, prompt_ids, dropped_messages = fit_dialogue_context(
+                    tokenizer, history, user_text, config.block_size
+                )
+                context_trimmed_turn_count += int(dropped_messages > 0)
+                history_messages_dropped += dropped_messages
                 input_ids = torch.tensor([prompt_ids], dtype=torch.long, device=device)
                 generated = model.generate(
                     input_ids,
@@ -153,6 +181,7 @@ def run_dialogues(
                     "user": user_text,
                     "assistant": response,
                     "prompt_tokens": len(prompt_ids),
+                    "history_messages_dropped": dropped_messages,
                     "generated_tokens": len(new_ids),
                     "ended_with_turn_marker": ended,
                     "nonempty_response": bool(response),
@@ -181,7 +210,9 @@ def run_dialogues(
         "nonempty_response_count": nonempty_turns,
         "turn_marker_count": ended_turns,
         "empty_response_count": total_turns - nonempty_turns,
-        "context_overflow_count": over_context,
+        "context_trimmed_turn_count": context_trimmed_turn_count,
+        "history_messages_dropped": history_messages_dropped,
+        "context_overflow_count": 0,
         "transcript_file": str(transcript_path),
         "evaluation_note": (
             "This is a multi-turn interaction trace and basic generation-health check, "

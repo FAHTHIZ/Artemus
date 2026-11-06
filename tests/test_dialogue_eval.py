@@ -13,6 +13,9 @@ from artemis.dialogue_eval import (
 class DummyTokenizer:
     stop_token_id = 7
 
+    def encode(self, text):
+        return list(text)
+
     def decode(self, ids):
         return "".join({1: "Hello", 2: " there", 7: "<|end|>"}[i] for i in ids)
 
@@ -34,6 +37,32 @@ def test_build_dialogue_prompt_rejects_bad_history():
         build_dialogue_prompt([{"role": "system", "content": "bad"}], "Hi")
     with pytest.raises(ValueError, match="non-empty"):
         build_dialogue_prompt([], "  ")
+
+
+def test_fit_dialogue_context_drops_oldest_complete_turns():
+    from artemis.dialogue_eval import fit_dialogue_context
+
+    history = [
+        {"role": "user", "content": "old " * 30},
+        {"role": "assistant", "content": "answer " * 30},
+        {"role": "user", "content": "recent"},
+        {"role": "assistant", "content": "kept"},
+    ]
+    prompt, token_ids, dropped = fit_dialogue_context(
+        DummyTokenizer(), history, "Continue?", block_size=100
+    )
+    assert len(token_ids) <= 100
+    assert dropped == 2
+    assert "old " not in prompt
+    assert "recent" in prompt
+    assert "Continue?" in prompt
+
+
+def test_fit_dialogue_context_rejects_an_overlong_current_turn():
+    from artemis.dialogue_eval import fit_dialogue_context
+
+    with pytest.raises(ValueError, match="current user turn"):
+        fit_dialogue_context(DummyTokenizer(), [], "x" * 200, block_size=64)
 
 
 def test_extract_assistant_response_detects_end_marker():
