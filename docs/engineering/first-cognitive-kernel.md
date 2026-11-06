@@ -1,7 +1,20 @@
 # First Artemus Cognitive Kernel — Implementation Milestone
 
-**Status:** Proposed first executable milestone  
+**Status:** K0 first vertical slice implemented; CI verification is tracked in GitHub Actions  
 **Depends on:** [Artemus Cognitive System Architecture](../architecture/artemus-cognitive-system.md)
+
+## Implementation status — 2026-11-06
+
+The first K0 implementation is present in `src/artemus`:
+
+- Typed goal, observation, plan, action, result, verification, and run contracts.
+- Replaceable `Reasoner`, `Environment`, and `Verifier` protocols.
+- Deterministic mock reasoner and simulated key/value environment.
+- Permission checks before action execution.
+- Independent exact-condition verification before a run can be marked complete.
+- Append-only SQLite task-event storage that survives closing and reopening the database.
+
+Tests cover successful execution, already-satisfied goals, permission denial, no-plan blocking, and persisted event history. This is a narrow simulated K0 slice. Task resumption, replay, cancellation, world modelling, scoped/provenance-aware semantic memory, real tools, and model adapters are not implemented yet.
 
 ## Objective
 
@@ -24,23 +37,15 @@ A single-process, deterministic cognitive kernel that can:
 
 ```text
 src/artemus/
-  contracts/       # goals, events, observations, plans, actions, results
-  kernel/          # state machine, scheduler, control loop, cancellation
-  memory/          # typed memory interface and SQLite implementation
-  world/           # entity/event state, claims, evidence, uncertainty
-  reasoning/       # reasoner protocol and deterministic test reasoner
-  planning/        # task graph, dependencies, expected outcomes
-  actions/         # tool contracts, permissions, mock environment
-  verification/    # acceptance criteria and independent checks
-  learning/        # initially candidate records only; no online weight updates
-tests/artemus/
-  test_kernel.py
-  test_memory.py
-  test_world.py
-  test_permissions.py
-  test_recovery.py
-  test_replay.py
+  __init__.py
+  contracts.py     # typed goals, plans, observations, actions, and results
+  kernel.py        # K0 control loop, policy gate, and independent verification
+  memory.py        # append-only SQLite episodic event ledger
+tests/
+  test_cognitive_kernel.py
 ```
+
+Future modules for `world`, `planning`, richer `memory`, `actions`, `learning`, and `recovery` should be added when their contracts are implemented and tested.
 
 This is a proposed boundary, not a requirement to create empty modules all at once. Add a package only when its contract is being implemented.
 
