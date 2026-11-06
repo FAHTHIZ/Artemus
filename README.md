@@ -10,7 +10,7 @@ Build **Artemus as a general cognitive system** that can perceive inputs, mainta
 
 A neural language model is one component—not the definition of Artemus. The existing `ArtemisLM` research remains an independently trained model component whose checkpoints begin from random initialization. That provenance rule applies to official ArtemisLM checkpoints; it does not reduce the whole Artemus system to a model.
 
-The complete cognitive runtime is not yet implemented. The initial engineering target is a deterministic cognitive kernel that works with a mock reasoner and simulated environment before any larger model or autonomous-learning claims are considered. See [Artemus Cognitive System Architecture](docs/architecture/artemus-cognitive-system.md) and the [First Cognitive Kernel milestone](docs/engineering/first-cognitive-kernel.md).
+The first K0 runtime slice now exists in `src/artemus`: a deterministic goal–plan–action–verification loop, mock reasoner, simulated environment, permission gate, and SQLite task-event ledger. This is a small control-system foundation, not a complete cognitive runtime; a predictive world model, richer memory lifecycle, real tool adapters, recovery/replay, multimodal perception, and evaluated learning remain future work. See [Artemus Cognitive System Architecture](docs/architecture/artemus-cognitive-system.md) and the [First Cognitive Kernel milestone](docs/engineering/first-cognitive-kernel.md).
 
 ## Core philosophy
 
@@ -20,8 +20,8 @@ Scientific papers, public benchmarks, and appropriately licensed data/code may i
 
 ## System at a glance
 
-- **Artemus:** the complete cognitive system. The architecture is defined; the integrated runtime is not yet implemented.
-- **Cognitive kernel:** the planned controller for goals, state, memory, reasoning, planning, actions, and verification.
+- **Artemus:** the complete cognitive system. Its initial K0 kernel slice is implemented; the broader integrated system is not.
+- **Cognitive kernel:** a deterministic core for goals, observations, planning proposals, permission checks, actions, independent verification, and SQLite event logging.
 - **ArtemisLM:** the existing from-scratch neural language-model experiment; one replaceable component of Artemus.
 - **OASIS:** a separately developed execution/runtime capability that may connect through explicit action interfaces.
 - **Training and evaluation:** reproducible data preparation, checkpoint lineage, protected holdouts, and regression gates.
@@ -98,8 +98,8 @@ The byte tokenizer, tiny demo corpus, and smoke model are engineering baselines�
 
 ## Next milestones
 
-1. Implement the deterministic cognitive kernel against a mock reasoner and simulated environment.
-2. Add durable episodic memory with provenance, scope, retention, and replay.
+1. Extend K0 into explicit task-state transitions, cancellation, recovery, and deterministic replay.
+2. Extend episodic memory with provenance, scope, retention, query, and deletion controls.
 3. Build a versioned world-state model that distinguishes observations, inferences, predictions, and contradictions.
 4. Add explicit goal graphs, bounded planning, permission-checked actions, and independent verification.
 5. Connect ArtemisLM behind a replaceable reasoning adapter; benchmark base-model and full-system results separately.
