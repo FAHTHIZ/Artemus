@@ -16,6 +16,7 @@ from torch import nn
 from artemis.config import ModelConfig
 from artemis.model import ArtemisLM
 from artemis.tokenizer import ByteTokenizer, SentencePieceTokenizer
+from artemis.token_cache import build_jsonl_token_cache
 
 
 def choose_device(requested: str) -> torch.device:
@@ -167,7 +168,10 @@ def get_batch(
     y = torch.stack([data[i + 1 : i + block_size + 1] for i in starts.tolist()])
     if target_mask is not None:
         y = y.masked_fill(~valid_targets, -100)
-    return x.to(device), y.to(device)
+    return (
+        x.to(device=device, dtype=torch.long),
+        y.to(device=device, dtype=torch.long),
+    )
 
 
 @torch.inference_mode()
@@ -388,6 +392,7 @@ def build_checkpoint_metadata(
             if isinstance(tokenizer, SentencePieceTokenizer)
             else None
         ),
+        "token_cache": getattr(args, "_token_cache_metadata", None),
         "model_config": config.to_dict(),
     }
 
@@ -436,6 +441,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=Path("artifacts/artemis-tiny.pt"))
     parser.add_argument("--resume", type=Path, help="resume from a checkpoint created by this trainer")
     parser.add_argument("--data-manifest", type=Path, help="source manifest used to create the training text")
+    parser.add_argument(
+        "--token-cache-dir",
+        type=Path,
+        help="optional disk-backed token cache for JSONL documents; avoids loading the whole corpus into RAM",
+    )
     parser.add_argument(
         "--document-format",
         choices=("text", "jsonl"),
@@ -604,13 +614,41 @@ def main() -> None:
             f"configuration ({config.vocab_size})"
         )
 
-    train_data, val_data = load_tokens(
-        args.data,
-        args.validation_data,
-        tokenizer,
-        document_format=args.document_format,
-        text_field=args.text_field,
-    )
+    args._token_cache_metadata = None
+    if args.token_cache_dir is not None:
+        if args.document_format != "jsonl":
+            raise SystemExit("--token-cache-dir currently requires --document-format jsonl")
+        if args.validation_data is None:
+            raise SystemExit("--token-cache-dir requires an explicit --validation-data split")
+        train_data, train_cache = build_jsonl_token_cache(
+            args.data,
+            tokenizer,
+            args.token_cache_dir,
+            text_field=args.text_field,
+        )
+        val_data, validation_cache = build_jsonl_token_cache(
+            args.validation_data,
+            tokenizer,
+            args.token_cache_dir,
+            text_field=args.text_field,
+        )
+        args._token_cache_metadata = {
+            "train": train_cache,
+            "validation": validation_cache,
+        }
+        print(
+            "token_cache=true "
+            f"train_tokens={train_cache['token_count']:,} "
+            f"validation_tokens={validation_cache['token_count']:,}"
+        )
+    else:
+        train_data, val_data = load_tokens(
+            args.data,
+            args.validation_data,
+            tokenizer,
+            document_format=args.document_format,
+            text_field=args.text_field,
+        )
     if train_data.numel() <= config.block_size + 1:
         raise SystemExit("Training split is too small for block-size; reduce block-size or add data")
     if val_data.numel() <= config.block_size + 1:

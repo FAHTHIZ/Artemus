@@ -138,3 +138,8 @@ Open notebooks/kaggle-gpu-training.ipynb in Kaggle or Google Colab, enable a GPU
 - optionally continues on a selected OSCR code subset.
 
 The notebook detects Kaggle versus Colab working directories and exports a ZIP archive. The first run is a pipeline-scale experiment, not a frontier model training run. Increase the scale after measuring tokens/second, peak GPU memory, validation behavior, and data quality.
+
+
+### Disk-backed token caching for larger corpora
+
+For JSONL pretraining and continued-pretraining mixtures, pass `--token-cache-dir artifacts/token-cache`. The trainer tokenizes each document once, adds one EOS marker per document, records the source/tokenizer/cache hashes, and memory-maps the int32 stream for batch sampling. This reduces peak RAM use and avoids rebuilding tokens on every run when the source and tokenizer identities are unchanged. The cache is disposable: it can be regenerated from the pinned JSONL source and tokenizer. Keep the JSONL source and provenance manifest as the authoritative record.
