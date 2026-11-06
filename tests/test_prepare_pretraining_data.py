@@ -65,3 +65,14 @@ def test_prepare_stream_requires_immutable_revision_and_license_review(tmp_path)
             license_review_note="review",
             output_dir=tmp_path,
         )
+
+
+def test_quality_filter_rejects_phone_like_numbers_in_ascii_and_bangla_digits():
+    for phone in ("01712-345678", "+880 1712 345678", "০১৭১২-৩৪৫৬৭৮"):
+        reason = quality_rejection_reason(
+            "This is a sufficiently long document " * 20 + " contact " + phone,
+            min_chars=20,
+            max_chars=10000,
+            min_alpha_ratio=0.3,
+        )
+        assert reason == "possible_personal_or_secret_data"

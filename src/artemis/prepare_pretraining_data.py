@@ -14,6 +14,7 @@ EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECAS
 IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 PRIVATE_KEY_RE = re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----")
 TOKEN_RE = re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{24,})\b")
+PHONE_LIKE_RE = re.compile(r"(?<![0-9০-৯])\+?[0-9০-৯](?:[0-9০-৯\s().-]{6,}[0-9০-৯])(?![0-9০-৯])")
 
 
 def stable_bucket(value: str, buckets: int = 10_000) -> int:
