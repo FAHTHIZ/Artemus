@@ -1,32 +1,32 @@
 # Artemus
 
-**Artemus** is the repository name. **Artemis** is the independently developed foundation model and flagship assistant being built here.
+**Artemus is the complete cognitive-system research project—not a single LLM.** The current `ArtemisLM` implementation is one experimental neural-model component within that larger system. The full Artemus architecture is intended to coordinate perception, world modelling, memory, multiple reasoning methods, planning, action, verification, and controlled learning.
 
-> **Current status (2026-11-03):** Artemis has a verified 1,004,928-parameter compact checkpoint, trained for 8,000 steps from random initialization on the current OASST1/GSM8K/MBPP task-SFT mixture. Validation loss fell from 8.31 to 4.67, but its math and Python generations remain incoherent. A new continuation run is now resuming that exact checkpoint, verifying data hashes, and targeting step 16,000 with a lower cosine-decayed learning rate. The workflow also runs eight scripted two-turn dialogues (general conversation, mathematics, coding, science, reasoning, Bengali, Banglish, and writing) and archives the transcripts for review. Those generated conversations are evaluation traces—not automatic training data. **Artemis is not yet a usable assistant or a frontier-capable model.**
+> **Latest documented model-component status (2026-11-03):** The repository reports a 1,004,928-parameter compact `ArtemisLM` checkpoint trained for 8,000 steps from random initialization on an OASST1/GSM8K/MBPP task-SFT mixture. Validation loss fell from 8.31 to 4.67, but its mathematics and Python generations remained incoherent. The continuation workflow targeted step 16,000. Its eight scripted two-turn dialogues are evaluation traces, not automatic training data. **This is an early neural-model experiment, not evidence of AGI or a usable general assistant.**
 
 ## Mission
 
-Build a compact, independently trained foundation model with frontier-level ambition across software engineering, reasoning, mathematics, general knowledge, multilingual communication, and long-horizon tool use.
+Build **Artemus as a general cognitive system** that can perceive inputs, maintain a predictive model of relevant environments, remember experience, select appropriate reasoning methods, form and revise goals, plan, act through controlled interfaces, verify outcomes, and improve through evaluated learning.
 
-Every official foundation checkpoint begins from random initialization in this project. Artemis is not a renamed model, a fine-tune of another provider's checkpoint, or a hidden import of someone else's learned weights.
+A neural language model is one component—not the definition of Artemus. The existing `ArtemisLM` research remains an independently trained model component whose checkpoints begin from random initialization. That provenance rule applies to official ArtemisLM checkpoints; it does not reduce the whole Artemus system to a model.
 
-The final parameter budget is intentionally undecided. We will choose it from measured scaling curves and a capability/quality/latency/memory/cost Pareto frontier—not from a headline parameter target.
+The complete cognitive runtime is not yet implemented. The initial engineering target is a deterministic cognitive kernel that works with a mock reasoner and simulated environment before any larger model or autonomous-learning claims are considered. See [Artemus Cognitive System Architecture](docs/architecture/artemus-cognitive-system.md) and the [First Cognitive Kernel milestone](docs/engineering/first-cognitive-kernel.md).
 
 ## Core philosophy
 
-Artemis should be candid, intellectually open, direct, and minimally arbitrary in what it discusses. It should avoid viewpoint-based refusals and evasive boilerplate. This does not remove privacy, consent, legal-access, or proportionate serious-harm boundaries. See the [Core Philosophy](docs/constitution/core-philosophy.md).
+Artemus should be candid, intellectually open, direct, and minimally arbitrary in what it discusses. It should avoid viewpoint-based refusals and evasive boilerplate while respecting privacy, consent, access controls, and proportionate safeguards. See the [Artemus Cognitive System Architecture](docs/architecture/artemus-cognitive-system.md) and the [model-component philosophy](docs/constitution/core-philosophy.md).
 
 Scientific papers, public benchmarks, and appropriately licensed data/code may inform our implementation. That is independent research, not copying trained weights. External models may be comparison points or evaluators, not the hidden base model or default training-answer generators.
 
 ## System at a glance
 
-- **Artemis:** independently trained foundation model and inference interface.
-- **OASIS:** separate agent runtime for planning, tools, memory, execution, and verification.
-- **Training platform:** data preparation, tokenizers, pretraining, post-training, checkpoint lineage, and experiment tracking.
-- **Evaluation platform:** private holdouts, capability-specific benchmarks, regression gates, and coding task execution.
-- **Knowledge and memory services:** approved-source retrieval and durable task/session state.
+- **Artemus:** the complete cognitive system. The architecture is defined; the integrated runtime is not yet implemented.
+- **Cognitive kernel:** the planned controller for goals, state, memory, reasoning, planning, actions, and verification.
+- **ArtemisLM:** the existing from-scratch neural language-model experiment; one replaceable component of Artemus.
+- **OASIS:** a separately developed execution/runtime capability that may connect through explicit action interfaces.
+- **Training and evaluation:** reproducible data preparation, checkpoint lineage, protected holdouts, and regression gates.
 
-Base-model capability and Artemis + OASIS system performance are measured separately.
+Measure ArtemisLM alone separately from the complete Artemus system. Never attribute gains from tools, retrieval, external models, or environment execution to the base-model weights.
 
 ## Current experiments
 
@@ -46,9 +46,11 @@ The incremental-cache benchmark is documented in [Experiment 0008](docs/experime
 
 The 0007 checkpoint used format v2 and did not embed run metadata. Its sidecar report records the workflow commit, configuration, data manifests, and artifact/checkpoint hashes. New training runs use checkpoint format v3 with provenance metadata.
 
-## Frontier flagship research
+## Neural-model research (ArtemisLM)
 
-Our current research direction is documented in:
+The current model-component research direction is documented in:
+- [Artemus Cognitive System Architecture](docs/architecture/artemus-cognitive-system.md)
+- [First Cognitive Kernel milestone](docs/engineering/first-cognitive-kernel.md)
 - [Compact Frontier Flagship Strategy](docs/architecture/compact-frontier-strategy.md)
 - [2026 Frontier Research Review](docs/architecture/frontier-research-review.md)
 - [Efficient Dense Architecture V2](docs/architecture/efficient-dense-v2.md)
@@ -96,14 +98,14 @@ The byte tokenizer, tiny demo corpus, and smoke model are engineering baselines�
 
 ## Next milestones
 
-1. Add protected held-out evaluation for math, code, general language, and Bangla/Banglish.
-2. Compare dense and factorized candidates under identical tokenizer, data, seed, and training-token budgets.
-3. Benchmark the incremental cache on trained checkpoints and target accelerators; investigate a preallocated static cache.
-4. Build a large, licensed, deduplicated foundation-pretraining mixture and audit its quality.
-5. Secure suitable accelerator compute for true foundation pretraining and size/data/architecture scaling experiments.
-6. Train and evaluate the base model through pretraining, SFT, verified task training, and outcome optimisation.
-7. Develop OASIS separately and report agent-system performance independently.
-8. Claim frontier parity only after comparable, independent results across the capability scorecard.
+1. Implement the deterministic cognitive kernel against a mock reasoner and simulated environment.
+2. Add durable episodic memory with provenance, scope, retention, and replay.
+3. Build a versioned world-state model that distinguishes observations, inferences, predictions, and contradictions.
+4. Add explicit goal graphs, bounded planning, permission-checked actions, and independent verification.
+5. Connect ArtemisLM behind a replaceable reasoning adapter; benchmark base-model and full-system results separately.
+6. Build protected evaluations for generalisation, reasoning, mathematics, coding, multilingual use, memory, long-horizon work, and reliability.
+7. Upgrade the data pipeline and continue model experiments only where controlled results justify the compute.
+8. Make any frontier or AGI capability claim only after broad, independent, reproducible evidence.
 
 ## Repository hygiene
 
