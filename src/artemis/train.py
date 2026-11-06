@@ -407,6 +407,7 @@ def save_checkpoint(
     *,
     response_only: bool,
     run_metadata: dict,
+    grad_scaler_state_dict: dict | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(
@@ -419,6 +420,7 @@ def save_checkpoint(
             "losses": losses,
             "response_only": response_only,
             "run_metadata": run_metadata,
+            "grad_scaler_state_dict": grad_scaler_state_dict,
             "torch_rng_state": torch.get_rng_state(),
             "cuda_rng_states": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
             **tokenizer_checkpoint_fields(tokenizer),
@@ -678,6 +680,10 @@ def main() -> None:
         if args.precision == "fp16"
         else None
     )
+    if scaler is not None and resume_payload is not None:
+        scaler_state = resume_payload.get("grad_scaler_state_dict")
+        if isinstance(scaler_state, dict):
+            scaler.load_state_dict(scaler_state)
 
     latest_losses: dict[str, float] = {}
     for step in range(start_step + 1, args.steps + 1):
@@ -737,6 +743,7 @@ def main() -> None:
                 args.output, model, optimizer, tokenizer, step, latest_losses,
                 response_only=args.response_only,
                 run_metadata=run_metadata,
+                grad_scaler_state_dict=scaler.state_dict() if scaler is not None else None,
             )
 
     print(f"checkpoint_saved={args.output.resolve()}")
