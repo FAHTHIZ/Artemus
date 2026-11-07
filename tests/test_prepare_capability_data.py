@@ -2,9 +2,11 @@ import json
 from pathlib import Path
 
 from artemis.prepare_capability_data import (
+    build_evaluation_records,
     build_gsm8k_examples,
     build_mbpp_examples,
     git_blob_sha,
+    prepare_mixture,
 )
 
 
@@ -52,3 +54,50 @@ def test_git_blob_sha_matches_known_vector(tmp_path: Path):
     path = tmp_path / "blob.txt"
     path.write_text("hello\n", encoding="utf-8")
     assert git_blob_sha(path) == "ce013625030ba8dba906f756967f9e9ca394464a"
+
+
+def test_prepare_mixture_writes_hashed_structured_evaluation_file(tmp_path: Path):
+    oasst_train = tmp_path / "oasst-train.txt"
+    oasst_validation = tmp_path / "oasst-validation.txt"
+    gsm_file = tmp_path / "gsm8k.jsonl"
+    mbpp_file = tmp_path / "mbpp.jsonl"
+    output_dir = tmp_path / "output"
+
+    oasst_train.write_text("training conversation", encoding="utf-8")
+    oasst_validation.write_text("validation conversation", encoding="utf-8")
+    gsm_rows = [
+        {"question": f"Compute {i} + 1.", "answer": f"Reasoning\n#### {i + 1}"}
+        for i in range(100)
+    ]
+    mbpp_rows = [
+        {"task_id": 511, "text": "multiply two values", "code": "def f(a,b): return a*b",
+         "test_list": ["assert f(2, 3) == 6"], "test_setup_code": ""},
+        {"task_id": 601, "text": "training task", "code": "pass", "test_list": []},
+    ]
+    gsm_file.write_text(
+        "".join(json.dumps(row) + "\n" for row in gsm_rows),
+        encoding="utf-8",
+    )
+    mbpp_file.write_text(
+        "".join(json.dumps(row) + "\n" for row in mbpp_rows),
+        encoding="utf-8",
+    )
+
+    manifest = prepare_mixture(
+        oasst_train=oasst_train,
+        oasst_validation=oasst_validation,
+        gsm8k_train=gsm_file,
+        mbpp_full=mbpp_file,
+        output_dir=output_dir,
+        verify_hashes=False,
+    )
+    evaluation_path = output_dir / "evaluation.jsonl"
+    assert evaluation_path.is_file()
+    assert manifest["evaluation_examples"] > 0
+    assert manifest["evaluation_sha256"] == git_blob_sha(evaluation_path) or len(
+        manifest["evaluation_sha256"]
+    ) == 64
+    records = [json.loads(line) for line in evaluation_path.read_text(encoding="utf-8").splitlines()]
+    assert any(row["task_type"] == "math" for row in records)
+    assert any(row["task_type"] == "python" and row["task_id"] == 511 for row in records)
+    assert not any(row.get("task_id") == 601 for row in records)
