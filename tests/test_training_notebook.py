@@ -141,7 +141,7 @@ def test_recurring_kaggle_workflow_persists_private_foundation_state() -> None:
         "artemus-task-sft.pt",
         '"global_step": foundation_global_step',
         '"final_candidate_global_step"',
-        "foundation checkpoint hash does not match run metadata",
+        "Foundation checkpoint hash does not match run metadata.",
         "foundation_run_count != training_cycle",
     ):
         assert expected in source, f"recurring Kaggle workflow is missing {expected!r}"
