@@ -129,7 +129,7 @@ def test_recurring_kaggle_workflow_persists_private_foundation_state() -> None:
         "--dir-mode zip",
         "KAGGLE_KERNEL_SLUG",
         "export-manifest.json",
-        "artemis-task-sft.pt",
+        "artemus-task-sft.pt",
     ):
         assert expected in source, f"recurring Kaggle workflow is missing {expected!r}"
 
@@ -161,7 +161,7 @@ def test_gpu_notebook_contains_verified_task_sft_stage() -> None:
     ):
         assert expected in task, f"task SFT stage is missing {expected!r}"
     export = code["export-code"]
-    assert 'CHECKPOINT_ROOT / "artemis-task-sft.pt"' in export
+    assert 'CHECKPOINT_ROOT / "artemus-task-sft.pt"' in export
     assert '("capability-sft", CAPABILITY_DIR)' in export
     assert '("oasst1", OASST_DIR)' in export
 
@@ -172,10 +172,10 @@ def test_kaggle_workflow_promotes_task_tuned_candidate_not_aya_intermediate() ->
         / ".github" / "workflows" / "continuous-kaggle-training.yml"
     )
     source = workflow_path.read_text(encoding="utf-8")
-    assert 'instruction = root / "artemis-task-sft.pt"' in source
-    assert "artemis-latest-aya.pt" in source
+    assert 'instruction = root / "artemus-task-sft.pt"' in source
+    assert "artemus-latest-aya.pt" in source
     assert "artemis-latest-instruction.pt" in source
-    assert "cp verified-run/artemis-task-sft.pt kaggle-state-update/artemus-latest-instruction.pt" in source
+    assert "cp verified-run/artemus-task-sft.pt kaggle-state-update/artemus-latest-instruction.pt" in source
 
 
 def test_kaggle_gpu_workflow_uses_supported_accelerator_ids_and_uploads_provenance_dirs() -> None:
@@ -203,7 +203,7 @@ def test_machine_readable_curriculum_matches_continuous_training_cycle() -> None
     assert cycle["per_cycle"]["foundation_steps"] == 2000
     assert cycle["per_cycle"]["multilingual_instruction_examples_max"] == 10000
     assert cycle["per_cycle"]["task_steps"] == 750
-    assert cycle["per_cycle"]["final_candidate"] == "artemis-task-sft.pt"
+    assert cycle["per_cycle"]["final_candidate"] == "artemus-task-sft.pt"
     assert "OpenAssistant/oasst1" in cycle["per_cycle"]["task_sources"]
     assert "openai/grade-school-math" in cycle["per_cycle"]["task_sources"]
     assert "google-research-datasets/mbpp" in cycle["per_cycle"]["task_sources"]
