@@ -84,9 +84,9 @@ def test_kaggle_training_notebook_resumes_foundation_state_and_rotates_samples()
     }
 
     settings = code["settings"]
-    preparation = code["prepare-fineweb"]
+    preparation = code["stream"]
     tokenizer = code["tokenizer-code"]
-    training = code["foundation-train"]
+    training = code["train-code"]
     aya = code["aya-code"]
     export = code["export-code"]
 
