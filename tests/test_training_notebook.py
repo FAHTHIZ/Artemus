@@ -254,6 +254,7 @@ def test_gpu_notebook_compares_all_training_stages_on_the_same_eval_set() -> Non
     }
     for stage in ("foundation", "aya", "task-sft"):
         assert f"('{stage}', CHECKPOINT_ROOT" in code["eval-code"]
-        assert f"capability-evaluation-{stage}-summary.json" in code["export-code"]
+    assert 'for stage_name in ("foundation", "aya", "task-sft")' in code["export-code"]
+    assert 'f"capability-evaluation-{stage_name}-summary.json"' in code["export-code"]
     assert "evaluation_data_hashes" in code["eval-code"]
     assert "capability-evaluation-comparison.json" in code["export-code"]
