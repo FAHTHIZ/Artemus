@@ -106,3 +106,29 @@ def test_aya_rejects_sensitive_or_unpinned_input(tmp_path):
             dataset_revision="main",
             output_dir=tmp_path / "other",
         )
+
+
+
+def test_aya_manifest_records_deterministic_stream_sampling(tmp_path):
+    rows = [
+        {
+            "inputs": f"Explain a unique safe concept number {index}.",
+            "targets": f"A reviewed explanation for concept {index}.",
+            "language_code": "eng",
+        }
+        for index in range(300)
+    ]
+    result = prepare_aya_stream(
+        rows,
+        dataset_revision="d" * 40,
+        output_dir=tmp_path,
+        max_examples=300,
+        validation_percent=10,
+        sampling_seed=2026,
+        shuffle_buffer_size=512,
+    )
+    assert result["sampling"] == {
+        "method": "huggingface_iterable_bounded_buffer_shuffle",
+        "seed": 2026,
+        "buffer_size": 512,
+    }
