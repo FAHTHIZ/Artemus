@@ -33,6 +33,83 @@ MBPP_LICENSE = "CC-BY-4.0"
 GSM8K_LICENSE = "MIT"
 
 
+def build_evaluation_records(
+    gsm8k_rows: Iterable[dict[str, Any]],
+    mbpp_rows: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Build structured evaluation prompts from only the held-out partitions."""
+    records: list[dict[str, Any]] = []
+    seen_gsm: set[str] = set()
+    for row in gsm8k_rows:
+        question, answer = row.get("question"), row.get("answer")
+        if not isinstance(question, str) or not isinstance(answer, str):
+            continue
+        question, answer = question.strip(), answer.strip()
+        if not question or not answer:
+            continue
+        key = hashlib.sha256((question + "\0" + answer).encode("utf-8")).hexdigest()
+        if key in seen_gsm:
+            continue
+        seen_gsm.add(key)
+        if _hash_bucket(key) != 0:
+            continue
+        expected = answer.rsplit("####", 1)
+        if len(expected) != 2 or not expected[1].strip():
+            raise ValueError("GSM8K held-out example is missing its #### final answer.")
+        prompt = (
+            "Solve this mathematics problem. Show a concise, checkable derivation "
+            "and put the final answer on the last line.\n" + question
+        )
+        records.append({
+            "id": "gsm8k-" + key[:16],
+            "source": "gsm8k",
+            "task_type": "math",
+            "prompt": prompt,
+            "target": answer,
+            "expected_answer": expected[1].strip(),
+        })
+
+    seen_mbpp: set[int] = set()
+    for row in mbpp_rows:
+        try:
+            task_id = int(row.get("task_id"))
+        except (TypeError, ValueError):
+            continue
+        if task_id in seen_mbpp:
+            raise ValueError(f"Duplicate MBPP task_id: {task_id}")
+        seen_mbpp.add(task_id)
+        if not 511 <= task_id <= 600:
+            continue
+        task_text, solution = row.get("text"), row.get("code")
+        tests, setup = row.get("test_list") or [], row.get("test_setup_code") or ""
+        if (
+            not isinstance(task_text, str)
+            or not isinstance(solution, str)
+            or not task_text.strip()
+            or not solution.strip()
+            or not isinstance(tests, list)
+            or not all(isinstance(test, str) for test in tests)
+            or not isinstance(setup, str)
+        ):
+            continue
+        test_block = "\n".join(([setup.strip()] if setup.strip() else []) + tests)
+        prompt = (
+            "Implement the requested Python task using the standard library. "
+            "Return the complete solution code, not an explanation.\n"
+            "Task: " + task_text.strip() + "\nProvided checks:\n" + test_block
+        )
+        records.append({
+            "id": f"mbpp-{task_id}",
+            "source": "mbpp",
+            "task_type": "python",
+            "prompt": prompt,
+            "target": solution.strip(),
+            "test_count": len(tests),
+            "task_id": task_id,
+        })
+    return records
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -188,8 +265,11 @@ def prepare_mixture(
         gsm_hash = sha256_file(gsm8k_train)
         mbpp_blob = git_blob_sha(mbpp_full)
 
-    gsm_train, gsm_validation = build_gsm8k_examples(load_jsonl(gsm8k_train))
-    mbpp_train, mbpp_validation, mbpp_counts = build_mbpp_examples(load_jsonl(mbpp_full))
+    gsm_rows = load_jsonl(gsm8k_train)
+    mbpp_rows = load_jsonl(mbpp_full)
+    gsm_train, gsm_validation = build_gsm8k_examples(gsm_rows)
+    mbpp_train, mbpp_validation, mbpp_counts = build_mbpp_examples(mbpp_rows)
+    evaluation_records = build_evaluation_records(gsm_rows, mbpp_rows)
 
     oasst_train_text = oasst_train.read_text(encoding="utf-8").strip()
     oasst_validation_text = oasst_validation.read_text(encoding="utf-8").strip()
@@ -201,8 +281,12 @@ def prepare_mixture(
     output_dir.mkdir(parents=True, exist_ok=True)
     train_path = output_dir / "train.txt"
     validation_path = output_dir / "validation.txt"
+    evaluation_path = output_dir / "evaluation.jsonl"
     train_path.write_text("\n".join(training_parts) + "\n", encoding="utf-8")
     validation_path.write_text("\n".join(validation_parts) + "\n", encoding="utf-8")
+    with evaluation_path.open("w", encoding="utf-8") as stream:
+        for record in evaluation_records:
+            stream.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     manifest = {
         "mixture": "OASST1 + GSM8K-main-train + MBPP-official-train-ids",
@@ -244,6 +328,17 @@ def prepare_mixture(
         },
         "train_bytes": train_path.stat().st_size,
         "validation_bytes": validation_path.stat().st_size,
+        "evaluation_file": evaluation_path.name,
+        "evaluation_examples": len(evaluation_records),
+        "evaluation_examples_by_task": {
+            "math": sum(row["task_type"] == "math" for row in evaluation_records),
+            "python": sum(row["task_type"] == "python" for row in evaluation_records),
+        },
+        "evaluation_sha256": sha256_file(evaluation_path),
+        "evaluation_policy": (
+            "Internal held-out partitions only; GSM8K deterministic 10% split from official "
+            "train and MBPP IDs 511-600. Not an official benchmark score."
+        ),
         "test_integrity": "GSM8K official test file and MBPP IDs 11-510 were not included",
     }
     (output_dir / "manifest.json").write_text(
