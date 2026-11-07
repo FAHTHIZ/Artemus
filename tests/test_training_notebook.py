@@ -30,3 +30,30 @@ def test_kaggle_training_notebook_does_not_delete_existing_workspace() -> None:
 
     assert "shutil.rmtree(WORKDIR)" not in source
     assert "json.loads((ARTIFACT_ROOT / 'dialogue-eval' / 'summary.json').read_text())" in source
+
+
+def test_kaggle_training_notebook_exports_complete_stage_provenance() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    export_cells = [
+        cell for cell in notebook["cells"]
+        if cell.get("cell_type") == "code" and cell.get("id") == "export-code"
+    ]
+    assert len(export_cells) == 1, "training notebook must have one identifiable export cell"
+    source = "".join(export_cells[0].get("source", []))
+
+    for expected in (
+        '("fineweb-edu", DATA_DIR)',
+        '("fineweb2-bangla", FINEWEB2_DIR)',
+        '("foundation-mixture", MIX_DIR)',
+        '("aya-instruction-sft", AYA_DIR)',
+        '"run-metadata.json"',
+        '"export-manifest.json"',
+        '"repository_commit": REPO_COMMIT',
+        "sha256_path",
+    ):
+        assert expected in source, f"training export is missing {expected!r}"
+
+    assert 'if OSCR_MANIFEST_PATHS:' in source
+    assert "provenance.jsonl" in source
+    assert "shutil.rmtree" not in source
