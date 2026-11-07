@@ -105,13 +105,13 @@ jobs:
               ),
           }
           Path(".kaggle-state-bootstrap/dataset-metadata.json").write_text(
-              json.dumps(metadata, indent=2) + "\\n", encoding="utf-8"
+              json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
           )
           Path(".kaggle-state-bootstrap/README.md").write_text(
-              "# Artemus private training state\\n\\n"
+              "# Artemus private training state\n\n"
               "This dataset is managed by the Artemus continuous GPU training workflow. "
               "It stores checkpoints, tokenizer files, manifests and hashes. "
-              "Do not make this dataset public.\\n",
+              "Do not make this dataset public.\n",
               encoding="utf-8",
           )
           PY
