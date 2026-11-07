@@ -11,6 +11,7 @@ import artemis.train as train_module
 from artemis.train import (
     build_checkpoint_metadata,
     checkpoint_loss_history,
+    checkpoint_run_metadata,
     estimate_loss,
     get_batch,
     periodic_step_due,
@@ -36,6 +37,47 @@ def test_checkpoint_loss_history_supports_older_checkpoint_formats() -> None:
     assert losses == {"train": 1.1, "val": 1.3}
     assert measured_at == 100
     assert checkpoint_loss_history(None) == ({}, None)
+
+
+def test_checkpoint_metadata_records_actual_progress_without_mutating_run() -> None:
+    original = {
+        "lineage": {"origin": "test"},
+        "runs": [{
+            "start_step": 100,
+            "target_step": 500,
+            "estimated_tokens_per_optimizer_step": 4096,
+            "estimated_tokens_budget_this_run": 1_638_400,
+            "optimizer_steps_completed": 0,
+            "estimated_tokens_processed_this_run": 0,
+            "checkpoint_step": 100,
+            "target_reached": False,
+        }],
+    }
+
+    partial = checkpoint_run_metadata(original, step=200)
+    partial_run = partial["runs"][-1]
+    assert partial_run["checkpoint_step"] == 200
+    assert partial_run["optimizer_steps_completed"] == 100
+    assert partial_run["estimated_tokens_processed_this_run"] == 409_600
+    assert partial_run["estimated_tokens_budget_this_run"] == 1_638_400
+    assert partial_run["target_reached"] is False
+    assert original["runs"][-1]["checkpoint_step"] == 100
+
+    complete = checkpoint_run_metadata(original, step=500)["runs"][-1]
+    assert complete["optimizer_steps_completed"] == 400
+    assert complete["estimated_tokens_processed_this_run"] == 1_638_400
+    assert complete["target_reached"] is True
+
+
+def test_checkpoint_metadata_rejects_steps_outside_current_run() -> None:
+    metadata = {
+        "runs": [{"start_step": 10, "target_step": 20,
+                  "estimated_tokens_per_optimizer_step": 100}],
+    }
+    with pytest.raises(ValueError, match="within the current run"):
+        checkpoint_run_metadata(metadata, step=9)
+    with pytest.raises(ValueError, match="within the current run"):
+        checkpoint_run_metadata(metadata, step=21)
 
 
 def test_evaluation_and_checkpoint_schedules_are_independent() -> None:

@@ -226,3 +226,5 @@ Checkpoint files are written to a temporary file in the destination directory, f
 ## Deterministic evaluation sampling
 
 Train/validation loss evaluation now uses a dedicated CPU random generator seeded from the run seed. Repeated evaluations therefore use the same sampled windows for a fixed dataset and seed, making checkpoint-to-checkpoint loss comparisons less noisy. Evaluation sampling no longer advances the global random stream used by training batches, so changing the evaluation interval does not change which training batches are drawn between checkpoints.
+
+Checkpoint provenance distinguishes the planned token budget from work actually completed. Each saved checkpoint updates the active run record with its global checkpoint step, completed optimizer steps, and estimated processed tokens. An interrupted segment therefore reports progress only through the last successful checkpoint; the target-budget field remains available separately for planning.

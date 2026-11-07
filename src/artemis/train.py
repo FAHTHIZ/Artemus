@@ -409,12 +409,16 @@ def build_checkpoint_metadata(
             args.batch_size * config.block_size
             * int(getattr(args, "gradient_accumulation_steps", 1))
         ),
-        "estimated_tokens_processed_this_run": int(
+        "estimated_tokens_budget_this_run": int(
             max(0, args.steps - start_step)
             * args.batch_size
             * config.block_size
             * int(getattr(args, "gradient_accumulation_steps", 1))
         ),
+        "optimizer_steps_completed": 0,
+        "estimated_tokens_processed_this_run": 0,
+        "checkpoint_step": int(start_step),
+        "target_reached": False,
         "objective_changed_from_parent": bool(
             resume_payload is not None
             and bool(resume_payload.get("response_only", False)) != bool(args.response_only)
@@ -438,6 +442,34 @@ def build_checkpoint_metadata(
         "lineage": lineage,
         "runs": previous_runs + [run_record],
     }
+
+
+def checkpoint_run_metadata(run_metadata: dict, step: int) -> dict:
+    """Return checkpoint metadata with actual progress for the current run."""
+    checkpoint_metadata = dict(run_metadata)
+    runs = [dict(run) for run in checkpoint_metadata.get("runs", [])]
+    if not runs:
+        return checkpoint_metadata
+
+    current_run = runs[-1]
+    start_step = int(current_run.get("start_step", 0))
+    target_step = int(current_run.get("target_step", step))
+    if step < start_step or step > target_step:
+        raise ValueError("checkpoint step must be within the current run's step range")
+
+    completed_steps = step - start_step
+    tokens_per_step = int(current_run.get("estimated_tokens_per_optimizer_step", 0))
+    current_run.update({
+        "checkpoint_step": int(step),
+        "optimizer_steps_completed": completed_steps,
+        "estimated_tokens_processed_this_run": (
+            completed_steps * tokens_per_step
+        ),
+        "target_reached": step >= target_step,
+    })
+    runs[-1] = current_run
+    checkpoint_metadata["runs"] = runs
+    return checkpoint_metadata
 
 
 def save_checkpoint(
@@ -464,7 +496,7 @@ def save_checkpoint(
         "losses": losses,
         "losses_at_step": step if losses_at_step is None else int(losses_at_step),
         "response_only": response_only,
-        "run_metadata": run_metadata,
+        "run_metadata": checkpoint_run_metadata(run_metadata, step),
         "grad_scaler_state_dict": grad_scaler_state_dict,
         "torch_rng_state": torch.get_rng_state(),
         "cuda_rng_states": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
