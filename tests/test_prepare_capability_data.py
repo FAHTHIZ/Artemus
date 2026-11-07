@@ -7,6 +7,7 @@ from artemis.prepare_capability_data import (
     build_mbpp_examples,
     git_blob_sha,
     prepare_mixture,
+    sha256_file,
 )
 
 
@@ -94,9 +95,7 @@ def test_prepare_mixture_writes_hashed_structured_evaluation_file(tmp_path: Path
     evaluation_path = output_dir / "evaluation.jsonl"
     assert evaluation_path.is_file()
     assert manifest["evaluation_examples"] > 0
-    assert manifest["evaluation_sha256"] == git_blob_sha(evaluation_path) or len(
-        manifest["evaluation_sha256"]
-    ) == 64
+    assert manifest["evaluation_sha256"] == sha256_file(evaluation_path)
     records = [json.loads(line) for line in evaluation_path.read_text(encoding="utf-8").splitlines()]
     assert any(row["task_type"] == "math" for row in records)
     assert any(row["task_type"] == "python" and row["task_id"] == 511 for row in records)
