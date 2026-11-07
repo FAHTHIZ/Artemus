@@ -71,3 +71,37 @@ def test_kaggle_training_notebook_writes_valid_aya_manifest_newline() -> None:
 
     assert r"""json.dumps(aya_manifest, indent=2, ensure_ascii=False) + '\n'""" in source
     assert r"""json.dumps(aya_manifest, indent=2, ensure_ascii=False) + '\\n'""" not in source
+
+
+
+def test_kaggle_training_notebook_resumes_foundation_state_and_rotates_samples() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    code = {
+        cell.get("id"): "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    }
+
+    settings = code["settings"]
+    preparation = code["prepare-fineweb"]
+    tokenizer = code["tokenizer-code"]
+    training = code["foundation-train"]
+    aya = code["aya-code"]
+    export = code["export-code"]
+
+    assert "artemus-foundation-current.pt" in settings
+    assert "response_only" in settings
+    assert "tokenizer_model_b64" in settings
+    assert "embedded_sha != external_sha" in settings
+    assert "FINEWEB_SHUFFLE_SEED" in settings
+    assert "--shuffle-seed" in preparation
+    assert "HAS_FOUNDATION_STATE" in tokenizer
+    assert "SentencePieceTokenizer.train" in tokenizer
+    assert "--resume" in training
+    assert "--allow-data-change" in training
+    assert "continued_pretraining" in training
+    assert "previous_step + TRAIN_STEPS" in training
+    assert "--shuffle-seed" in aya
+    assert "'training_cycle': CYCLE_INDEX + 1" in export
+    assert "shutil.rmtree" not in "\n".join(code.values())
