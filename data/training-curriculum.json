@@ -237,6 +237,11 @@
       "No model-generated examples enter training without human review and independent verification.",
       "The Kaggle state dataset remains private and stores checkpoints, tokenizer, manifests, and hashes, never API credentials."
     ],
-    "promotion": "A completed cycle produces a candidate only; promotion requires protected exact-answer, isolated code-execution, multilingual and regression evaluations."
+    "promotion": "A completed cycle produces a candidate only; promotion requires protected exact-answer, isolated code-execution, multilingual and regression evaluations.",
+    "evaluation_partition": {
+      "gsm8k": "Official train split only: hash bucket 0 is optimizer validation, bucket 1 is diagnostic evaluation, buckets 2-9 are training.",
+      "mbpp": "Task IDs 511-555 are optimizer validation, 556-600 are diagnostic evaluation, and 601-974 are training. IDs 1-510 stay excluded.",
+      "invariant": "Diagnostic evaluation examples are disjoint from both training and optimizer validation."
+    }
   }
 }
