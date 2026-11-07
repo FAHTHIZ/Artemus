@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from artemis.prepare_pretraining_data import prepare_stream, quality_rejection_reason
+from artemis.prepare_pretraining_data import prepare_stream, quality_rejection_reason, shuffle_stream
 
 
 def test_quality_filter_rejects_email_and_private_key_patterns():
