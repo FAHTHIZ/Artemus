@@ -206,7 +206,7 @@ The task-SFT candidate is exported separately as `artemus-task-sft.pt`. The recu
 
 ### Held-out capability diagnostics
 
-Each GPU cycle now exports structured evaluation records from the internal held-out partitions: a deterministic 10% hash split of the official GSM8K training file and MBPP validation task IDs 511-600. The GSM8K official test file and MBPP IDs 11-510 remain excluded.
+Each GPU cycle now exports structured evaluation records from partitions disjoint from both training and optimizer validation. GSM8K official training rows are divided by stable hash buckets: bucket 0 is used for validation loss, bucket 1 is reserved for final diagnostics, and buckets 2-9 are used for training. The MBPP official validation range is further separated: IDs 511-555 are used for optimizer validation and IDs 556-600 are reserved for final diagnostics. The GSM8K official test file and MBPP IDs 1-510 remain excluded.
 
 After task-specific tuning, the capability evaluator reports strict numeric exact-match accuracy for math, Python syntax-valid rate, and exact code-text match rate. Python outputs are parsed with the AST module but never executed. These are internal diagnostics, not official GSM8K or MBPP benchmark scores; syntax-valid code is not necessarily correct. Independent protected data and an isolated code-execution harness are still required before making task-solving claims.
 
