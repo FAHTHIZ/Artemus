@@ -1,7 +1,7 @@
-"""Benchmark cached versus uncached Artemis decoding on random-init weights.
+"""Benchmark static, dynamic, and uncached Artemis decoding on random-init weights.
 
-This is a systems benchmark, not a model-quality evaluation. Use the same model
-instance, prompt, and decoding policy for both paths.
+This is a systems benchmark, not a model-quality evaluation. All paths use the
+same model instance, prompt, and deterministic top-k=1 decoding policy.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import time
 import torch
 
 from artemis.config import ModelConfig
-from artemis.model import ArtemisLM
+from artemis.model import ArtemisLM, StaticKVCache
 from artemis.train import choose_device
 
 
@@ -26,14 +26,26 @@ def cache_payload_bytes(cache: tuple[tuple[torch.Tensor, torch.Tensor], ...]) ->
     return sum(tensor.numel() * tensor.element_size() for layer in cache for tensor in layer)
 
 
+def static_cache_payload_bytes(cache: StaticKVCache, *, active_only: bool) -> int:
+    """Count active tensor payload or the full preallocated K/V capacity."""
+    length = cache.length if active_only else cache.capacity
+    return sum(
+        tensor[:, :, :length, :].numel() * tensor.element_size()
+        for tensor_group in (cache.keys, cache.values)
+        for tensor in tensor_group
+    )
+
+
 def _timed_generation(
     model: ArtemisLM,
     prompt: torch.Tensor,
     *,
     new_tokens: int,
-    use_cache: bool,
+    cache_mode: str,
     device: torch.device,
 ) -> tuple[float, torch.Tensor]:
+    if cache_mode not in {"static", "dynamic", "uncached"}:
+        raise ValueError("cache_mode must be static, dynamic, or uncached")
     synchronise(device)
     start = time.perf_counter()
     output = model.generate(
@@ -42,7 +54,8 @@ def _timed_generation(
         temperature=1.0,
         top_k=1,
         eos_token_id=None,
-        use_cache=use_cache,
+        use_cache=cache_mode != "uncached",
+        use_static_cache=cache_mode == "static",
     )
     synchronise(device)
     return time.perf_counter() - start, output
@@ -71,38 +84,48 @@ def benchmark_generation(
         prompt = prompt[:, -model.config.block_size :]
 
     model.eval()
-    for _ in range(warmup):
-        _timed_generation(
-            model, prompt, new_tokens=new_tokens, use_cache=True, device=selected_device
-        )
-        _timed_generation(
-            model, prompt, new_tokens=new_tokens, use_cache=False, device=selected_device
-        )
+    modes = ("static", "dynamic", "uncached")
+    # Rotate mode order so one path does not always benefit from running first
+    # or suffer from being last during thermal/frequency/cache effects.
+    for warmup_index in range(warmup):
+        offset = warmup_index % len(modes)
+        warmup_order = modes[offset:] + modes[:offset]
+        for mode in warmup_order:
+            _timed_generation(
+                model, prompt, new_tokens=new_tokens,
+                cache_mode=mode, device=selected_device,
+            )
 
-    cached_times: list[float] = []
-    uncached_times: list[float] = []
-    cached_output = uncached_output = None
-    for _ in range(repeats):
-        elapsed, cached_output = _timed_generation(
-            model, prompt, new_tokens=new_tokens, use_cache=True, device=selected_device
-        )
-        cached_times.append(elapsed)
-        elapsed, uncached_output = _timed_generation(
-            model, prompt, new_tokens=new_tokens, use_cache=False, device=selected_device
-        )
-        uncached_times.append(elapsed)
+    times: dict[str, list[float]] = {mode: [] for mode in modes}
+    outputs: dict[str, torch.Tensor] = {}
+    for repeat_index in range(repeats):
+        offset = repeat_index % len(modes)
+        timed_order = modes[offset:] + modes[:offset]
+        for mode in timed_order:
+            elapsed, output = _timed_generation(
+                model, prompt, new_tokens=new_tokens,
+                cache_mode=mode, device=selected_device,
+            )
+            times[mode].append(elapsed)
+            outputs[mode] = output
 
-    if cached_output is None or uncached_output is None:
-        raise RuntimeError("benchmark did not produce generation outputs")
-    outputs_match = bool(torch.equal(cached_output, uncached_output))
+    if any(mode not in outputs for mode in modes):
+        raise RuntimeError("benchmark did not produce output for every cache mode")
+    outputs_match = (
+        torch.equal(outputs["static"], outputs["dynamic"])
+        and torch.equal(outputs["dynamic"], outputs["uncached"])
+    )
 
+    static_cache = model.allocate_static_kv_cache(prompt.size(0), device=selected_device)
     with torch.inference_mode():
-        _, cache = model.forward_with_cache(prompt)
-    cache_bytes = cache_payload_bytes(cache)
+        _, static_cache = model.forward_with_static_cache(prompt, static_cache)
+    active_cache_bytes = static_cache_payload_bytes(static_cache, active_only=True)
+    allocated_cache_bytes = static_cache_payload_bytes(static_cache, active_only=False)
+
     batch_size = prompt.size(0)
     context_length = prompt.size(1)
     dtype_bytes = next(model.parameters()).element_size()
-    estimated_full_mha_bytes = (
+    full_mha_active_bytes = (
         batch_size
         * model.config.n_layer
         * context_length
@@ -111,9 +134,12 @@ def benchmark_generation(
         * (model.config.n_embd // model.config.n_head)
         * dtype_bytes
     )
+    medians = {mode: statistics.median(times[mode]) for mode in modes}
 
-    cached_median = statistics.median(cached_times)
-    uncached_median = statistics.median(uncached_times)
+    def tokens_per_second(mode: str) -> float | None:
+        elapsed = medians[mode]
+        return new_tokens / elapsed if elapsed > 0 else None
+
     return {
         "weights": "random initialization; systems benchmark only",
         "device": str(selected_device),
@@ -122,29 +148,34 @@ def benchmark_generation(
         "generated_tokens": new_tokens,
         "warmup_runs": warmup,
         "timed_repeats": repeats,
-        "cached_latency_ms": cached_median * 1000.0,
-        "uncached_latency_ms": uncached_median * 1000.0,
-        "cached_generated_tokens_per_second": (
-            new_tokens / cached_median if cached_median > 0 else None
+        "static_cached_latency_ms": medians["static"] * 1000.0,
+        "dynamic_cached_latency_ms": medians["dynamic"] * 1000.0,
+        "uncached_latency_ms": medians["uncached"] * 1000.0,
+        "static_cached_generated_tokens_per_second": tokens_per_second("static"),
+        "dynamic_cached_generated_tokens_per_second": tokens_per_second("dynamic"),
+        "uncached_generated_tokens_per_second": tokens_per_second("uncached"),
+        "uncached_over_static_speed_ratio": (
+            medians["uncached"] / medians["static"] if medians["static"] > 0 else None
         ),
-        "uncached_generated_tokens_per_second": (
-            new_tokens / uncached_median if uncached_median > 0 else None
+        "uncached_over_dynamic_speed_ratio": (
+            medians["uncached"] / medians["dynamic"] if medians["dynamic"] > 0 else None
         ),
-        "uncached_over_cached_speed_ratio": (
-            uncached_median / cached_median if cached_median > 0 else None
+        "dynamic_over_static_speed_ratio": (
+            medians["static"] / medians["dynamic"] if medians["dynamic"] > 0 else None
         ),
-        "cached_and_uncached_outputs_match": outputs_match,
-        "kv_cache_payload_bytes": cache_bytes,
-        "full_mha_cache_estimate_bytes": estimated_full_mha_bytes,
-        "kv_cache_payload_reduction_fraction": (
-            1.0 - cache_bytes / estimated_full_mha_bytes
-            if estimated_full_mha_bytes > 0
-            else 0.0
+        "static_dynamic_and_uncached_outputs_match": outputs_match,
+        "kv_cache_active_payload_bytes": active_cache_bytes,
+        "kv_cache_allocated_capacity_bytes": allocated_cache_bytes,
+        "full_mha_active_cache_estimate_bytes": full_mha_active_bytes,
+        "kv_cache_active_payload_reduction_fraction": (
+            1.0 - active_cache_bytes / full_mha_active_bytes
+            if full_mha_active_bytes > 0 else 0.0
         ),
         "warning": (
-            "Latency includes prompt prefill and token sampling. Results depend on "
-            "device, PyTorch kernels, context, and model configuration; do not generalise "
-            "from a random-init smoke model to trained-model quality."
+            "Latency includes prompt prefill and token sampling. Static cache reserves "
+            "block_size capacity; dynamic cache grows to active length. Results depend "
+            "on device, PyTorch kernels, context, and model configuration. Do not "
+            "generalise from a random-init smoke model to trained-model quality."
         ),
     }
 
@@ -197,9 +228,7 @@ def main() -> None:
         embedding_dim=args.embedding_dim,
     )
     model = ArtemisLM(config).to(device)
-    prompt = torch.randint(
-        0, config.vocab_size, (1, args.prompt_tokens), device=device
-    )
+    prompt = torch.randint(0, config.vocab_size, (1, args.prompt_tokens), device=device)
     result = benchmark_generation(
         model,
         prompt,

@@ -217,3 +217,83 @@ def test_cached_forward_rejects_wrong_position_offset():
         _, cache = model.forward_with_cache(tokens)
         with pytest.raises(ValueError, match="position_offset must equal"):
             model.forward_with_cache(tokens[:, :1], cache, position_offset=4)
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        ModelConfig(vocab_size=512, block_size=24, n_layer=2, n_head=4, n_embd=64),
+        ModelConfig(
+            vocab_size=512, block_size=24, n_layer=2, n_head=4, n_embd=64,
+            n_kv_head=2, use_rope=True, use_qk_norm=True, use_swiglu=True,
+            embedding_dim=32,
+        ),
+    ],
+)
+def test_static_cache_token_by_token_matches_full_forward(config):
+    torch.manual_seed(31)
+    model = ArtemisLM(config).eval()
+    tokens = torch.randint(0, config.vocab_size, (2, 11))
+    cache = model.allocate_static_kv_cache(2)
+    with torch.inference_mode():
+        expected, _ = model(tokens)
+        chunks = []
+        for position in range(tokens.size(1)):
+            logits, cache = model.forward_with_static_cache(
+                tokens[:, position:position + 1], cache
+            )
+            chunks.append(logits)
+        actual = torch.cat(chunks, dim=1)
+    assert torch.allclose(actual, expected, atol=2e-5, rtol=2e-5)
+    assert cache.length == tokens.size(1)
+    assert cache.capacity == config.block_size
+
+
+def test_static_cache_multi_token_chunks_match_full_forward():
+    torch.manual_seed(37)
+    model = compact_model().eval()
+    tokens = torch.randint(0, 512, (2, 13))
+    cache = model.allocate_static_kv_cache(2)
+    with torch.inference_mode():
+        expected, _ = model(tokens)
+        outputs = []
+        for start, end in ((0, 5), (5, 10), (10, 13)):
+            logits, cache = model.forward_with_static_cache(tokens[:, start:end], cache)
+            outputs.append(logits)
+        actual = torch.cat(outputs, dim=1)
+    assert torch.allclose(actual, expected, atol=2e-5, rtol=2e-5)
+    assert cache.length == 13
+
+
+def test_static_cache_reset_reuses_buffers_and_restarts_positions():
+    torch.manual_seed(43)
+    model = compact_model().eval()
+    tokens = torch.randint(0, 512, (1, 9))
+    cache = model.allocate_static_kv_cache(1)
+    with torch.inference_mode():
+        expected, _ = model(tokens[:, :6])
+        actual, cache = model.forward_with_static_cache(tokens[:, :6], cache)
+        assert torch.allclose(actual, expected, atol=2e-5, rtol=2e-5)
+        original_key_ptr = cache.keys[0].data_ptr()
+        original_value_ptr = cache.values[0].data_ptr()
+        cache.reset()
+        assert cache.length == 0
+        expected, _ = model(tokens[:, 3:9])
+        actual, cache = model.forward_with_static_cache(tokens[:, 3:9], cache)
+    assert torch.allclose(actual, expected, atol=2e-5, rtol=2e-5)
+    assert cache.keys[0].data_ptr() == original_key_ptr
+    assert cache.values[0].data_ptr() == original_value_ptr
+
+
+def test_static_cache_rejects_overflow_and_training_mode():
+    model = ArtemisLM(ModelConfig(
+        vocab_size=257, block_size=8, n_layer=1, n_head=2, n_embd=16
+    )).eval()
+    cache = model.allocate_static_kv_cache(1)
+    with torch.inference_mode():
+        _, cache = model.forward_with_static_cache(torch.tensor([[1, 2, 3, 4, 5, 6, 7]]), cache)
+        with pytest.raises(ValueError, match="capacity exceeded"):
+            model.forward_with_static_cache(torch.tensor([[8, 9]]), cache)
+    model.train()
+    with pytest.raises(RuntimeError, match="inference-only"):
+        model.forward_with_static_cache(torch.tensor([[1]]), model.allocate_static_kv_cache(1))

@@ -22,7 +22,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-k", type=int, default=40)
     parser.add_argument("--device", default="auto")
     parser.add_argument(
-        "--no-cache", action="store_true", help="disable incremental KV caching for reference comparisons"
+        "--no-cache", action="store_true", help="disable caching for full-context reference comparisons"
+    )
+    parser.add_argument(
+        "--dynamic-cache", action="store_true",
+        help="use dynamically concatenated K/V tensors instead of preallocated static buffers",
     )
     return parser.parse_args()
 
@@ -74,6 +78,7 @@ def main() -> None:
         top_k=args.top_k,
         eos_token_id=tokenizer.stop_token_id,
         use_cache=not args.no_cache,
+        use_static_cache=not args.dynamic_cache,
     )[0].tolist()
     print(tokenizer.decode(output_ids))
     print("\nNOTE: generated text is experimental; evaluate it before treating it as useful advice.")
