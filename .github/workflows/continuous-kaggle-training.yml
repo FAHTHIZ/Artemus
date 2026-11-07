@@ -83,10 +83,57 @@ jobs:
           PY
           echo "KAGGLE_KERNEL_ID=$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG" >> "$GITHUB_ENV"
           kaggle --version
-          # This fails early with a clear message if the private state dataset is not created/shared.
+          # Fetch existing state metadata, or create an empty private state dataset on first use.
           mkdir -p .kaggle-state-metadata
-          kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-metadata
+          if ! kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-metadata; then
+            echo "::notice::Training state dataset not found; creating a private bootstrap dataset."
+            mkdir -p .kaggle-state-bootstrap
+            python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          dataset_id = os.environ["KAGGLE_STATE_DATASET"]
+          metadata = {
+              "title": "Artemus Training State",
+              "id": dataset_id,
+              "licenses": [{"name": "other"}],
+              "description": (
+                  "Private checkpoint and provenance state for Artemus research cycles. "
+                  "This dataset is not a general training corpus and must remain private. "
+                  "Each source manifest records the applicable upstream data licence and terms."
+              ),
+          }
+          Path(".kaggle-state-bootstrap/dataset-metadata.json").write_text(
+              json.dumps(metadata, indent=2) + "\\n", encoding="utf-8"
+          )
+          Path(".kaggle-state-bootstrap/README.md").write_text(
+              "# Artemus private training state\\n\\n"
+              "This dataset is managed by the Artemus continuous GPU training workflow. "
+              "It stores checkpoints, tokenizer files, manifests and hashes. "
+              "Do not make this dataset public.\\n",
+              encoding="utf-8",
+          )
+          PY
+            # Kaggle datasets are private by default; this intentionally omits --public.
+            kaggle datasets create -p .kaggle-state-bootstrap -q
+            kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-metadata
+          fi
           test -s .kaggle-state-metadata/dataset-metadata.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          metadata = json.loads(
+              Path(".kaggle-state-metadata/dataset-metadata.json").read_text(encoding="utf-8")
+          )
+          expected = os.environ["KAGGLE_STATE_DATASET"]
+          if metadata.get("id") != expected:
+              raise SystemExit(
+                  f"Dataset metadata ID mismatch: expected {expected!r}, got {metadata.get('id')!r}"
+              )
+          PY
 
       - name: Prepare the private GPU kernel
         shell: bash
