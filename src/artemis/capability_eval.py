@@ -19,7 +19,7 @@ from artemis.train import choose_device
 
 _NUMBER = re.compile(r"^\s*\$?\s*([-+]?\d[\d,]*(?:\.\d+)?)\s*%?\s*[.!]?\s*$")
 _ANSWER_LABEL = re.compile(
-    r"^(?:final(?:\s+answer)?|answer)\s*(?::|=|\bis\b)\s*(.+)$",
+    r"^(?:(?:the\s+)?final(?:\s+answer)?|(?:the\s+)?answer)\s*(?::|=|\bis\b)\s*(.+)$",
     flags=re.IGNORECASE,
 )
 
