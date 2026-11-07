@@ -110,6 +110,9 @@ def test_kaggle_training_notebook_resumes_foundation_state_and_rotates_samples()
     assert "previous_step + TRAIN_STEPS" in training
     assert "--shuffle-seed" in aya
     assert '"training_cycle": CYCLE_INDEX + 1' in export
+    assert '"foundation_global_step": foundation_global_step' in export
+    assert '"foundation_training_run_count": foundation_training_run_count' in export
+    assert 'foundation_checkpoint_sha256 = sha256_path(foundation_checkpoint_export)' in export
     assert "shutil.rmtree" not in "\n".join(code.values())
 
 
@@ -136,6 +139,10 @@ def test_recurring_kaggle_workflow_persists_private_foundation_state() -> None:
         "KAGGLE_KERNEL_SLUG",
         "export-manifest.json",
         "artemus-task-sft.pt",
+        '"global_step": foundation_global_step',
+        '"final_candidate_global_step"',
+        "foundation checkpoint hash does not match run metadata",
+        "foundation_run_count != training_cycle",
     ):
         assert expected in source, f"recurring Kaggle workflow is missing {expected!r}"
 

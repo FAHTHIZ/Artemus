@@ -290,14 +290,29 @@ jobs:
           checkpoint = root / "artemus-foundation-current.pt"
           tokenizer = root / "tokenizer.model"
           metadata = json.loads((root / "run-metadata.json").read_text(encoding="utf-8"))
+          foundation_sha256 = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+          foundation_global_step = metadata.get("foundation_global_step")
+          foundation_run_count = metadata.get("foundation_training_run_count")
+          training_cycle = metadata.get("training_cycle")
+          if metadata.get("foundation_checkpoint_sha256") != foundation_sha256:
+              raise SystemExit("Foundation checkpoint hash does not match run metadata.")
+          if not isinstance(foundation_global_step, int) or foundation_global_step < 1:
+              raise SystemExit("Run metadata does not contain a valid foundation checkpoint step.")
+          if foundation_run_count != training_cycle:
+              raise SystemExit("Foundation checkpoint run count does not match the training cycle.")
           state = {
               "schema_version": 1,
               "updated_at_utc": datetime.now(timezone.utc).isoformat(),
-              "training_cycle": metadata.get("training_cycle"),
+              "training_cycle": training_cycle,
               "repository_commit": metadata.get("repository_commit"),
-              "foundation_checkpoint_sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+              "foundation_checkpoint": checkpoint.name,
+              "foundation_checkpoint_sha256": foundation_sha256,
               "tokenizer_sha256": hashlib.sha256(tokenizer.read_bytes()).hexdigest(),
-              "global_step": metadata.get("global_step"),
+              "global_step": foundation_global_step,
+              "foundation_global_step": foundation_global_step,
+              "final_candidate_global_step": metadata.get("final_candidate_global_step", metadata.get("global_step")),
+              "final_candidate_checkpoint": metadata.get("final_checkpoint"),
+              "final_candidate_sha256": metadata.get("checkpoint_sha256"),
               "note": "Private state only. The next cycle resumes this foundation checkpoint, not the instruction-SFT candidate.",
           }
           (root / "state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
