@@ -211,3 +211,6 @@ Each GPU cycle now exports structured evaluation records from the internal held-
 After task-specific tuning, the capability evaluator reports strict numeric exact-match accuracy for math, Python syntax-valid rate, and exact code-text match rate. Python outputs are parsed with the AST module but never executed. These are internal diagnostics, not official GSM8K or MBPP benchmark scores; syntax-valid code is not necessarily correct. Independent protected data and an isolated code-execution harness are still required before making task-solving claims.
 
 The exported run bundle includes structured evaluation inputs, per-example outputs, and the aggregate summary, all included in the artifact SHA-256 manifest.
+
+
+The same bounded evaluation sample is now run against all three cycle checkpoints (foundation, Aya-tuned, task-SFT). The export contains per-stage summaries, per-example traces, and a comparison record with the shared evaluation-data hash. This makes phase regressions visible instead of reporting only the final checkpoint.
