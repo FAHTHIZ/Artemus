@@ -5,8 +5,10 @@ import torch
 import pytest
 
 from artemis.config import ModelConfig
+from artemis.model import ArtemisLM
 from artemis.tokenizer import ByteTokenizer
-from artemis.train import build_checkpoint_metadata, get_batch
+import artemis.train as train_module
+from artemis.train import build_checkpoint_metadata, get_batch, save_checkpoint
 
 
 def test_get_batch_returns_shifted_sequences() -> None:
@@ -15,6 +17,64 @@ def test_get_batch_returns_shifted_sequences() -> None:
     assert x.shape == (4, 8)
     assert y.shape == (4, 8)
     assert torch.equal(y[:, :-1], x[:, 1:])
+
+
+def _tiny_checkpoint_parts():
+    config = ModelConfig(vocab_size=257, block_size=16, n_layer=1, n_head=2, n_embd=16)
+    model = ArtemisLM(config)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
+    return model, optimizer
+
+
+def test_save_checkpoint_round_trips_after_atomic_replace(tmp_path: Path) -> None:
+    model, optimizer = _tiny_checkpoint_parts()
+    checkpoint = tmp_path / "checkpoint.pt"
+
+    save_checkpoint(
+        checkpoint,
+        model,
+        optimizer,
+        ByteTokenizer(),
+        step=7,
+        losses={"train": 1.25, "val": 1.5},
+        response_only=False,
+        run_metadata={"lineage": {"origin": "test"}, "runs": []},
+    )
+
+    payload = torch.load(checkpoint, map_location="cpu", weights_only=True)
+    assert payload["format_version"] == 3
+    assert payload["step"] == 7
+    assert payload["losses"]["val"] == pytest.approx(1.5)
+    assert payload["tokenizer"] == ByteTokenizer.name
+    assert not list(tmp_path.glob(".checkpoint.pt.*.tmp"))
+
+
+def test_failed_checkpoint_write_preserves_previous_checkpoint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model, optimizer = _tiny_checkpoint_parts()
+    checkpoint = tmp_path / "checkpoint.pt"
+    checkpoint.write_bytes(b"previous-good-checkpoint")
+
+    def interrupted_save(_payload, stream) -> None:
+        stream.write(b"partial-checkpoint")
+        raise OSError("simulated disk failure")
+
+    monkeypatch.setattr(train_module.torch, "save", interrupted_save)
+    with pytest.raises(OSError, match="simulated disk failure"):
+        save_checkpoint(
+            checkpoint,
+            model,
+            optimizer,
+            ByteTokenizer(),
+            step=8,
+            losses={"train": 1.0, "val": 1.1},
+            response_only=False,
+            run_metadata={"lineage": {"origin": "test"}, "runs": []},
+        )
+
+    assert checkpoint.read_bytes() == b"previous-good-checkpoint"
+    assert not list(tmp_path.glob(".checkpoint.pt.*.tmp"))
 
 
 def make_args(tmp_path: Path) -> Namespace:
