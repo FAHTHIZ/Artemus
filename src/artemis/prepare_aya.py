@@ -13,7 +13,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from artemis.prepare_pretraining_data import obvious_sensitive_content, stable_bucket
+from artemis.prepare_pretraining_data import obvious_sensitive_content, shuffle_stream, stable_bucket
 
 
 def format_aya_example(prompt: str, response: str) -> str:
@@ -37,11 +37,15 @@ def prepare_aya_stream(
     validation_percent: float = 2.0,
     max_prompt_chars: int = 20_000,
     max_response_chars: int = 20_000,
+    sampling_seed: int | None = None,
+    shuffle_buffer_size: int = 10_000,
 ) -> dict[str, Any]:
     if len(dataset_revision) < 7 or dataset_revision in {"main", "master", "latest"}:
         raise ValueError("dataset_revision must be a pinned commit or immutable release")
     if max_examples < 100:
         raise ValueError("max_examples must be at least 100")
+    if shuffle_buffer_size < 1:
+        raise ValueError("shuffle_buffer_size must be positive")
     if not 0 < validation_percent < 20:
         raise ValueError("validation_percent must be >0 and <20")
     if max_prompt_chars < 1 or max_response_chars < 1:
@@ -179,6 +183,11 @@ def prepare_aya_stream(
             "languages",
             "dialects",
         ],
+        "sampling": {
+            "method": "huggingface_iterable_bounded_buffer_shuffle" if sampling_seed is not None else "upstream_stream_order",
+            "seed": sampling_seed,
+            "buffer_size": shuffle_buffer_size if sampling_seed is not None else None,
+        },
         "accepted_examples": accepted,
         "counts": dict(counts),
         "examples_by_language_code": dict(by_language),
@@ -208,6 +217,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--validation-percent", type=float, default=2.0)
     parser.add_argument("--max-prompt-chars", type=int, default=20_000)
     parser.add_argument("--max-response-chars", type=int, default=20_000)
+    parser.add_argument("--shuffle-seed", type=int, help="deterministic per-cycle streaming shuffle seed")
+    parser.add_argument("--shuffle-buffer-size", type=int, default=10_000)
     return parser.parse_args()
 
 
@@ -228,6 +239,7 @@ def main() -> None:
         revision=args.revision,
         streaming=True,
     )
+    stream = shuffle_stream(stream, seed=args.shuffle_seed, buffer_size=args.shuffle_buffer_size)
     manifest = prepare_aya_stream(
         stream,
         dataset_revision=args.revision,
@@ -236,6 +248,8 @@ def main() -> None:
         validation_percent=args.validation_percent,
         max_prompt_chars=args.max_prompt_chars,
         max_response_chars=args.max_response_chars,
+        sampling_seed=args.shuffle_seed,
+        shuffle_buffer_size=args.shuffle_buffer_size,
     )
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
 
