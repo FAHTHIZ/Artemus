@@ -304,6 +304,22 @@ def periodic_step_due(step: int, *, target_step: int, interval: int) -> bool:
     return step == 1 or step == target_step or step % interval == 0
 
 
+def checkpoint_loss_history(
+    resume_payload: dict | None,
+) -> tuple[dict[str, float], int | None]:
+    """Carry forward the last measured losses and the step where they were measured."""
+    if resume_payload is None:
+        return {}, None
+    losses = resume_payload.get("losses")
+    if not isinstance(losses, dict):
+        return {}, None
+    losses_at_step = resume_payload.get("losses_at_step")
+    if losses_at_step is None and losses:
+        # Older checkpoint formats saved losses immediately before saving weights.
+        losses_at_step = resume_payload.get("step")
+    return dict(losses), int(losses_at_step) if losses_at_step is not None else None
+
+
 def build_checkpoint_metadata(
     *,
     args: argparse.Namespace,
@@ -756,8 +772,7 @@ def main() -> None:
         if isinstance(scaler_state, dict):
             scaler.load_state_dict(scaler_state)
 
-    latest_losses: dict[str, float] = {}
-    latest_losses_step: int | None = None
+    latest_losses, latest_losses_step = checkpoint_loss_history(resume_payload)
     for step in range(start_step + 1, args.steps + 1):
         scheduled_lr = learning_rate_at_step(
             step=step,

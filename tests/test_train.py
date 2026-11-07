@@ -8,7 +8,33 @@ from artemis.config import ModelConfig
 from artemis.model import ArtemisLM
 from artemis.tokenizer import ByteTokenizer
 import artemis.train as train_module
-from artemis.train import build_checkpoint_metadata, get_batch, periodic_step_due, save_checkpoint
+from artemis.train import (
+    build_checkpoint_metadata,
+    checkpoint_loss_history,
+    get_batch,
+    periodic_step_due,
+    save_checkpoint,
+)
+
+
+def test_checkpoint_loss_history_preserves_explicit_measurement_step() -> None:
+    losses, measured_at = checkpoint_loss_history({
+        "step": 200,
+        "losses": {"train": 1.2, "val": 1.4},
+        "losses_at_step": 150,
+    })
+    assert losses == {"train": 1.2, "val": 1.4}
+    assert measured_at == 150
+
+
+def test_checkpoint_loss_history_supports_older_checkpoint_formats() -> None:
+    losses, measured_at = checkpoint_loss_history({
+        "step": 100,
+        "losses": {"train": 1.1, "val": 1.3},
+    })
+    assert losses == {"train": 1.1, "val": 1.3}
+    assert measured_at == 100
+    assert checkpoint_loss_history(None) == ({}, None)
 
 
 def test_evaluation_and_checkpoint_schedules_are_independent() -> None:
