@@ -202,3 +202,12 @@ After Aya instruction tuning, the GPU notebook now runs a bounded response-only 
 
 The task-SFT candidate is exported separately as `artemus-task-sft.pt`. The recurring workflow stores it as the latest instruction candidate, while the next cycle still resumes `artemus-foundation-current.pt` with its matching tokenizer. It never resumes task-SFT weights as foundation weights. A successful task-SFT run is not a correctness claim: promote only after independent exact-answer checks and isolated execution tests for generated code.
 
+
+
+### Held-out capability diagnostics
+
+Each GPU cycle now exports structured evaluation records from the internal held-out partitions: a deterministic 10% hash split of the official GSM8K training file and MBPP validation task IDs 511-600. The GSM8K official test file and MBPP IDs 11-510 remain excluded.
+
+After task-specific tuning, the capability evaluator reports strict numeric exact-match accuracy for math, Python syntax-valid rate, and exact code-text match rate. Python outputs are parsed with the AST module but never executed. These are internal diagnostics, not official GSM8K or MBPP benchmark scores; syntax-valid code is not necessarily correct. Independent protected data and an isolated code-execution harness are still required before making task-solving claims.
+
+The exported run bundle includes structured evaluation inputs, per-example outputs, and the aggregate summary, all included in the artifact SHA-256 manifest.
