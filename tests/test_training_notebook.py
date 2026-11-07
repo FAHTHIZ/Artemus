@@ -126,8 +126,50 @@ def test_recurring_kaggle_workflow_persists_private_foundation_state() -> None:
         "artemus-foundation-current.pt",
         "artemus-latest-instruction.pt",
         "export-manifest.json",
+        "artemis-task-sft.pt",
     ):
         assert expected in source, f"recurring Kaggle workflow is missing {expected!r}"
 
     assert "timeout-minutes: 360" in source
     assert "cancel-in-progress: false" in source
+
+
+def test_gpu_notebook_contains_verified_task_sft_stage() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    code = {
+        cell.get("id"): "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    }
+    assert "BLOCK_SIZE = 512" in code["settings"]
+    assert "TASK_SFT_STEPS" in code["settings"]
+    task = code["task-sft-code"]
+    for expected in (
+        "OASST1_SHA256",
+        "GSM8K_SHA256",
+        "MBPP_GIT_BLOB_SHA",
+        "bytes([0])",
+        "artemis.prepare_oasst1",
+        "artemis.prepare_capability_data",
+        "'--phase', 'task_sft'",
+        "'--response-only'",
+        "CHECKPOINT = TASK_CHECKPOINT",
+    ):
+        assert expected in task, f"task SFT stage is missing {expected!r}"
+    export = code["export-code"]
+    assert 'CHECKPOINT_ROOT / "artemis-task-sft.pt"' in export
+    assert '("capability-sft", CAPABILITY_DIR)' in export
+    assert '("oasst1", OASST_DIR)' in export
+
+
+def test_kaggle_workflow_promotes_task_tuned_candidate_not_aya_intermediate() -> None:
+    workflow_path = (
+        Path(__file__).resolve().parents[1]
+        / ".github" / "workflows" / "continuous-kaggle-training.yml"
+    )
+    source = workflow_path.read_text(encoding="utf-8")
+    assert 'instruction = root / "artemis-task-sft.pt"' in source
+    assert "artemis-latest-aya.pt" in source
+    assert "artemis-latest-instruction.pt" in source
+    assert "cp verified-run/artemis-task-sft.pt kaggle-state-update/artemus-latest-instruction.pt" in source
