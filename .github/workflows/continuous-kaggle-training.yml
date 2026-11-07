@@ -1,0 +1,254 @@
+name: Artemus recurring Kaggle GPU training
+
+on:
+  workflow_dispatch:
+    inputs:
+      accelerator:
+        description: Kaggle accelerator
+        required: false
+        default: NvidiaTeslaT4
+        type: choice
+        options:
+          - NvidiaTeslaT4
+          - NvidiaL4
+          - NvidiaA100
+  schedule:
+    # Weekly at 09:00 Bangladesh time (UTC+6); free accelerator availability is not guaranteed.
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artemus-kaggle-training
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+      KAGGLE_STATE_DATASET: ${{ vars.KAGGLE_STATE_DATASET }}
+      KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG }}
+      KAGGLE_ACCELERATOR: ${{ inputs.accelerator || vars.ARTEMUS_KAGGLE_ACCELERATOR || 'NvidiaTeslaT4' }}
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+    steps:
+      - name: Check out Artemus
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Kaggle CLI
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade kaggle
+
+      - name: Validate credentials and configure Kaggle CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in KAGGLE_USERNAME KAGGLE_KEY KAGGLE_STATE_DATASET KAGGLE_KERNEL_SLUG; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing GitHub secret/variable: $name"
+              exit 1
+            fi
+          done
+          if [[ "$KAGGLE_STATE_DATASET" != "$KAGGLE_USERNAME/artemus-training-state" ]]; then
+            echo "::error::KAGGLE_STATE_DATASET must be $KAGGLE_USERNAME/artemus-training-state; the notebook reads that mounted Kaggle input path."
+            exit 1
+          fi
+          mkdir -p "$HOME/.kaggle"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          credentials = {
+              "username": os.environ["KAGGLE_USERNAME"],
+              "key": os.environ["KAGGLE_KEY"],
+          }
+          path = Path.home() / ".kaggle" / "kaggle.json"
+          path.write_text(json.dumps(credentials), encoding="utf-8")
+          path.chmod(0o600)
+          PY
+          echo "KAGGLE_KERNEL_ID=$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG" >> "$GITHUB_ENV"
+          kaggle --version
+          # This fails early with a clear message if the private state dataset is not created/shared.
+          mkdir -p .kaggle-state-metadata
+          kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-metadata
+          test -s .kaggle-state-metadata/dataset-metadata.json
+
+      - name: Prepare the private GPU kernel
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .kaggle-kernel
+          cp notebooks/kaggle-gpu-training.ipynb .kaggle-kernel/
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          metadata = {
+              "id": os.environ["KAGGLE_KERNEL_ID"],
+              "title": "Artemus continuous training",
+              "code_file": "kaggle-gpu-training.ipynb",
+              "language": "python",
+              "kernel_type": "notebook",
+              "is_private": "true",
+              "enable_gpu": "true",
+              "enable_internet": "true",
+              "machine_shape": os.environ["KAGGLE_ACCELERATOR"],
+              "dataset_sources": [os.environ["KAGGLE_STATE_DATASET"]],
+              "competition_sources": [],
+              "kernel_sources": [],
+              "model_sources": [],
+          }
+          Path(".kaggle-kernel/kernel-metadata.json").write_text(
+              json.dumps(metadata, indent=2) + "\\n", encoding="utf-8"
+          )
+          PY
+          python -m json.tool .kaggle-kernel/kernel-metadata.json >/dev/null
+
+      - name: Push notebook and start the GPU training cycle
+        run: |
+          set -euo pipefail
+          kaggle kernels push \
+            -p .kaggle-kernel \
+            --timeout 14400 \
+            --accelerator "$KAGGLE_ACCELERATOR"
+
+      - name: Wait for Kaggle training to finish
+        shell: bash
+        run: |
+          set -euo pipefail
+          completed=0
+          for attempt in $(seq 1 240); do
+            status="$(kaggle kernels status "$KAGGLE_KERNEL_ID" 2>&1)" || {
+              echo "$status"
+              echo "::error::Could not read Kaggle kernel status."
+              exit 1
+            }
+            echo "$status"
+            if grep -Eqi 'COMPLETE|SUCCEEDED' <<<"$status"; then
+              completed=1
+              break
+            fi
+            if grep -Eqi 'ERROR|FAILED|CANCELLED' <<<"$status"; then
+              kaggle kernels logs "$KAGGLE_KERNEL_ID" || true
+              echo "::error::Kaggle training did not complete successfully."
+              exit 1
+            fi
+            sleep 60
+          done
+          if [[ "$completed" -ne 1 ]]; then
+            kaggle kernels logs "$KAGGLE_KERNEL_ID" || true
+            echo "::error::Timed out waiting for the Kaggle GPU run."
+            exit 1
+          fi
+
+      - name: Download and verify training outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p kaggle-output
+          kaggle kernels output "$KAGGLE_KERNEL_ID" -p kaggle-output --force
+          mapfile -t archives < <(find kaggle-output -type f -name 'artemus-run-*.zip' | sort)
+          if [[ "${#archives[@]}" -lt 1 ]]; then
+            echo "::error::Kaggle completed but did not produce the expected Artemus run archive."
+            find kaggle-output -maxdepth 3 -type f -print
+            exit 1
+          fi
+          mkdir -p verified-run
+          unzip -q "${archives[-1]}" -d verified-run
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("verified-run")
+          export_manifest = json.loads((root / "export-manifest.json").read_text(encoding="utf-8"))
+          run_metadata = json.loads((root / "run-metadata.json").read_text(encoding="utf-8"))
+          checked = 0
+          for item in export_manifest.get("artifacts", []):
+              path = root / item["path"]
+              if not path.is_file():
+                  raise SystemExit(f"Exported artifact is missing: {item['path']}")
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              if digest != item["sha256"]:
+                  raise SystemExit(f"SHA-256 mismatch for {item['path']}")
+              checked += 1
+          foundation = root / "artemis-foundation-fineweb-edu.pt"
+          instruction = root / "artemis-aya-instruction-sft.pt"
+          tokenizer = root / "tokenizer.model"
+          for path in (foundation, instruction, tokenizer):
+              if not path.is_file() or path.stat().st_size == 0:
+                  raise SystemExit(f"Required training state artifact is missing: {path.name}")
+          if run_metadata.get("final_checkpoint") != instruction.name:
+              raise SystemExit("Run metadata does not identify the instruction candidate as the final checkpoint.")
+          print(json.dumps({
+              "training_cycle": run_metadata.get("training_cycle"),
+              "repository_commit": run_metadata.get("repository_commit"),
+              "global_step": run_metadata.get("global_step"),
+              "verified_artifact_count": checked,
+              "checkpoint_sha256": run_metadata.get("checkpoint_sha256"),
+          }, indent=2))
+          PY
+
+      - name: Version the private persistent training state
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p kaggle-state-update/current-provenance
+          cp .kaggle-state-metadata/dataset-metadata.json kaggle-state-update/dataset-metadata.json
+          cp verified-run/artemis-foundation-fineweb-edu.pt kaggle-state-update/artemus-foundation-current.pt
+          cp verified-run/artemis-aya-instruction-sft.pt kaggle-state-update/artemus-latest-instruction.pt
+          cp verified-run/tokenizer.model kaggle-state-update/tokenizer.model
+          cp verified-run/run-metadata.json kaggle-state-update/run-metadata.json
+          cp verified-run/export-manifest.json kaggle-state-update/export-manifest.json
+          find verified-run -maxdepth 1 -type f \\
+            \( -name '*-manifest.json' -o -name '*-provenance.jsonl' \) \\
+            -exec cp {} kaggle-state-update/current-provenance/ \\;
+          python - <<'PY'
+          import hashlib
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          root = Path("kaggle-state-update")
+          checkpoint = root / "artemus-foundation-current.pt"
+          metadata = json.loads((root / "run-metadata.json").read_text(encoding="utf-8"))
+          state = {
+              "schema_version": 1,
+              "updated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "training_cycle": metadata.get("training_cycle"),
+              "repository_commit": metadata.get("repository_commit"),
+              "foundation_checkpoint_sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+              "global_step": metadata.get("global_step"),
+              "note": "Private state only. The next cycle resumes this foundation checkpoint, not the instruction-SFT candidate.",
+          }
+          (root / "state.json").write_text(json.dumps(state, indent=2) + "\\n", encoding="utf-8")
+          print(json.dumps(state, indent=2))
+          PY
+          kaggle datasets version \
+            -p kaggle-state-update \
+            -m "Artemus training cycle $GITHUB_RUN_NUMBER"
+
+      - name: Publish run summary
+        if: always()
+        run: |
+          {
+            echo "## Artemus Kaggle training"
+            echo "- Kaggle kernel: $KAGGLE_KERNEL_ID"
+            echo "- Accelerator: $KAGGLE_ACCELERATOR"
+            if [[ -f kaggle-state-update/state.json ]]; then
+              echo "- Persistent state was updated successfully."
+              cat kaggle-state-update/state.json
+            else
+              echo "- No new checkpoint state was promoted."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
