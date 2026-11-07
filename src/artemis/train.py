@@ -228,6 +228,14 @@ def tokenizer_checkpoint_fields(
     return {"tokenizer": tokenizer.name, "tokenizer_model_b64": None}
 
 
+def load_resume_checkpoint(path: Path) -> dict:
+    """Load checkpoint tensors on CPU so resume does not duplicate the checkpoint on GPU."""
+    payload = torch.load(path, map_location="cpu", weights_only=True)
+    if payload.get("format_version") not in {1, 2, 3}:
+        raise ValueError("Unsupported checkpoint format")
+    return payload
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -638,9 +646,10 @@ def main() -> None:
     if args.resume is not None:
         if not args.resume.is_file():
             raise SystemExit(f"Checkpoint does not exist: {args.resume}")
-        resume_payload = torch.load(args.resume, map_location=device, weights_only=True)
-        if resume_payload.get("format_version") not in {1, 2, 3}:
-            raise SystemExit("Unsupported checkpoint format")
+        try:
+            resume_payload = load_resume_checkpoint(args.resume)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
 
     if args.tokenizer == "sentencepiece":
         if resume_payload is not None:
@@ -816,6 +825,9 @@ def main() -> None:
             scaler.load_state_dict(scaler_state)
 
     latest_losses, latest_losses_step = checkpoint_loss_history(resume_payload)
+    # The model, optimizer, scaler, RNG state, and run metadata are now restored.
+    # Release the host-side checkpoint payload before allocating training activations.
+    resume_payload = None
     for step in range(start_step + 1, args.steps + 1):
         scheduled_lr = learning_rate_at_step(
             step=step,

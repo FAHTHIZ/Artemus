@@ -14,6 +14,7 @@ from artemis.train import (
     checkpoint_run_metadata,
     estimate_loss,
     get_batch,
+    load_resume_checkpoint,
     periodic_step_due,
     save_checkpoint,
 )
@@ -131,6 +132,52 @@ def _tiny_checkpoint_parts():
     model = ArtemisLM(config)
     optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
     return model, optimizer
+
+
+def test_resume_checkpoint_loads_on_cpu_and_uses_weights_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model, optimizer = _tiny_checkpoint_parts()
+    checkpoint = tmp_path / "resume.pt"
+    loss = sum(parameter.square().mean() for parameter in model.parameters())
+    loss.backward()
+    optimizer.step()
+    save_checkpoint(
+        checkpoint,
+        model,
+        optimizer,
+        ByteTokenizer(),
+        step=1,
+        losses={},
+        response_only=False,
+        run_metadata={"lineage": {"origin": "test"}, "runs": []},
+    )
+
+    original_load = torch.load
+    observed = {}
+
+    def tracked_load(path, *args, **kwargs):
+        observed.update(kwargs)
+        return original_load(path, *args, **kwargs)
+
+    monkeypatch.setattr(train_module.torch, "load", tracked_load)
+    payload = load_resume_checkpoint(checkpoint)
+
+    assert observed["map_location"] == "cpu"
+    assert observed["weights_only"] is True
+    assert all(tensor.device.type == "cpu" for tensor in payload["model_state_dict"].values())
+    for state in payload["optimizer_state_dict"]["state"].values():
+        assert all(
+            not isinstance(value, torch.Tensor) or value.device.type == "cpu"
+            for value in state.values()
+        )
+
+
+def test_resume_checkpoint_rejects_unsupported_format(tmp_path: Path) -> None:
+    checkpoint = tmp_path / "unsupported.pt"
+    torch.save({"format_version": 99}, checkpoint)
+    with pytest.raises(ValueError, match="Unsupported checkpoint format"):
+        load_resume_checkpoint(checkpoint)
 
 
 def test_save_checkpoint_round_trips_after_atomic_replace(tmp_path: Path) -> None:
