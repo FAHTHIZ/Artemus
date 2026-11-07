@@ -214,6 +214,11 @@ def test_machine_readable_curriculum_matches_continuous_training_cycle() -> None
     assert "openai/grade-school-math" in cycle["per_cycle"]["task_sources"]
     assert "google-research-datasets/mbpp" in cycle["per_cycle"]["task_sources"]
     assert any("never an Aya or task-SFT candidate" in item for item in cycle["invariants"])
+    assert "bucket 0 is optimizer validation" in cycle["evaluation_partition"]["gsm8k"]
+    assert "bucket 1 is diagnostic evaluation" in cycle["evaluation_partition"]["gsm8k"]
+    assert "511-555 are optimizer validation" in cycle["evaluation_partition"]["mbpp"]
+    assert "556-600 are diagnostic evaluation" in cycle["evaluation_partition"]["mbpp"]
+    assert "disjoint from both training and optimizer validation" in cycle["evaluation_partition"]["invariant"]
 
 def test_kaggle_workflow_bootstraps_private_state_dataset_on_first_run() -> None:
     workflow_path = (
