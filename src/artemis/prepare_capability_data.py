@@ -2,10 +2,10 @@
 
 Inputs:
 - OASST1 preprocessed train/validation conversation text.
-- GSM8K official train JSONL only; 10% held out deterministically for validation.
-- MBPP full JSONL; official task-ID ranges define train and validation.
+- GSM8K official train JSONL only; stable hash buckets define 80% training, 10% optimizer validation and 10% diagnostic evaluation.
+- MBPP full JSONL; IDs 601-974 train, 511-555 optimizer validation, and 556-600 diagnostic evaluation.
 
-GSM8K test and MBPP test/prompt IDs are not ingested.
+GSM8K official test and MBPP IDs 1-510 are not ingested.
 """
 from __future__ import annotations
 
