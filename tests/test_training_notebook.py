@@ -190,3 +190,21 @@ def test_kaggle_gpu_workflow_uses_supported_accelerator_ids_and_uploads_provenan
     assert "NvidiaA100" not in source
     assert "--dir-mode zip" in source
     assert 'KAGGLE_KERNEL_SLUG" != "artemus-continuous-training"' in source
+
+
+def test_machine_readable_curriculum_matches_continuous_training_cycle() -> None:
+    curriculum_path = Path(__file__).resolve().parents[1] / "data" / "training-curriculum.json"
+    curriculum = json.loads(curriculum_path.read_text(encoding="utf-8"))
+    cycle = curriculum["continuous_cycle"]
+
+    assert cycle["cadence"] == "weekly"
+    assert cycle["foundation_checkpoint"] == "artemus-foundation-current.pt"
+    assert cycle["tokenizer"] == "tokenizer.model; reused byte-identically across continued-pretraining cycles"
+    assert cycle["per_cycle"]["foundation_steps"] == 2000
+    assert cycle["per_cycle"]["multilingual_instruction_examples_max"] == 10000
+    assert cycle["per_cycle"]["task_steps"] == 750
+    assert cycle["per_cycle"]["final_candidate"] == "artemis-task-sft.pt"
+    assert "OpenAssistant/oasst1" in cycle["per_cycle"]["task_sources"]
+    assert "openai/grade-school-math" in cycle["per_cycle"]["task_sources"]
+    assert "google-research-datasets/mbpp" in cycle["per_cycle"]["task_sources"]
+    assert any("never an Aya or task-SFT candidate" in item for item in cycle["invariants"])
