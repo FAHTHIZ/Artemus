@@ -168,3 +168,30 @@ The optional OSCR stage now constructs a second deterministic mixture: 85% of th
 The GPU notebook's final supervised stage resolves the current Aya Dataset revision, streams a bounded 10,000-example sample, and records the exact revision in its manifest. `artemus-prepare-aya` retains only prompts, responses, language labels, and annotation types; it discards annotator IDs and demographics. It groups identical prompts into the same split, then resumes the multilingual foundation checkpoint with response-only loss for a bounded 1,000 additional optimizer steps. Inspect per-language counts and protected task regressions before accepting the resulting checkpoint.
 
 Audio training is a separate future model branch: FLEURS and Mozilla Common Voice provide Bengali-capable ASR data, but the current ArtemisLM training pipeline is text-only. A speech encoder, audio frontend, alignment objective, and audio-specific evaluation must exist before those files are used.
+
+## Recurring GPU training — stateful cycle
+
+The GPU notebook now supports a repeatable cycle rather than restarting from random weights each time:
+
+1. The first cycle trains a foundation model and tokenizer from random initialization.
+2. The workflow stores the **foundation** checkpoint and matching tokenizer in a private Kaggle dataset named `artemus-training-state`.
+3. Each later cycle verifies checkpoint format, random-initialization lineage, loss objective, and tokenizer hash before continuing.
+4. FineWeb-Edu, FineWeb2 Bengali, the corpus mixture, and Aya are re-sampled using recorded cycle-specific deterministic seeds. Source revisions, hashes, sampling seeds, and provenance are written into manifests.
+5. The new foundation checkpoint is saved separately from the cycle's instruction-SFT candidate. The next cycle resumes the foundation checkpoint, never the instruction-tuned candidate.
+6. The workflow validates the exported artifact hashes, versions the private Kaggle state dataset, and retains the latest run metadata and provenance. No weights or raw corpora are committed to Git.
+
+### Enable the recurring Kaggle runner
+
+The repository workflow `.github/workflows/continuous-kaggle-training.yml` runs weekly and can also be started manually. It requires these repository configuration values:
+
+- Repository secret `KAGGLE_USERNAME`.
+- Repository secret `KAGGLE_KEY` (Kaggle API credential).
+- Repository variable `KAGGLE_STATE_DATASET`, set to `<your-kaggle-username>/artemus-training-state`.
+- Repository variable `KAGGLE_KERNEL_SLUG`, set to `artemus-continuous-training`.
+- Optional repository variable `ARTEMUS_KAGGLE_ACCELERATOR`, defaulting to `NvidiaTeslaT4`.
+
+Create the private Kaggle dataset with the exact slug `artemus-training-state` once and attach it to the automated kernel. An initial dataset may contain only a short README; the first run has no model checkpoint and will initialize from scratch. Choose a dataset licence that accurately reflects the checkpoint and provenance material; do not publish the state dataset or place credentials in it.
+
+The legacy CPU task-SFT workflow remains available for manual historical experiments only. It is no longer scheduled, because repeatedly running the same capped task-SFT mixture does not advance foundation learning.
+
+A successful CI run verifies code and workflow structure. A successful Kaggle run is required to claim new trained weights. A cycle's dialogue health check is not a capability score; release promotion still requires protected exact-answer, code execution, multilingual and regression evaluations.
