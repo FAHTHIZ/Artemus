@@ -20,8 +20,14 @@ def test_gsm8k_train_rows_are_deterministically_split_and_formatted():
     train_b, val_b = build_gsm8k_examples(rows)
     assert train_a == train_b
     assert val_a == val_b
-    assert len(train_a) + len(val_a) == 100
-    assert train_a and val_a
+    diagnostic = build_evaluation_records(rows, [])
+    assert len(train_a) + len(val_a) + len(diagnostic) == 100
+    assert train_a and val_a and diagnostic
+    all_monitor_text = "".join(train_a + val_a)
+    eval_questions = {
+        row["prompt"].rsplit("\\n", 1)[-1] for row in diagnostic
+    }
+    assert all(question not in all_monitor_text for question in eval_questions)
     assert "<|assistant|>" in train_a[0]
     assert "<|end|>" in train_a[0]
 
@@ -32,16 +38,20 @@ def test_mbpp_ingests_only_official_train_and_validation_task_ids():
          "test_list": ["assert add(1,2)==3"], "test_setup_code": ""},
         {"task_id": 511, "text": "multiply two integers", "code": "def mul(a,b): return a*b",
          "test_list": ["assert mul(2,3)==6"], "test_setup_code": ""},
+        {"task_id": 556, "text": "diagnostic task", "code": "def square(x): return x*x",
+         "test_list": ["assert square(3)==9"], "test_setup_code": ""},
         {"task_id": 11, "text": "protected test", "code": "pass", "test_list": []},
         {"task_id": 2, "text": "prompt example", "code": "pass", "test_list": []},
     ]
     train, validation, counts = build_mbpp_examples(rows)
     assert len(train) == 1
     assert len(validation) == 1
-    assert counts == {"train": 1, "validation": 1, "excluded": 2}
+    assert counts == {"train": 1, "validation": 1, "evaluation": 1, "excluded": 2}
     assert "add two integers" in train[0]
     assert "assert add(1,2)==3" in train[0]
     assert "protected test" not in "".join(train + validation)
+    diagnostic = build_evaluation_records([], rows)
+    assert {row["task_id"] for row in diagnostic} == {556}
 
 
 def test_mbpp_rejects_duplicate_task_ids():
@@ -71,8 +81,10 @@ def test_prepare_mixture_writes_hashed_structured_evaluation_file(tmp_path: Path
         for i in range(100)
     ]
     mbpp_rows = [
-        {"task_id": 511, "text": "multiply two values", "code": "def f(a,b): return a*b",
+        {"task_id": 511, "text": "monitor task", "code": "def f(a,b): return a*b",
          "test_list": ["assert f(2, 3) == 6"], "test_setup_code": ""},
+        {"task_id": 556, "text": "diagnostic task", "code": "def square(x): return x*x",
+         "test_list": ["assert square(3) == 9"], "test_setup_code": ""},
         {"task_id": 601, "text": "training task", "code": "pass", "test_list": []},
     ]
     gsm_file.write_text(
@@ -98,5 +110,5 @@ def test_prepare_mixture_writes_hashed_structured_evaluation_file(tmp_path: Path
     assert manifest["evaluation_sha256"] == sha256_file(evaluation_path)
     records = [json.loads(line) for line in evaluation_path.read_text(encoding="utf-8").splitlines()]
     assert any(row["task_type"] == "math" for row in records)
-    assert any(row["task_type"] == "python" and row["task_id"] == 511 for row in records)
-    assert not any(row.get("task_id") == 601 for row in records)
+    assert any(row["task_type"] == "python" and row["task_id"] == 556 for row in records)
+    assert not any(row.get("task_id") in {511, 601} for row in records)
