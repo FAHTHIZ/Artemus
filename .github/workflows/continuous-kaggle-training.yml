@@ -187,9 +187,9 @@ jobs:
               if digest != item["sha256"]:
                   raise SystemExit(f"SHA-256 mismatch for {item['path']}")
               checked += 1
-          foundation = root / "artemis-foundation-fineweb-edu.pt"
-          aya_candidate = root / "artemis-aya-instruction-sft.pt"
-          instruction = root / "artemis-task-sft.pt"
+          foundation = root / "artemus-foundation-fineweb-edu.pt"
+          aya_candidate = root / "artemus-aya-instruction-sft.pt"
+          instruction = root / "artemus-task-sft.pt"
           tokenizer = root / "tokenizer.model"
           for path in (foundation, aya_candidate, instruction, tokenizer):
               if not path.is_file() or path.stat().st_size == 0:
@@ -211,9 +211,9 @@ jobs:
           set -euo pipefail
           mkdir -p kaggle-state-update/current-provenance
           cp .kaggle-state-metadata/dataset-metadata.json kaggle-state-update/dataset-metadata.json
-          cp verified-run/artemis-foundation-fineweb-edu.pt kaggle-state-update/artemus-foundation-current.pt
-          cp verified-run/artemis-aya-instruction-sft.pt kaggle-state-update/artemus-latest-aya.pt
-          cp verified-run/artemis-task-sft.pt kaggle-state-update/artemus-latest-instruction.pt
+          cp verified-run/artemus-foundation-fineweb-edu.pt kaggle-state-update/artemus-foundation-current.pt
+          cp verified-run/artemus-aya-instruction-sft.pt kaggle-state-update/artemus-latest-aya.pt
+          cp verified-run/artemus-task-sft.pt kaggle-state-update/artemus-latest-instruction.pt
           cp verified-run/tokenizer.model kaggle-state-update/tokenizer.model
           cp verified-run/run-metadata.json kaggle-state-update/run-metadata.json
           cp verified-run/export-manifest.json kaggle-state-update/export-manifest.json
