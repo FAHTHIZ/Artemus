@@ -103,7 +103,7 @@ def test_kaggle_training_notebook_resumes_foundation_state_and_rotates_samples()
     assert "continued_pretraining" in training
     assert "previous_step + TRAIN_STEPS" in training
     assert "--shuffle-seed" in aya
-    assert "'training_cycle': CYCLE_INDEX + 1" in export
+    assert '"training_cycle": CYCLE_INDEX + 1' in export
     assert "shutil.rmtree" not in "\n".join(code.values())
 
 
