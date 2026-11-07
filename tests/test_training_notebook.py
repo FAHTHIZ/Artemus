@@ -29,7 +29,9 @@ def test_kaggle_training_notebook_does_not_delete_existing_workspace() -> None:
     )
 
     assert "shutil.rmtree(WORKDIR)" not in source
+    assert "artemus-dialogue-eval" in source
     assert "json.loads((ARTIFACT_ROOT / 'dialogue-eval' / 'summary.json').read_text())" in source
+    assert "import hashlib" in source
 
 
 def test_kaggle_training_notebook_exports_complete_stage_provenance() -> None:
