@@ -105,3 +105,29 @@ def test_kaggle_training_notebook_resumes_foundation_state_and_rotates_samples()
     assert "--shuffle-seed" in aya
     assert "'training_cycle': CYCLE_INDEX + 1" in export
     assert "shutil.rmtree" not in "\n".join(code.values())
+
+
+def test_recurring_kaggle_workflow_persists_private_foundation_state() -> None:
+    workflow_path = (
+        Path(__file__).resolve().parents[1]
+        / ".github" / "workflows" / "continuous-kaggle-training.yml"
+    )
+    source = workflow_path.read_text(encoding="utf-8")
+
+    for expected in (
+        'cron: "0 3 * * 1"',
+        "KAGGLE_USERNAME",
+        "KAGGLE_KEY",
+        "KAGGLE_STATE_DATASET",
+        "kaggle kernels push",
+        "kaggle kernels status",
+        "kaggle kernels output",
+        "kaggle datasets version",
+        "artemus-foundation-current.pt",
+        "artemus-latest-instruction.pt",
+        "export-manifest.json",
+    ):
+        assert expected in source, f"recurring Kaggle workflow is missing {expected!r}"
+
+    assert "timeout-minutes: 360" in source
+    assert "cancel-in-progress: false" in source
