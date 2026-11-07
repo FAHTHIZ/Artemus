@@ -203,7 +203,40 @@
       "Vast.ai",
       "institutional GPU"
     ],
-    "github_actions": "CPU smoke tests and data integrity only; do not treat as a GPU training service",
+    "github_actions": "CPU unit tests and integrity checks only; recurring model training runs on Kaggle GPU through continuous-kaggle-training.yml and requires Kaggle credentials plus a private persistent state dataset.",
     "potential_intro_gpu_provider": "Lightning AI Studios (conditional free credits; eligibility and country availability vary; never assume zero-cost GPU time)"
+  },
+  "continuous_cycle": {
+    "cadence": "weekly",
+    "execution": "Kaggle GPU through .github/workflows/continuous-kaggle-training.yml",
+    "state_store": "private Kaggle dataset <username>/artemus-training-state",
+    "foundation_checkpoint": "artemus-foundation-current.pt",
+    "tokenizer": "tokenizer.model; reused byte-identically across continued-pretraining cycles",
+    "per_cycle": {
+      "fresh_stream_sample": true,
+      "sample_seeds": "deterministic and derived from the foundation checkpoint run count",
+      "foundation_phase": "continued_pretraining from the last foundation checkpoint",
+      "foundation_steps": 2000,
+      "multilingual_instruction_examples_max": 10000,
+      "multilingual_instruction_phase": "response-only instruction_sft on Aya",
+      "task_sources": [
+        "OpenAssistant/oasst1",
+        "openai/grade-school-math",
+        "google-research-datasets/mbpp"
+      ],
+      "task_phase": "response-only task_sft from the cycle's Aya checkpoint",
+      "task_steps": 750,
+      "final_candidate": "artemis-task-sft.pt"
+    },
+    "invariants": [
+      "The next cycle resumes only the foundation checkpoint, never an Aya or task-SFT candidate.",
+      "The SentencePiece tokenizer and vocabulary are reused unchanged after the first foundation cycle.",
+      "Each streamed source records its immutable revision and per-cycle sampling seed.",
+      "Only the official GSM8K training file is used; validation is derived deterministically from it and the official test file is never ingested.",
+      "MBPP training IDs are 601-974 and validation IDs 511-600; prompt IDs 1-10 and protected test IDs 11-510 are excluded.",
+      "No model-generated examples enter training without human review and independent verification.",
+      "The Kaggle state dataset remains private and stores checkpoints, tokenizer, manifests, and hashes, never API credentials."
+    ],
+    "promotion": "A completed cycle produces a candidate only; promotion requires protected exact-answer, isolated code-execution, multilingual and regression evaluations."
   }
 }
