@@ -36,10 +36,10 @@ jobs:
       MAX_STEPS_ON_DATASET_VERSION: "16000"
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -128,7 +128,7 @@ jobs:
           echo "Using completed workflow run $RUN_ID containing a verified checkpoint artifact"
 
       - name: Download prior Artemis checkpoint artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: artemis-capability-mix-compact-cpu-run
           github-token: ${{ github.token }}
@@ -242,7 +242,7 @@ jobs:
 
       - name: Upload checkpoint, provenance, and dialogue traces
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artemis-capability-mix-compact-cpu-run
           path: |
