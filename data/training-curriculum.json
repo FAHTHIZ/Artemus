@@ -226,7 +226,7 @@
       ],
       "task_phase": "response-only task_sft from the cycle's Aya checkpoint",
       "task_steps": 750,
-      "final_candidate": "artemis-task-sft.pt"
+      "final_candidate": "artemus-task-sft.pt"
     },
     "invariants": [
       "The next cycle resumes only the foundation checkpoint, never an Aya or task-SFT candidate.",
