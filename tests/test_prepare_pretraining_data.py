@@ -76,3 +76,31 @@ def test_quality_filter_rejects_phone_like_numbers_in_ascii_and_bangla_digits():
             min_alpha_ratio=0.3,
         )
         assert reason == "possible_personal_or_secret_data"
+
+
+
+def test_shuffle_stream_is_reproducible_and_records_sampling_seed():
+    class FakeStream:
+        def __init__(self, rows):
+            self.rows = rows
+            self.calls = []
+
+        def shuffle(self, *, seed, buffer_size):
+            self.calls.append((seed, buffer_size))
+            return FakeStream(list(reversed(self.rows)) if seed % 2 else self.rows)
+
+    original = FakeStream([1, 2, 3])
+    first = shuffle_stream(original, seed=11, buffer_size=128)
+    second = shuffle_stream(original, seed=11, buffer_size=128)
+    other = shuffle_stream(original, seed=12, buffer_size=128)
+
+    assert first.rows == second.rows
+    assert first.rows != other.rows
+    assert original.calls == [(11, 128), (11, 128), (12, 128)]
+
+
+def test_shuffle_stream_rejects_invalid_or_unsupported_shuffle():
+    with pytest.raises(ValueError, match="buffer_size"):
+        shuffle_stream([], seed=1, buffer_size=0)
+    with pytest.raises(TypeError, match="shuffle"):
+        shuffle_stream([], seed=1, buffer_size=100)
