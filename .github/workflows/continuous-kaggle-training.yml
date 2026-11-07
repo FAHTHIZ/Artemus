@@ -110,7 +110,7 @@ jobs:
               "model_sources": [],
           }
           Path(".kaggle-kernel/kernel-metadata.json").write_text(
-              json.dumps(metadata, indent=2) + "\\n", encoding="utf-8"
+              json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
           )
           PY
           python -m json.tool .kaggle-kernel/kernel-metadata.json >/dev/null
@@ -231,7 +231,7 @@ jobs:
               "global_step": metadata.get("global_step"),
               "note": "Private state only. The next cycle resumes this foundation checkpoint, not the instruction-SFT candidate.",
           }
-          (root / "state.json").write_text(json.dumps(state, indent=2) + "\\n", encoding="utf-8")
+          (root / "state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
           print(json.dumps(state, indent=2))
           PY
           kaggle datasets version \
