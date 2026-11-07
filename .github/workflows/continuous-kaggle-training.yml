@@ -11,7 +11,7 @@ on:
         options:
           - NvidiaTeslaT4
           - NvidiaL4
-          - NvidiaA100
+          - NvidiaTeslaA100
   schedule:
     # Weekly at 09:00 Bangladesh time (UTC+6); free accelerator availability is not guaranteed.
     - cron: "0 3 * * 1"
@@ -60,6 +60,10 @@ jobs:
               exit 1
             fi
           done
+          if [[ "$KAGGLE_KERNEL_SLUG" != "artemus-continuous-training" ]]; then
+            echo "::error::KAGGLE_KERNEL_SLUG must be artemus-continuous-training to match the private kernel metadata."
+            exit 1
+          fi
           if [[ "$KAGGLE_STATE_DATASET" != "$KAGGLE_USERNAME/artemus-training-state" ]]; then
             echo "::error::KAGGLE_STATE_DATASET must be $KAGGLE_USERNAME/artemus-training-state; the notebook reads that mounted Kaggle input path."
             exit 1
@@ -238,7 +242,8 @@ jobs:
           PY
           kaggle datasets version \
             -p kaggle-state-update \
-            -m "Artemus training cycle $GITHUB_RUN_NUMBER"
+            -m "Artemus training cycle $GITHUB_RUN_NUMBER" \
+            --dir-mode zip
 
       - name: Publish run summary
         if: always()
