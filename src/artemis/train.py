@@ -7,6 +7,7 @@ import hashlib
 from contextlib import nullcontext
 import os
 import random
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -414,24 +415,43 @@ def save_checkpoint(
     run_metadata: dict,
     grad_scaler_state_dict: dict | None = None,
 ) -> None:
+    """Persist a complete checkpoint before atomically replacing the previous one."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {
-            "format_version": 3,
-            "step": step,
-            "model_config": model.config.to_dict(),
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "losses": losses,
-            "response_only": response_only,
-            "run_metadata": run_metadata,
-            "grad_scaler_state_dict": grad_scaler_state_dict,
-            "torch_rng_state": torch.get_rng_state(),
-            "cuda_rng_states": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
-            **tokenizer_checkpoint_fields(tokenizer),
-        },
-        path,
+    payload = {
+        "format_version": 3,
+        "step": step,
+        "model_config": model.config.to_dict(),
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "losses": losses,
+        "response_only": response_only,
+        "run_metadata": run_metadata,
+        "grad_scaler_state_dict": grad_scaler_state_dict,
+        "torch_rng_state": torch.get_rng_state(),
+        "cuda_rng_states": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
+        **tokenizer_checkpoint_fields(tokenizer),
+    }
+
+    # Keep the temporary file beside the destination so os.replace stays on
+    # one filesystem. A failed/ interrupted write leaves the last good
+    # checkpoint untouched.
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
     )
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            torch.save(payload, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_name, path)
+    except BaseException:
+        try:
+            os.unlink(temporary_name)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def parse_args() -> argparse.Namespace:
