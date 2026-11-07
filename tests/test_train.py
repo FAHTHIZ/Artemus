@@ -11,6 +11,7 @@ import artemis.train as train_module
 from artemis.train import (
     build_checkpoint_metadata,
     checkpoint_loss_history,
+    estimate_loss,
     get_batch,
     periodic_step_due,
     save_checkpoint,
@@ -58,6 +59,29 @@ def test_get_batch_returns_shifted_sequences() -> None:
     assert x.shape == (4, 8)
     assert y.shape == (4, 8)
     assert torch.equal(y[:, :-1], x[:, 1:])
+
+
+def test_estimate_loss_is_repeatable_and_does_not_consume_training_rng() -> None:
+    torch.manual_seed(41)
+    config = ModelConfig(vocab_size=257, block_size=16, n_layer=1, n_head=2, n_embd=16)
+    model = ArtemisLM(config)
+    train_data = torch.arange(256, dtype=torch.long).remainder(257)
+    val_data = torch.arange(256, dtype=torch.long).add(1).remainder(257)
+    rng_before = torch.get_rng_state().clone()
+
+    first = estimate_loss(
+        model, train_data, val_data, batch_size=2, block_size=16,
+        device=torch.device("cpu"), eval_iters=4, seed=2026,
+    )
+    rng_after_first = torch.get_rng_state().clone()
+    second = estimate_loss(
+        model, train_data, val_data, batch_size=2, block_size=16,
+        device=torch.device("cpu"), eval_iters=4, seed=2026,
+    )
+
+    assert first == second
+    assert torch.equal(rng_before, rng_after_first)
+    assert torch.equal(rng_before, torch.get_rng_state())
 
 
 def _tiny_checkpoint_parts():

@@ -135,6 +135,8 @@ def get_batch(
     block_size: int,
     device: torch.device,
     target_mask: torch.Tensor | None = None,
+    *,
+    generator: torch.Generator | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     max_start = data.numel() - block_size - 1
     if max_start < 1:
@@ -147,7 +149,7 @@ def get_batch(
     ):
         raise ValueError("target_mask must be one-dimensional and match data length")
 
-    starts = torch.randint(0, max_start + 1, (batch_size,))
+    starts = torch.randint(0, max_start + 1, (batch_size,), generator=generator)
     offsets = torch.arange(1, block_size + 1)
     if target_mask is not None:
         valid_targets = target_mask[starts[:, None] + offsets[None, :]]
@@ -156,7 +158,8 @@ def get_batch(
             if not invalid_rows.any():
                 break
             starts[invalid_rows] = torch.randint(
-                0, max_start + 1, (int(invalid_rows.sum().item()),)
+                0, max_start + 1, (int(invalid_rows.sum().item()),),
+                generator=generator,
             )
             valid_targets = target_mask[starts[:, None] + offsets[None, :]]
             invalid_rows = ~valid_targets.any(dim=1)
@@ -186,7 +189,12 @@ def estimate_loss(
     eval_iters: int,
     train_mask: torch.Tensor | None = None,
     val_mask: torch.Tensor | None = None,
+    *,
+    seed: int = 0,
 ) -> dict[str, float]:
+    """Measure loss on a repeatable sample without consuming training RNG state."""
+    evaluation_generator = torch.Generator(device="cpu")
+    evaluation_generator.manual_seed(int(seed))
     was_training = model.training
     model.eval()
     results: dict[str, float] = {}
@@ -197,7 +205,10 @@ def estimate_loss(
         ):
             losses = []
             for _ in range(eval_iters):
-                x, y = get_batch(split, batch_size, block_size, device, mask)
+                x, y = get_batch(
+                    split, batch_size, block_size, device, mask,
+                    generator=evaluation_generator,
+                )
                 _, loss = model(x, y)
                 if loss is None or not torch.isfinite(loss):
                     raise RuntimeError("loss is missing or non-finite during evaluation")
@@ -821,6 +832,7 @@ def main() -> None:
             latest_losses = estimate_loss(
                 model, train_data, val_data, args.batch_size,
                 config.block_size, device, args.eval_iters, train_mask, val_mask,
+                seed=args.seed,
             )
             latest_losses_step = step
             print(

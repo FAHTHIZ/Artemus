@@ -223,3 +223,6 @@ A checkpoint is also saved at the first and final step of a run segment. Interme
 
 Checkpoint files are written to a temporary file in the destination directory, flushed to disk, and atomically replaced only after the write completes. A failed write therefore leaves the previous complete checkpoint in place. This limits lost work to at most the configured checkpoint interval during an interruption, subject to the storage system's durability guarantees.
 
+## Deterministic evaluation sampling
+
+Train/validation loss evaluation now uses a dedicated CPU random generator seeded from the run seed. Repeated evaluations therefore use the same sampled windows for a fixed dataset and seed, making checkpoint-to-checkpoint loss comparisons less noisy. Evaluation sampling no longer advances the global random stream used by training batches, so changing the evaluation interval does not change which training batches are drawn between checkpoints.
