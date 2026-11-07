@@ -175,7 +175,7 @@ The GPU notebook now supports a repeatable cycle rather than restarting from ran
 
 1. The first cycle trains a foundation model and tokenizer from random initialization.
 2. The workflow stores the **foundation** checkpoint and matching tokenizer in a private Kaggle dataset named `artemus-training-state`.
-3. Each later cycle verifies checkpoint format, random-initialization lineage, loss objective, and tokenizer hash before continuing.
+3. Each later cycle verifies checkpoint format, random-initialization lineage, loss objective, foundation checkpoint SHA-256, tokenizer SHA-256, and cycle number before continuing.
 4. FineWeb-Edu, FineWeb2 Bengali, the corpus mixture, and Aya are re-sampled using recorded cycle-specific deterministic seeds. Source revisions, hashes, sampling seeds, and provenance are written into manifests.
 5. The new foundation checkpoint is saved separately from the cycle's instruction-SFT candidate. The next cycle resumes the foundation checkpoint, never the instruction-tuned candidate.
 6. The workflow validates the exported artifact hashes, versions the private Kaggle state dataset, and retains the latest run metadata and provenance. No weights or raw corpora are committed to Git.
