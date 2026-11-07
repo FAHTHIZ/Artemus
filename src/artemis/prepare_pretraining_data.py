@@ -21,6 +21,18 @@ def stable_bucket(value: str, buckets: int = 10_000) -> int:
     return int(hashlib.sha256(value.encode("utf-8")).hexdigest()[:12], 16) % buckets
 
 
+def shuffle_stream(records: Iterable[Any], *, seed: int | None, buffer_size: int = 10_000):
+    """Apply a reproducible bounded-buffer shuffle to a streaming dataset."""
+    if buffer_size < 1:
+        raise ValueError("shuffle buffer_size must be positive")
+    if seed is None:
+        return records
+    shuffle = getattr(records, "shuffle", None)
+    if not callable(shuffle):
+        raise TypeError("seeded streaming shuffle requires a dataset with a shuffle() method")
+    return shuffle(seed=seed, buffer_size=buffer_size)
+
+
 def obvious_sensitive_content(text: str) -> bool:
     if any(pattern.search(text) for pattern in (EMAIL_RE, IPV4_RE, PRIVATE_KEY_RE, TOKEN_RE)):
         return True
@@ -75,6 +87,8 @@ def prepare_stream(
     max_chars: int = 40_000,
     min_alpha_ratio: float = 0.35,
     text_field: str = "text",
+    sampling_seed: int | None = None,
+    shuffle_buffer_size: int = 10_000,
 ) -> dict[str, Any]:
     if len(dataset_revision) < 7 or dataset_revision in {"main", "master", "latest"}:
         raise ValueError("dataset_revision must be a pinned commit or immutable release")
@@ -84,6 +98,8 @@ def prepare_stream(
         raise ValueError("validation_percent must be >0 and <20")
     if max_documents < 100:
         raise ValueError("max_documents must be at least 100")
+    if shuffle_buffer_size < 1:
+        raise ValueError("shuffle_buffer_size must be positive")
     if min_chars < 1 or max_chars < min_chars:
         raise ValueError("invalid character limits")
 
@@ -174,6 +190,11 @@ def prepare_stream(
         "license_review_note": license_review_note,
         "max_documents": max_documents,
         "validation_percent": validation_percent,
+        "sampling": {
+            "method": "huggingface_iterable_bounded_buffer_shuffle" if sampling_seed is not None else "upstream_stream_order",
+            "seed": sampling_seed,
+            "buffer_size": shuffle_buffer_size if sampling_seed is not None else None,
+        },
         "quality_policy": {
             "min_chars": min_chars,
             "max_chars": max_chars,
@@ -228,6 +249,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-chars", type=int, default=40_000)
     parser.add_argument("--min-alpha-ratio", type=float, default=0.35)
     parser.add_argument("--text-field", default="text")
+    parser.add_argument("--shuffle-seed", type=int, help="deterministic per-cycle streaming shuffle seed")
+    parser.add_argument("--shuffle-buffer-size", type=int, default=10_000)
     return parser.parse_args()
 
 
@@ -245,6 +268,7 @@ def main() -> None:
         revision=args.revision,
         streaming=True,
     )
+    stream = shuffle_stream(stream, seed=args.shuffle_seed, buffer_size=args.shuffle_buffer_size)
     manifest = prepare_stream(
         stream,
         dataset_id=args.dataset,
@@ -260,6 +284,8 @@ def main() -> None:
         max_chars=args.max_chars,
         min_alpha_ratio=args.min_alpha_ratio,
         text_field=args.text_field,
+        sampling_seed=args.shuffle_seed,
+        shuffle_buffer_size=args.shuffle_buffer_size,
     )
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
 
