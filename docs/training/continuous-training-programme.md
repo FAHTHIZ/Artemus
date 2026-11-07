@@ -195,3 +195,10 @@ Create the private Kaggle dataset with the exact slug `artemus-training-state` o
 The legacy CPU task-SFT workflow remains available for manual historical experiments only. It is no longer scheduled, because repeatedly running the same capped task-SFT mixture does not advance foundation learning.
 
 A successful CI run verifies code and workflow structure. A successful Kaggle run is required to claim new trained weights. A cycle's dialogue health check is not a capability score; release promotion still requires protected exact-answer, code execution, multilingual and regression evaluations.
+
+### Task-specific supervised tuning in each cycle
+
+After Aya instruction tuning, the GPU notebook now runs a bounded response-only task-SFT segment using the repository's existing pinned OASST1, GSM8K and MBPP adapters. It verifies the source archive hashes before preparation. GSM8K reads only its official training file and derives a deterministic validation split from that file; MBPP retains only task IDs 601-974 for training and 511-600 for validation, excluding IDs 1-10 (prompt examples) and 11-510 (protected test tasks).
+
+The task-SFT candidate is exported separately as `artemis-task-sft.pt`. The recurring workflow stores it as the latest instruction candidate, while the next cycle still resumes `artemus-foundation-current.pt` with its matching tokenizer. It never resumes task-SFT weights as foundation weights. A successful task-SFT run is not a correctness claim: promote only after independent exact-answer checks and isolated execution tests for generated code.
+
