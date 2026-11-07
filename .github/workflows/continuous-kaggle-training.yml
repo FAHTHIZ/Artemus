@@ -274,6 +274,7 @@ jobs:
           from pathlib import Path
           root = Path("kaggle-state-update")
           checkpoint = root / "artemus-foundation-current.pt"
+          tokenizer = root / "tokenizer.model"
           metadata = json.loads((root / "run-metadata.json").read_text(encoding="utf-8"))
           state = {
               "schema_version": 1,
@@ -281,6 +282,7 @@ jobs:
               "training_cycle": metadata.get("training_cycle"),
               "repository_commit": metadata.get("repository_commit"),
               "foundation_checkpoint_sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+              "tokenizer_sha256": hashlib.sha256(tokenizer.read_bytes()).hexdigest(),
               "global_step": metadata.get("global_step"),
               "note": "Private state only. The next cycle resumes this foundation checkpoint, not the instruction-SFT candidate.",
           }
