@@ -51,7 +51,7 @@ def build_evaluation_records(
         if key in seen_gsm:
             continue
         seen_gsm.add(key)
-        if _hash_bucket(key) != 0:
+        if _hash_bucket(key) != 1:
             continue
         expected = answer.rsplit("####", 1)
         if len(expected) != 2 or not expected[1].strip():
@@ -78,7 +78,7 @@ def build_evaluation_records(
         if task_id in seen_mbpp:
             raise ValueError(f"Duplicate MBPP task_id: {task_id}")
         seen_mbpp.add(task_id)
-        if not 511 <= task_id <= 600:
+        if not 556 <= task_id <= 600:
             continue
         task_text, solution = row.get("text"), row.get("code")
         tests, setup = row.get("test_list") or [], row.get("test_setup_code") or ""
@@ -147,7 +147,7 @@ def _hash_bucket(value: str) -> int:
 def build_gsm8k_examples(
     rows: Iterable[dict[str, Any]],
 ) -> tuple[list[str], list[str]]:
-    """Split only the official GSM8K train split; never read the official test file."""
+    """Split official GSM8K training rows into train, monitor, and diagnostic partitions."""
     train: list[str] = []
     validation: list[str] = []
     seen: set[str] = set()
@@ -171,17 +171,22 @@ def build_gsm8k_examples(
             + answer
             + "\n<|end|>\n"
         )
-        (validation if _hash_bucket(key) == 0 else train).append(example)
+        bucket = _hash_bucket(key)
+        if bucket == 0:
+            validation.append(example)
+        elif bucket != 1:
+            train.append(example)
+        # Bucket 1 is reserved exclusively for final diagnostics.
     return train, validation
 
 
 def build_mbpp_examples(
     rows: Iterable[dict[str, Any]],
 ) -> tuple[list[str], list[str], dict[str, int]]:
-    """Use MBPP official train IDs 601-974 and validation IDs 511-600 only."""
+    """Use train IDs 601-974, monitor IDs 511-555, and diagnostic IDs 556-600."""
     train: list[str] = []
     validation: list[str] = []
-    counts = {"train": 0, "validation": 0, "excluded": 0}
+    counts = {"train": 0, "validation": 0, "evaluation": 0, "excluded": 0}
     seen: set[int] = set()
 
     for row in rows:
@@ -197,11 +202,14 @@ def build_mbpp_examples(
         if 601 <= task_id <= 974:
             split = train
             split_name = "train"
-        elif 511 <= task_id <= 600:
+        elif 511 <= task_id <= 555:
             split = validation
             split_name = "validation"
+        elif 556 <= task_id <= 600:
+            split = None
+            split_name = "evaluation"
         else:
-            # IDs 1-10 are prompting examples; 11-510 are test; never ingest them.
+            # IDs 1-10 are prompting examples; 11-510 are protected test tasks.
             counts["excluded"] += 1
             continue
 
@@ -229,6 +237,9 @@ def build_mbpp_examples(
             + "\nProvided checks:\n"
             + test_block
         )
+        if split is None:
+            counts[split_name] += 1
+            continue
         split.append(
             "<|prompter|>\n"
             + prompt
@@ -301,7 +312,8 @@ def prepare_mixture(
                 "url": GSM8K_URL,
                 "train_source_sha256": gsm_hash,
                 "official_train_examples": 7473,
-                "validation": "deterministic 10% hash split from official train only",
+                "validation": "deterministic 10% hash bucket 0 from official train only",
+                "evaluation": "deterministic 10% hash bucket 1 from official train only; disjoint from train and validation",
                 "official_test": "not downloaded or ingested",
             },
             "mbpp": {
@@ -310,7 +322,8 @@ def prepare_mixture(
                 "url": MBPP_URL,
                 "git_blob_sha": mbpp_blob,
                 "training_task_ids": "601-974",
-                "validation_task_ids": "511-600",
+                "validation_task_ids": "511-555 (monitor only)",
+                "evaluation_task_ids": "556-600 (diagnostic only)",
                 "excluded_task_ids": "1-10 prompt; 11-510 protected test",
                 "counts": mbpp_counts,
             },
@@ -336,10 +349,10 @@ def prepare_mixture(
         },
         "evaluation_sha256": sha256_file(evaluation_path),
         "evaluation_policy": (
-            "Internal held-out partitions only; GSM8K deterministic 10% split from official "
-            "train and MBPP IDs 511-600. Not an official benchmark score."
+            "GSM8K hash bucket 1 and MBPP IDs 556-600; disjoint from optimizer validation. "
+            "Not an official benchmark score."
         ),
-        "test_integrity": "GSM8K official test file and MBPP IDs 11-510 were not included",
+        "test_integrity": "GSM8K official test file and MBPP IDs 1-510 were not included",
     }
     (output_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
