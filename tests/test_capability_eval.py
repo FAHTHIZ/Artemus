@@ -49,3 +49,57 @@ def test_load_evaluation_records_rejects_duplicate_ids_and_bad_math(tmp_path: Pa
 def test_strip_code_fence_handles_unclosed_fence():
     fence = chr(96) * 3
     assert strip_code_fence(f"{fence}python\nx = 1") == "x = 1"
+
+
+def test_end_to_end_capability_evaluation_records_checkpoint_and_scores(tmp_path: Path):
+    import torch
+
+    from artemis.capability_eval import run_capability_evaluation
+    from artemis.config import ModelConfig
+    from artemis.model import ArtemisLM
+    from artemis.tokenizer import ByteTokenizer
+    from artemis.train import tokenizer_checkpoint_fields
+
+    config = ModelConfig(
+        vocab_size=257,
+        block_size=256,
+        n_layer=1,
+        n_head=2,
+        n_embd=16,
+        dropout=0.0,
+    )
+    model = ArtemisLM(config)
+    tokenizer = ByteTokenizer()
+    checkpoint = tmp_path / "tiny.pt"
+    torch.save(
+        {
+            "format_version": 3,
+            "step": 7,
+            "model_config": config.to_dict(),
+            "model_state_dict": model.state_dict(),
+            **tokenizer_checkpoint_fields(tokenizer),
+        },
+        checkpoint,
+    )
+    evaluation = tmp_path / "evaluation.jsonl"
+    evaluation.write_text(
+        '{"id":"math-1","source":"test","task_type":"math","prompt":"What is 2 + 2?",'
+        '"target":"4","expected_answer":"4"}\n'
+        '{"id":"python-1","source":"test","task_type":"python","prompt":"Write a function add(a, b).",'
+        '"target":"def add(a, b):\\n    return a + b"}\n',
+        encoding="utf-8",
+    )
+
+    summary = run_capability_evaluation(
+        checkpoint=checkpoint,
+        data_path=evaluation,
+        output_dir=tmp_path / "results",
+        max_new_tokens=2,
+        seed=7,
+        device_name="cpu",
+    )
+    assert summary["checkpoint_step"] == 7
+    assert summary["math"]["evaluated"] == 1
+    assert summary["python"]["evaluated"] == 1
+    assert summary["python"]["execution_tests_run"] == 0
+    assert (tmp_path / "results" / "results.jsonl").is_file()
