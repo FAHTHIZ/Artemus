@@ -94,6 +94,10 @@ def test_kaggle_training_notebook_resumes_foundation_state_and_rotates_samples()
     assert "response_only" in settings
     assert "tokenizer_model_b64" in settings
     assert "embedded_sha != external_sha" in settings
+    assert "STATE_MANIFEST" in settings
+    assert "foundation_checkpoint_sha256" in settings
+    assert "tokenizer_sha256" in settings
+    assert "recorded_cycle != CYCLE_INDEX" in settings
     assert "FINEWEB_SHUFFLE_SEED" in settings
     assert "--shuffle-seed" in preparation
     assert "HAS_FOUNDATION_STATE" in tokenizer
