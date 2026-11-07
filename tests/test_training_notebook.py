@@ -57,3 +57,17 @@ def test_kaggle_training_notebook_exports_complete_stage_provenance() -> None:
     assert 'if OSCR_MANIFEST_PATHS:' in source
     assert "provenance.jsonl" in source
     assert "shutil.rmtree" not in source
+
+
+def test_kaggle_training_notebook_writes_valid_aya_manifest_newline() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    aya_cells = [
+        cell for cell in notebook["cells"]
+        if cell.get("cell_type") == "code" and cell.get("id") == "aya-code"
+    ]
+    assert len(aya_cells) == 1, "training notebook must have one Aya preparation cell"
+    source = "".join(aya_cells[0].get("source", []))
+
+    assert r"""json.dumps(aya_manifest, indent=2, ensure_ascii=False) + '\n'""" in source
+    assert r"""json.dumps(aya_manifest, indent=2, ensure_ascii=False) + '\\n'""" not in source
