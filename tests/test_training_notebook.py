@@ -174,7 +174,7 @@ def test_kaggle_workflow_promotes_task_tuned_candidate_not_aya_intermediate() ->
     source = workflow_path.read_text(encoding="utf-8")
     assert 'instruction = root / "artemus-task-sft.pt"' in source
     assert "artemus-latest-aya.pt" in source
-    assert "artemis-latest-instruction.pt" in source
+    assert "artemus-latest-instruction.pt" in source
     assert "cp verified-run/artemus-task-sft.pt kaggle-state-update/artemus-latest-instruction.pt" in source
 
 
