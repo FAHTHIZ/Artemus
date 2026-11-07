@@ -27,7 +27,8 @@ def test_gsm8k_train_rows_are_deterministically_split_and_formatted():
     eval_questions = {
         row["prompt"].splitlines()[-1] for row in diagnostic
     }
-    assert all(question not in all_monitor_text for question in eval_questions)
+    monitor_question_lines = set(all_monitor_text.splitlines())
+    assert eval_questions.isdisjoint(monitor_question_lines)
     assert "<|assistant|>" in train_a[0]
     assert "<|end|>" in train_a[0]
 
