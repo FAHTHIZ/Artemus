@@ -12,6 +12,7 @@ on:
       - ".github/workflows/**"
       - "README.md"
       - "docs/**"
+      - "notebooks/**"
   pull_request:
     paths:
       - "src/**"
@@ -21,6 +22,7 @@ on:
       - ".github/workflows/**"
       - "README.md"
       - "docs/**"
+      - "notebooks/**"
 
 permissions:
   contents: read
