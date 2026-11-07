@@ -208,3 +208,16 @@ def test_machine_readable_curriculum_matches_continuous_training_cycle() -> None
     assert "openai/grade-school-math" in cycle["per_cycle"]["task_sources"]
     assert "google-research-datasets/mbpp" in cycle["per_cycle"]["task_sources"]
     assert any("never an Aya or task-SFT candidate" in item for item in cycle["invariants"])
+
+def test_kaggle_workflow_bootstraps_private_state_dataset_on_first_run() -> None:
+    workflow_path = (
+        Path(__file__).resolve().parents[1]
+        / ".github" / "workflows" / "continuous-kaggle-training.yml"
+    )
+    source = workflow_path.read_text(encoding="utf-8")
+    assert "kaggle datasets create -p .kaggle-state-bootstrap -q" in source
+    assert '"licenses": [{"name": "other"}]' in source
+    assert '"id": dataset_id' in source
+    assert "KAGGLE_STATE_DATASET" in source
+    assert "if metadata.get(\"id\") != expected:" in source
+    assert "kaggle datasets create -p .kaggle-state-bootstrap -q --public" not in source
