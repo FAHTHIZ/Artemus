@@ -63,7 +63,7 @@ Do not commit the raw archive, processed corpus, or trained checkpoint to Git. T
 | [Aya Dataset](https://huggingface.co/datasets/CohereLabs/aya_dataset) | Multilingual, response-only instruction SFT; notebook caps the sample at 10,000 examples | Dataset card declares Apache-2.0 and reports about 204,000 human-annotated prompt/completion pairs across 65 languages (71 including dialects and scripts). The source also exposes annotator-related fields. | Use only the approved prompt/target and language/annotation fields; exclude annotator IDs and demographics. Human annotation is not a factuality guarantee. |
 | [OSCR Database](https://huggingface.co/datasets/OpenScientificCodeRegistry/Database) | Optional Python code continued-pretraining stage | There is no single licence for every code file. Each repository manifest retains its source repository, commit, licence, confirmation evidence, file paths and hashes. | The notebook's `OSCR_MANIFEST_PATHS` is empty by default, so this stage is skipped until exact, reviewed repository manifests are selected. |
 
-### Already used by the CPU capability-training workflow
+### Used by the recurring GPU task-SFT stage (and previously available in the CPU experiment)
 
 | Source | Role | Licence / split discipline |
 |---|---|---|
@@ -97,4 +97,8 @@ Do not commit the raw archive, processed corpus, or trained checkpoint to Git. T
 6. Promote a candidate checkpoint only after it improves held-out task scores without regressions on protected language, reasoning, code, memory and safety tests. Keep the previous checkpoint for rollback.
 
 A corpus can be large, filtered and useful without being error-free, rights-cleared for every downstream use, or appropriate for every training objective. The goal is traceable, measurable data—not maximum row count.
+
+### Per-cycle task-SFT use
+
+The recurring GPU notebook now consumes OASST1, GSM8K and MBPP after Aya SFT. This is a distinct task-SFT phase, not foundation pretraining. OASST1 is sampled with a bounded per-cycle example cap; GSM8K and MBPP remain pinned to the source revisions and task boundaries described above. The final task checkpoint is not used as the next foundation checkpoint. See `data/training-curriculum.json` for the machine-readable cycle definition.
 
