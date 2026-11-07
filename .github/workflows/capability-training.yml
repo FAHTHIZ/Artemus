@@ -1,4 +1,4 @@
-name: Artemis historical task-SFT continuation and dialogue health check
+name: Artemis historical CPU task-SFT experiment (manual only)
 
 on:
   workflow_dispatch:
@@ -13,8 +13,6 @@ on:
         required: false
         default: "8000"
         type: string
-  schedule:
-    - cron: "30 2 * * *"
 
 permissions:
   contents: read
