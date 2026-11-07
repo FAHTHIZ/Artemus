@@ -225,3 +225,20 @@ def test_kaggle_workflow_bootstraps_private_state_dataset_on_first_run() -> None
     assert "KAGGLE_STATE_DATASET" in source
     assert "if metadata.get(\"id\") != expected:" in source
     assert "kaggle datasets create -p .kaggle-state-bootstrap -q --public" not in source
+
+
+def test_gpu_notebook_runs_and_exports_capability_evaluation() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    code = {
+        cell.get("id"): "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    }
+    assert "'artemus-capability-eval'" in code["eval-code"]
+    assert "CAPABILITY_DIR / 'evaluation.jsonl'" in code["eval-code"]
+    assert "--max-math-examples" in code["eval-code"]
+    assert "--max-code-examples" in code["eval-code"]
+    assert "capability-evaluation-summary.json" in code["export-code"]
+    assert "capability-evaluation-results.jsonl" in code["export-code"]
+    assert "capability-evaluation-input.jsonl" in code["export-code"]
