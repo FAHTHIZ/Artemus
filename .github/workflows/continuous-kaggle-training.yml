@@ -239,7 +239,8 @@ jobs:
           instruction = root / "artemus-task-sft.pt"
           tokenizer = root / "tokenizer.model"
           capability_eval = root / "capability-evaluation-summary.json"
-          for path in (foundation, aya_candidate, instruction, tokenizer, capability_eval):
+          capability_comparison = root / "capability-evaluation-comparison.json"
+          for path in (foundation, aya_candidate, instruction, tokenizer, capability_eval, capability_comparison):
               if not path.is_file() or path.stat().st_size == 0:
                   raise SystemExit(f"Required training state artifact is missing: {path.name}")
           if run_metadata.get("final_checkpoint") != instruction.name:
@@ -251,6 +252,11 @@ jobs:
               raise SystemExit("Capability evaluation contains no scored math examples.")
           if evaluation_summary.get("python", {}).get("evaluated", 0) < 1:
               raise SystemExit("Capability evaluation contains no scored Python examples.")
+          comparison = json.loads(capability_comparison.read_text(encoding="utf-8"))
+          if comparison.get("evaluation_data_sha256") != evaluation_summary.get("evaluation_data_sha256"):
+              raise SystemExit("Stage comparison used different evaluation data.")
+          if set(comparison.get("stages", {})) != {"foundation", "aya", "task-sft"}:
+              raise SystemExit("Stage comparison is missing one or more training checkpoints.")
           print(json.dumps({
               "training_cycle": run_metadata.get("training_cycle"),
               "repository_commit": run_metadata.get("repository_commit"),
