@@ -214,3 +214,12 @@ The exported run bundle includes structured evaluation inputs, per-example outpu
 
 
 The same bounded evaluation sample is now run against all three cycle checkpoints (foundation, Aya-tuned, task-SFT). The export contains per-stage summaries, per-example traces, and a comparison record with the shared evaluation-data hash. This makes phase regressions visible instead of reporting only the final checkpoint.
+
+## Checkpoint cadence and recovery
+
+Training now separates recovery checkpoints from validation runs. The trainer saves a checkpoint every 100 optimizer steps by default (`--checkpoint-interval 100`), while `--eval-interval` independently controls how often train/validation loss is measured. The Kaggle foundation, optional code-adaptation, Aya, and task-SFT stages all set the recovery interval explicitly to 100 steps.
+
+A checkpoint is also saved at the first and final step of a run segment. Intermediate checkpoint writes do not trigger extra validation, so recovery frequency can be increased without increasing evaluation cost. The checkpoint stores `losses_at_step` separately from its current optimizer step; consumers can see exactly how old the last measured loss is.
+
+Checkpoint files are written to a temporary file in the destination directory, flushed to disk, and atomically replaced only after the write completes. A failed write therefore leaves the previous complete checkpoint in place. This limits lost work to at most the configured checkpoint interval during an interruption, subject to the storage system's durability guarantees.
+

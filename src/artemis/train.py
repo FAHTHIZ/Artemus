@@ -295,6 +295,15 @@ def learning_rate_at_step(
     )
 
 
+def periodic_step_due(step: int, *, target_step: int, interval: int) -> bool:
+    """Return whether a step should run a periodic action such as eval or checkpointing."""
+    if interval < 1:
+        raise ValueError("interval must be positive")
+    if target_step < 1 or step < 1 or step > target_step:
+        raise ValueError("step must be between 1 and target_step")
+    return step == 1 or step == target_step or step % interval == 0
+
+
 def build_checkpoint_metadata(
     *,
     args: argparse.Namespace,
@@ -350,6 +359,7 @@ def build_checkpoint_metadata(
         "seed": int(args.seed),
         "start_step": int(start_step),
         "target_step": int(args.steps),
+        "checkpoint_interval": int(getattr(args, "checkpoint_interval", 100)),
         "optimizer": "AdamW",
         "learning_rate": float(args.learning_rate),
         "learning_rate_schedule": str(args.lr_schedule),
@@ -414,6 +424,7 @@ def save_checkpoint(
     response_only: bool,
     run_metadata: dict,
     grad_scaler_state_dict: dict | None = None,
+    losses_at_step: int | None = None,
 ) -> None:
     """Persist a complete checkpoint before atomically replacing the previous one."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -424,6 +435,7 @@ def save_checkpoint(
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "losses": losses,
+        "losses_at_step": step if losses_at_step is None else int(losses_at_step),
         "response_only": response_only,
         "run_metadata": run_metadata,
         "grad_scaler_state_dict": grad_scaler_state_dict,
@@ -535,6 +547,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rope-theta", type=float, default=10000.0)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--eval-interval", type=int, default=25)
+    parser.add_argument("--checkpoint-interval", type=int, default=100, help="save recovery checkpoints independently of validation")
     parser.add_argument("--eval-iters", type=int, default=5)
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--device", default="auto", help="auto, cpu, cuda, mps, or a torch device")
@@ -543,8 +556,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if args.steps < 1 or args.eval_interval < 1 or args.eval_iters < 1:
-        raise SystemExit("steps, eval-interval, and eval-iters must be positive")
+    if args.steps < 1 or args.eval_interval < 1 or args.checkpoint_interval < 1 or args.eval_iters < 1:
+        raise SystemExit("steps, eval-interval, checkpoint-interval, and eval-iters must be positive")
     if args.batch_size < 1 or args.learning_rate <= 0:
         raise SystemExit("batch-size must be positive and learning-rate must be > 0")
     if args.gradient_accumulation_steps < 1:
@@ -744,6 +757,7 @@ def main() -> None:
             scaler.load_state_dict(scaler_state)
 
     latest_losses: dict[str, float] = {}
+    latest_losses_step: int | None = None
     for step in range(start_step + 1, args.steps + 1):
         scheduled_lr = learning_rate_at_step(
             step=step,
@@ -788,20 +802,28 @@ def main() -> None:
         else:
             optimizer.step()
 
-        if step == 1 or step % args.eval_interval == 0 or step == args.steps:
+        if periodic_step_due(step, target_step=args.steps, interval=args.eval_interval):
             latest_losses = estimate_loss(
                 model, train_data, val_data, args.batch_size,
                 config.block_size, device, args.eval_iters, train_mask, val_mask,
             )
+            latest_losses_step = step
             print(
                 f"step={step:>5} train_loss={latest_losses['train']:.4f} "
                 f"val_loss={latest_losses['val']:.4f} lr={scheduled_lr:.7f}"
             )
+
+        if periodic_step_due(step, target_step=args.steps, interval=args.checkpoint_interval):
             save_checkpoint(
                 args.output, model, optimizer, tokenizer, step, latest_losses,
                 response_only=args.response_only,
                 run_metadata=run_metadata,
                 grad_scaler_state_dict=scaler.state_dict() if scaler is not None else None,
+                losses_at_step=latest_losses_step,
+            )
+            print(
+                f"checkpoint_saved_at_step={step} "
+                f"losses_at_step={latest_losses_step}"
             )
 
     print(f"checkpoint_saved={args.output.resolve()}")

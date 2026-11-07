@@ -8,7 +8,22 @@ from artemis.config import ModelConfig
 from artemis.model import ArtemisLM
 from artemis.tokenizer import ByteTokenizer
 import artemis.train as train_module
-from artemis.train import build_checkpoint_metadata, get_batch, save_checkpoint
+from artemis.train import build_checkpoint_metadata, get_batch, periodic_step_due, save_checkpoint
+
+
+def test_evaluation_and_checkpoint_schedules_are_independent() -> None:
+    assert periodic_step_due(50, target_step=260, interval=25) is True
+    assert periodic_step_due(50, target_step=260, interval=100) is False
+    assert periodic_step_due(100, target_step=260, interval=100) is True
+    assert periodic_step_due(250, target_step=260, interval=250) is True
+    assert periodic_step_due(260, target_step=260, interval=100) is True
+
+
+def test_periodic_step_due_rejects_invalid_ranges() -> None:
+    with pytest.raises(ValueError, match="interval must be positive"):
+        periodic_step_due(1, target_step=10, interval=0)
+    with pytest.raises(ValueError, match="between 1 and target_step"):
+        periodic_step_due(11, target_step=10, interval=5)
 
 
 def test_get_batch_returns_shifted_sequences() -> None:
@@ -39,11 +54,13 @@ def test_save_checkpoint_round_trips_after_atomic_replace(tmp_path: Path) -> Non
         losses={"train": 1.25, "val": 1.5},
         response_only=False,
         run_metadata={"lineage": {"origin": "test"}, "runs": []},
+        losses_at_step=5,
     )
 
     payload = torch.load(checkpoint, map_location="cpu", weights_only=True)
     assert payload["format_version"] == 3
     assert payload["step"] == 7
+    assert payload["losses_at_step"] == 5
     assert payload["losses"]["val"] == pytest.approx(1.5)
     assert payload["tokenizer"] == ByteTokenizer.name
     assert not list(tmp_path.glob(".checkpoint.pt.*.tmp"))

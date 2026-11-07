@@ -172,6 +172,22 @@ def test_gpu_notebook_contains_verified_task_sft_stage() -> None:
     assert '("oasst1", OASST_DIR)' in export
 
 
+def test_kaggle_training_stages_configure_independent_checkpoint_cadence() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    code = {
+        cell.get("id"): "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code"
+    }
+
+    assert "CHECKPOINT_INTERVAL = 100" in code["settings"]
+    for cell_id in ("train-code", "oscr-code", "aya-code", "task-sft-code"):
+        assert "--checkpoint-interval" in code[cell_id], (
+            f"{cell_id} must checkpoint independently of its evaluation interval"
+        )
+
+
 def test_kaggle_workflow_promotes_task_tuned_candidate_not_aya_intermediate() -> None:
     workflow_path = (
         Path(__file__).resolve().parents[1]
