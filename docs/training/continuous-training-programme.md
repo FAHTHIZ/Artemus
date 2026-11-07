@@ -190,7 +190,7 @@ The repository workflow `.github/workflows/continuous-kaggle-training.yml` runs 
 - Repository variable `KAGGLE_KERNEL_SLUG`, set to `artemus-continuous-training`.
 - Optional repository variable `ARTEMUS_KAGGLE_ACCELERATOR`, defaulting to `NvidiaTeslaT4`. Supported notebook choices are `NvidiaTeslaT4`, `NvidiaL4`, and `NvidiaTeslaA100` (availability depends on the Kaggle account and quota).
 
-Create the private Kaggle dataset with the exact slug `artemus-training-state` once and attach it to the automated kernel. An initial dataset may contain only a short README; the first run has no model checkpoint and will initialize from scratch. Choose a dataset licence that accurately reflects the checkpoint and provenance material; do not publish the state dataset or place credentials in it.
+On the first workflow run, the job creates an empty private Kaggle dataset with the exact slug `artemus-training-state` if it does not already exist, then attaches it to the automated kernel. The bootstrap uses Kaggle's `other` dataset licence because the bundle combines checkpoints with source-specific provenance; individual upstream rights remain recorded in the source manifests. Kaggle datasets are private by default when created without the `--public` flag. Keep the state dataset private and never put credentials inside it. The first cycle sees only a README and starts the foundation model from random initialization.
 
 The legacy CPU task-SFT workflow remains available for manual historical experiments only. It is no longer scheduled, because repeatedly running the same capped task-SFT mixture does not advance foundation learning.
 
