@@ -188,7 +188,7 @@ The repository workflow `.github/workflows/continuous-kaggle-training.yml` runs 
 - Repository secret `KAGGLE_KEY` (Kaggle API credential).
 - Repository variable `KAGGLE_STATE_DATASET`, set to `<your-kaggle-username>/artemus-training-state`.
 - Repository variable `KAGGLE_KERNEL_SLUG`, set to `artemus-continuous-training`.
-- Optional repository variable `ARTEMUS_KAGGLE_ACCELERATOR`, defaulting to `NvidiaTeslaT4`.
+- Optional repository variable `ARTEMUS_KAGGLE_ACCELERATOR`, defaulting to `NvidiaTeslaT4`. Supported notebook choices are `NvidiaTeslaT4`, `NvidiaL4`, and `NvidiaTeslaA100` (availability depends on the Kaggle account and quota).
 
 Create the private Kaggle dataset with the exact slug `artemus-training-state` once and attach it to the automated kernel. An initial dataset may contain only a short README; the first run has no model checkpoint and will initialize from scratch. Choose a dataset licence that accurately reflects the checkpoint and provenance material; do not publish the state dataset or place credentials in it.
 
