@@ -492,3 +492,12 @@ def test_offline_bundle_builder_creates_private_dataset_metadata_and_python313_w
     assert "--abi cp313" in builder
     assert "KAGGLE_INPUT_DATASET" in builder
     assert "dataset-metadata.json" in builder
+
+
+def test_recurring_kaggle_workflow_requires_and_attaches_offline_inputs() -> None:
+    path = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "continuous-kaggle-training.yml"
+    source = path.read_text(encoding="utf-8")
+    assert 'export KAGGLE_INPUT_DATASET="$KAGGLE_USERNAME/artemus-training-inputs"' in source
+    assert "KAGGLE_INPUT_DATASET" in source
+    assert "kaggle datasets metadata \"$KAGGLE_INPUT_DATASET\"" in source
+    assert '["KAGGLE_INPUT_DATASET"], os.environ["KAGGLE_STATE_DATASET"]' in source
