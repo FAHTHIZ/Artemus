@@ -469,3 +469,26 @@ def test_offline_kaggle_input_bundle_builder_pins_and_packages_all_training_sour
         "repository-commit.txt",
     ):
         assert expected in builder
+
+
+def test_initial_training_uploads_and_attaches_private_offline_input_bundle() -> None:
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root / ".github" / "workflows" / "validation.yml").read_text(encoding="utf-8")
+    assert "bash scripts/prepare-kaggle-input-bundle.sh" in workflow
+    assert 'export KAGGLE_INPUT_DATASET="$KAGGLE_USERNAME/artemus-training-inputs"' in workflow
+    assert "kaggle datasets create" in workflow
+    assert "kaggle datasets version" in workflow
+    assert 'os.environ["KAGGLE_INPUT_DATASET"]' in workflow
+    assert 'os.environ["KAGGLE_STATE_DATASET"]' in workflow
+    assert "dataset_sources" in workflow
+
+
+def test_offline_bundle_builder_creates_private_dataset_metadata_and_python313_wheel() -> None:
+    root = Path(__file__).resolve().parents[1]
+    builder = (root / "scripts" / "prepare-kaggle-input-bundle.sh").read_text(encoding="utf-8")
+    assert '"id": dataset_id' in builder or '"id": dataset_id' in builder
+    assert '"artemus-source.zip"' in builder
+    assert "--python-version 3.13" in builder
+    assert "--abi cp313" in builder
+    assert "KAGGLE_INPUT_DATASET" in builder
+    assert "dataset-metadata.json" in builder
