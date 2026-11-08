@@ -547,3 +547,11 @@ def test_initial_training_waits_for_private_input_dataset_metadata_after_create(
     assert 'kaggle datasets metadata "$KAGGLE_INPUT_DATASET" -p .kaggle-input-verified' in workflow
     assert 'sleep 15' in workflow
     assert 'metadata.get("id") != expected' in workflow
+
+
+def test_validation_runs_have_unique_concurrency_groups_for_independent_training_attempts() -> None:
+    workflow = (
+        Path(__file__).resolve().parents[1]
+        / ".github" / "workflows" / "validation.yml"
+    ).read_text(encoding="utf-8")
+    assert "group: ${{ format('artemus-validation-{0}-{1}', github.ref, github.run_id) }}" in workflow
