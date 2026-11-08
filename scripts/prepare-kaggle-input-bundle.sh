@@ -219,7 +219,7 @@ import json, sys
 from pathlib import Path
 target, dataset_id = Path(sys.argv[1]), sys.argv[2]
 payload = {
-    "title": "Artemus Offline Training Inputs",
+    "title": "Artemus Training Inputs",
     "id": dataset_id,
     "licenses": [{"name": "other"}],
     "description": (
