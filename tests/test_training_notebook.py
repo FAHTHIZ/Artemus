@@ -1,5 +1,6 @@
 """Static integrity tests for user-facing training notebooks."""
 
+import ast
 import json
 from pathlib import Path
 
@@ -288,3 +289,42 @@ def test_gpu_notebook_compares_all_training_stages_on_the_same_eval_set() -> Non
     assert 'f"capability-evaluation-{stage_name}-summary.json"' in code["export-code"]
     assert "evaluation_data_hashes" in code["eval-code"]
     assert "capability-evaluation-comparison.json" in code["export-code"]
+
+
+def test_kaggle_notebook_code_cells_preserve_line_boundaries_and_export_executes() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    code_cells = [cell for cell in notebook["cells"] if cell.get("cell_type") == "code"]
+
+    for cell in code_cells:
+        source = cell.get("source", [])
+        if isinstance(source, list):
+            for line in source[:-1]:
+                assert line.endswith("\\n"), f"cell {cell.get('id')} has a joined source-line boundary"
+
+    export_cells = [cell for cell in code_cells if cell.get("id") == "export-code"]
+    assert len(export_cells) == 1
+    export_source = "".join(export_cells[0]["source"])
+    parsed = ast.parse(export_source)
+    assert parsed.body, "export cell must contain executable statements, not only a comment"
+    assert "EXPORT_ZIP = shutil.make_archive" in export_source
+    assert "export-manifest.json" in export_source
+
+
+def test_kaggle_workflows_support_api_token_and_preflight_authentication() -> None:
+    root = Path(__file__).resolve().parents[1]
+    for relative in (".github/workflows/validation.yml", ".github/workflows/continuous-kaggle-training.yml"):
+        source = (root / relative).read_text(encoding="utf-8")
+        assert "KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}" in source
+        assert "kaggle datasets list --mine --page-size 1 --csv" in source
+        assert "KAGGLE_API_TOKEN" in source and "KAGGLE_KEY" in source
+
+
+def test_initial_training_launcher_persists_the_first_foundation_checkpoint() -> None:
+    workflow_path = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "validation.yml"
+    source = workflow_path.read_text(encoding="utf-8")
+    assert "needs: tests" in source
+    assert "kaggle datasets version" in source
+    assert "artemus-foundation-current.pt" in source
+    assert "artemus-latest-instruction.pt" in source
+    assert "state.json" in source
