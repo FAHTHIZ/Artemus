@@ -334,3 +334,31 @@ def test_initial_training_launcher_runs_fresh_and_preserves_first_foundation_che
     assert "artemus-latest-instruction.pt" in source
     assert "state.json" in source
     assert source.index("kaggle kernels push") < source.index("kaggle datasets create")
+
+
+def test_kaggle_username_normalizer_accepts_plain_quoted_field_and_json_values() -> None:
+    from kaggle_username import normalize_username
+
+    assert normalize_username("muhammadhossen") == "muhammadhossen"
+    assert normalize_username('"muhammadhossen"') == "muhammadhossen"
+    assert normalize_username('"muhammadhossen",') == "muhammadhossen"
+    assert normalize_username('"username": "muhammadhossen",') == "muhammadhossen"
+    assert normalize_username('{"username": "muhammadhossen", "key": "redacted"}') == "muhammadhossen"
+
+
+def test_kaggle_username_normalizer_rejects_display_names_without_echoing_input() -> None:
+    from kaggle_username import normalize_username
+
+    import pytest
+
+    with pytest.raises(ValueError, match="valid Kaggle profile handle"):
+        normalize_username("Muhammad Hossen")
+
+
+def test_kaggle_workflows_normalize_username_before_kaggle_kernel_or_dataset_ids() -> None:
+    root = Path(__file__).resolve().parents[1]
+    for relative in (".github/workflows/validation.yml", ".github/workflows/continuous-kaggle-training.yml"):
+        source = (root / relative).read_text(encoding="utf-8")
+        assert "python kaggle_username.py" in source
+        assert 'export KAGGLE_USERNAME="$(cat .kaggle-username)"' in source
+        assert 'export KAGGLE_STATE_DATASET="$KAGGLE_USERNAME/artemus-training-state"' in source
