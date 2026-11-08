@@ -320,11 +320,16 @@ def test_kaggle_workflows_support_api_token_and_preflight_authentication() -> No
         assert "KAGGLE_API_TOKEN" in source and "KAGGLE_KEY" in source
 
 
-def test_initial_training_launcher_persists_the_first_foundation_checkpoint() -> None:
+def test_initial_training_launcher_runs_fresh_and_preserves_first_foundation_checkpoint() -> None:
     workflow_path = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "validation.yml"
     source = workflow_path.read_text(encoding="utf-8")
     assert "needs: tests" in source
+    assert "kaggle quota" in source
+    assert '"dataset_sources": []' in source
+    assert "actions/upload-artifact@v4" in source
+    assert "artemus-initial-training-${{ github.run_id }}" in source
     assert "kaggle datasets version" in source
     assert "artemus-foundation-current.pt" in source
     assert "artemus-latest-instruction.pt" in source
     assert "state.json" in source
+    assert source.index("kaggle kernels push") < source.index("kaggle datasets create")
