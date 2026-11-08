@@ -489,7 +489,8 @@ def test_initial_training_uploads_and_attaches_private_offline_input_bundle() ->
 def test_offline_bundle_builder_creates_private_dataset_metadata_and_python313_wheel() -> None:
     root = Path(__file__).resolve().parents[1]
     builder = (root / "scripts" / "prepare-kaggle-input-bundle.sh").read_text(encoding="utf-8")
-    assert '"id": dataset_id' in builder or '"id": dataset_id' in builder
+    assert '"id": dataset_id' in builder
+    assert '"title": "Artemus Training Inputs"' in builder
     assert '"artemus-source.zip"' in builder
     assert "--python-version 3.13" in builder
     assert "--abi cp313" in builder
