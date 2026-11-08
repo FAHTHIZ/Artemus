@@ -379,3 +379,12 @@ def test_gpu_notebook_reports_accelerator_diagnostics_before_failing_fast() -> N
     assert "CUDA_VISIBLE_DEVICES" in source
     assert 'shutil.which("nvidia-smi")' in source
     assert "phone verification" in source
+
+
+def test_kaggle_workflows_write_normalized_identity_as_separate_environment_lines() -> None:
+    root = Path(__file__).resolve().parents[1]
+    for relative in (".github/workflows/validation.yml", ".github/workflows/continuous-kaggle-training.yml"):
+        source = (root / relative).read_text(encoding="utf-8")
+        assert 'echo "KAGGLE_USERNAME=$KAGGLE_USERNAME"' in source
+        assert 'echo "KAGGLE_STATE_DATASET=$KAGGLE_STATE_DATASET"' in source
+        assert "printf 'KAGGLE_USERNAME=%s\\\\n'" not in source
