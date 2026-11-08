@@ -388,3 +388,32 @@ def test_kaggle_workflows_write_normalized_identity_as_separate_environment_line
         assert 'echo "KAGGLE_USERNAME=$KAGGLE_USERNAME"' in source
         assert 'echo "KAGGLE_STATE_DATASET=$KAGGLE_STATE_DATASET"' in source
         assert "printf 'KAGGLE_USERNAME=%s\\\\n'" not in source
+
+
+def test_kaggle_notebook_uses_bounded_fp32_cpu_fallback_when_cuda_is_unavailable() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    cells = {cell.get("id"): "".join(cell.get("source", [])) for cell in notebook["cells"]}
+    assert "CPU_FALLBACK = not torch.cuda.is_available()" in cells["gpu-check"]
+    assert "ACCELERATOR_NAME = \"CPU (bounded fallback)\"" in cells["gpu-check"]
+    assert "TRAIN_STEPS = 1_000" in cells["settings"]
+    assert "PRECISION = 'fp32'" in cells["settings"]
+    assert "BLOCK_SIZE = 256" in cells["settings"]
+    assert "AYA_SFT_STEPS = 250" in cells["settings"]
+    assert "TASK_SFT_STEPS = 250" in cells["settings"]
+    assert "model-size.json" in cells["export-code"]
+    assert '"model_parameters": model_parameters' in cells["export-code"]
+
+
+def test_kaggle_notebook_records_exact_parameter_count_and_real_checkpoint_size() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    export_source = next(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "code" and cell.get("id") == "export-code"
+    )
+    assert "sum(parameter.numel() for parameter in size_model.parameters())" in export_source
+    assert "model_weight_bytes" in export_source
+    assert "final_checkpoint_bytes" in export_source
+    assert "foundation_checkpoint_bytes" in export_source
