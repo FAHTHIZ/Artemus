@@ -108,8 +108,8 @@ jobs:
           export KAGGLE_USERNAME="$(cat .kaggle-username)"
           export KAGGLE_STATE_DATASET="$KAGGLE_USERNAME/artemus-training-state"
           {
-            printf 'KAGGLE_USERNAME=%s\\n' "$KAGGLE_USERNAME"
-            printf 'KAGGLE_STATE_DATASET=%s\\n' "$KAGGLE_STATE_DATASET"
+            echo "KAGGLE_USERNAME=$KAGGLE_USERNAME"
+            echo "KAGGLE_STATE_DATASET=$KAGGLE_STATE_DATASET"
           } >> "$GITHUB_ENV"
           mkdir -p "$HOME/.kaggle"
           if [[ -n "${KAGGLE_API_TOKEN:-}" ]]; then
