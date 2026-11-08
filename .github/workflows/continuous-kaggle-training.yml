@@ -72,9 +72,11 @@ jobs:
           python kaggle_username.py
           export KAGGLE_USERNAME="$(cat .kaggle-username)"
           export KAGGLE_STATE_DATASET="$KAGGLE_USERNAME/artemus-training-state"
+          export KAGGLE_INPUT_DATASET="$KAGGLE_USERNAME/artemus-training-inputs"
           {
             echo "KAGGLE_USERNAME=$KAGGLE_USERNAME"
             echo "KAGGLE_STATE_DATASET=$KAGGLE_STATE_DATASET"
+            echo "KAGGLE_INPUT_DATASET=$KAGGLE_INPUT_DATASET"
           } >> "$GITHUB_ENV"
           mkdir -p "$HOME/.kaggle"
           if [[ -n "${KAGGLE_API_TOKEN:-}" ]]; then
@@ -102,6 +104,20 @@ jobs:
             exit 1
           fi
           echo "Kaggle authentication verified."
+          mkdir -p .kaggle-input-metadata
+          if ! kaggle datasets metadata "$KAGGLE_INPUT_DATASET" -p .kaggle-input-metadata; then
+            echo "::error::The private offline input bundle is missing. Complete an initial training launch before running recurring cycles."
+            exit 1
+          fi
+          test -s .kaggle-input-metadata/dataset-metadata.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          metadata = json.loads(Path(".kaggle-input-metadata/dataset-metadata.json").read_text(encoding="utf-8"))
+          expected = os.environ["KAGGLE_INPUT_DATASET"]
+          if metadata.get("id") != expected:
+              raise SystemExit("Offline input dataset metadata ID mismatch.")
+          PY
           echo "KAGGLE_KERNEL_ID=$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG" >> "$GITHUB_ENV"
           kaggle --version
           # Fetch existing state metadata, or create an empty private state dataset on first use.
@@ -176,7 +192,7 @@ jobs:
               "enable_gpu": "true",
               "enable_internet": "true",
               "machine_shape": os.environ["KAGGLE_ACCELERATOR"],
-              "dataset_sources": [os.environ["KAGGLE_STATE_DATASET"]],
+              "dataset_sources": [os.environ["KAGGLE_INPUT_DATASET"], os.environ["KAGGLE_STATE_DATASET"]],
               "competition_sources": [],
               "kernel_sources": [],
               "model_sources": [],
