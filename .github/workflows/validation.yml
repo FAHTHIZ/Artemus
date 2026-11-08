@@ -90,7 +90,7 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install --upgrade kaggle six
-          for name in KAGGLE_USERNAME KAGGLE_STATE_DATASET KAGGLE_KERNEL_SLUG; do
+          for name in KAGGLE_USERNAME KAGGLE_KERNEL_SLUG; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::Missing GitHub secret/variable: $name"
               exit 1
@@ -104,13 +104,12 @@ jobs:
             echo "::error::KAGGLE_KERNEL_SLUG must be artemus-continuous-training."
             exit 1
           fi
-          if [[ "$KAGGLE_STATE_DATASET" != "$KAGGLE_USERNAME/artemus-training-state" ]]; then
-            echo "::error::KAGGLE_STATE_DATASET must be $KAGGLE_USERNAME/artemus-training-state."
+          if [[ ! "$KAGGLE_USERNAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$ ]]; then
+            echo "::error::KAGGLE_USERNAME must be the Kaggle profile handle, not a display name, email, or profile URL."
             exit 1
           fi
           mkdir -p "$HOME/.kaggle"
           if [[ -n "${KAGGLE_API_TOKEN:-}" ]]; then
-            # The current CLI recommends API tokens for non-interactive automation.
             printf '%s' "$KAGGLE_API_TOKEN" > "$HOME/.kaggle/access_token"
             chmod 600 "$HOME/.kaggle/access_token"
           else
@@ -128,43 +127,11 @@ jobs:
           fi
           echo "Validating Kaggle API credentials with the authenticated quota endpoint..."
           if ! kaggle quota; then
-            echo "::error::Kaggle rejected the configured credentials. The datasets list endpoint can succeed anonymously; quota is the authenticated preflight."
+            echo "::error::Kaggle rejected the configured credentials. This check requires an authenticated account; a successful datasets list is not sufficient."
             exit 1
           fi
           echo "Kaggle authentication verified."
           export KAGGLE_KERNEL_ID="$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG"
-          mkdir -p .kaggle-state-metadata
-          if ! kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-metadata; then
-            mkdir -p .kaggle-state-bootstrap
-            python - <<'PY'
-          import json, os
-          from pathlib import Path
-          dataset_id = os.environ["KAGGLE_STATE_DATASET"]
-          metadata = {
-              "title": "Artemus Training State",
-              "id": dataset_id,
-              "licenses": [{"name": "other"}],
-              "description": "Private checkpoint and provenance state for Artemus research cycles. Keep this dataset private.",
-          }
-          Path(".kaggle-state-bootstrap/dataset-metadata.json").write_text(
-              json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
-          )
-          Path(".kaggle-state-bootstrap/README.md").write_text(
-              "# Artemus private training state\n\nStores checkpoints, tokenizer files, manifests and hashes. Keep private.\n",
-              encoding="utf-8",
-          )
-          PY
-            kaggle datasets create -p .kaggle-state-bootstrap -q
-            kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-metadata
-          fi
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          metadata = json.loads(Path(".kaggle-state-metadata/dataset-metadata.json").read_text(encoding="utf-8"))
-          expected = os.environ["KAGGLE_STATE_DATASET"]
-          if metadata.get("id") != expected:
-              raise SystemExit(f"Dataset metadata ID mismatch: expected {expected!r}, got {metadata.get('id')!r}")
-          PY
           mkdir -p .kaggle-kernel
           cp notebooks/kaggle-gpu-training.ipynb .kaggle-kernel/
           python - <<'PY'
@@ -180,7 +147,7 @@ jobs:
               "enable_gpu": "true",
               "enable_internet": "true",
               "machine_shape": os.environ["KAGGLE_ACCELERATOR"],
-              "dataset_sources": [os.environ["KAGGLE_STATE_DATASET"]],
+              "dataset_sources": [],
               "competition_sources": [],
               "kernel_sources": [],
               "model_sources": [],
@@ -265,12 +232,39 @@ jobs:
               raise SystemExit("No exported artifacts were verified")
           PY
 
+      - name: Preserve the verified training outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: artemus-initial-training-${{ github.run_id }}
+          path: verified-run/
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Version the private persistent training state
+        id: persist-state
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p kaggle-state-update/current-provenance
-          cp .kaggle-state-metadata/dataset-metadata.json kaggle-state-update/dataset-metadata.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          dataset_id = os.environ["KAGGLE_STATE_DATASET"]
+          metadata = {
+              "title": "Artemus Training State",
+              "id": dataset_id,
+              "licenses": [{"name": "other"}],
+              "description": "Private, resumable foundation checkpoint and provenance for Artemus research cycles. Keep private.",
+          }
+          root = Path("kaggle-state-update")
+          (root / "dataset-metadata.json").write_text(json.dumps(metadata, indent=2) + "\\n", encoding="utf-8")
+          (root / "README.md").write_text(
+              "# Artemus private training state\\n\\n"
+              "Foundation checkpoint, tokenizer, run metadata, manifests, and hashes. Keep private.\\n",
+              encoding="utf-8",
+          )
+          PY
           cp verified-run/artemus-foundation-fineweb-edu.pt kaggle-state-update/artemus-foundation-current.pt
           cp verified-run/artemus-aya-instruction-sft.pt kaggle-state-update/artemus-latest-aya.pt
           cp verified-run/artemus-task-sft.pt kaggle-state-update/artemus-latest-instruction.pt
@@ -317,7 +311,31 @@ jobs:
           (root / "state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
           print(json.dumps(state, indent=2))
           PY
-          kaggle datasets version \
-            -p kaggle-state-update \
-            -m "Artemus training cycle $GITHUB_RUN_NUMBER" \
-            --dir-mode zip
+          if kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-existing; then
+            echo "Updating existing private checkpoint dataset."
+            kaggle datasets version \
+              -p kaggle-state-update \
+              -m "Artemus training cycle $GITHUB_RUN_NUMBER" \
+              --dir-mode zip
+          else
+            echo "Creating the private checkpoint dataset after preserving the GitHub artifact."
+            kaggle datasets create \
+              -p kaggle-state-update \
+              -q \
+              --dir-mode zip
+          fi
+
+      - name: Report first-run persistence status
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Artemus first GPU run"
+            echo "- Kaggle notebook submission and training steps are shown above."
+            echo "- Verified outputs are stored as a GitHub Actions artifact (90-day retention)."
+            if [[ "${{ steps.persist-state.outcome }}" == "success" ]]; then
+              echo "- Private Kaggle resume dataset was created or updated successfully."
+            else
+              echo "- Private Kaggle resume dataset was not updated. The verified GitHub artifact is preserved; fix the Kaggle owner/account issue before recurring resume runs."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
