@@ -61,12 +61,14 @@ jobs:
         run: python -m compileall -q src tests
 
   foundation-training:
+    needs: tests
     # Explicit one-time launcher: launch initial Artemus foundation run after workflow fixes.
     if: github.event_name == 'push' && contains(github.event.head_commit.message, 'launch initial Artemus foundation run')
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
       KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
       KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
       KAGGLE_STATE_DATASET: ${{ vars.KAGGLE_STATE_DATASET || format('{0}/artemus-training-state', secrets.KAGGLE_USERNAME) }}
       KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG || 'artemus-continuous-training' }}
@@ -88,12 +90,16 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install --upgrade kaggle six
-          for name in KAGGLE_USERNAME KAGGLE_KEY KAGGLE_STATE_DATASET KAGGLE_KERNEL_SLUG; do
+          for name in KAGGLE_USERNAME KAGGLE_STATE_DATASET KAGGLE_KERNEL_SLUG; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::Missing GitHub secret/variable: $name"
               exit 1
             fi
           done
+          if [[ -z "${KAGGLE_API_TOKEN:-}" && -z "${KAGGLE_KEY:-}" ]]; then
+            echo "::error::Set KAGGLE_API_TOKEN (recommended) or KAGGLE_KEY in GitHub Actions secrets."
+            exit 1
+          fi
           if [[ "$KAGGLE_KERNEL_SLUG" != "artemus-continuous-training" ]]; then
             echo "::error::KAGGLE_KERNEL_SLUG must be artemus-continuous-training."
             exit 1
@@ -103,8 +109,14 @@ jobs:
             exit 1
           fi
           mkdir -p "$HOME/.kaggle"
-          python - <<'PY'
-          import json, os
+          if [[ -n "${KAGGLE_API_TOKEN:-}" ]]; then
+            # The current CLI recommends API tokens for non-interactive automation.
+            printf '%s' "$KAGGLE_API_TOKEN" > "$HOME/.kaggle/access_token"
+            chmod 600 "$HOME/.kaggle/access_token"
+          else
+            python - <<'PY'
+          import json
+          import os
           from pathlib import Path
           path = Path.home() / ".kaggle" / "kaggle.json"
           path.write_text(json.dumps({
@@ -113,6 +125,12 @@ jobs:
           }), encoding="utf-8")
           path.chmod(0o600)
           PY
+          fi
+          echo "Validating Kaggle account authentication..."
+          if ! kaggle datasets list --mine --page-size 1 --csv >/dev/null; then
+            echo "::error::Kaggle rejected the configured credentials. Add a fresh KAGGLE_API_TOKEN secret, or regenerate the Legacy API Key."
+            exit 1
+          fi
           export KAGGLE_KERNEL_ID="$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG"
           mkdir -p .kaggle-state-metadata
           if ! kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-metadata; then
@@ -209,7 +227,96 @@ jobs:
               if hashlib.sha256(artifact.read_bytes()).hexdigest() != item["sha256"]:
                   raise SystemExit(f"SHA-256 mismatch: {item['path']}")
               count += 1
-          print(json.dumps({"verified_artifacts": count, "run_metadata": metadata}, indent=2))
+          required = (
+              "artemus-foundation-fineweb-edu.pt",
+              "artemus-aya-instruction-sft.pt",
+              "artemus-task-sft.pt",
+              "tokenizer.model",
+              "capability-evaluation-summary.json",
+              "capability-evaluation-comparison.json",
+          )
+          for filename in required:
+              path = root / filename
+              if not path.is_file() or path.stat().st_size == 0:
+                  raise SystemExit(f"Required training artifact is missing: {filename}")
+          if metadata.get("final_checkpoint") != "artemus-task-sft.pt":
+              raise SystemExit("Run metadata does not identify the task-SFT candidate as final.")
+          summary = json.loads((root / "capability-evaluation-summary.json").read_text(encoding="utf-8"))
+          if summary.get("checkpoint_sha256") != metadata.get("checkpoint_sha256"):
+              raise SystemExit("Capability evaluation was not run against the exported final checkpoint.")
+          if summary.get("math", {}).get("evaluated", 0) < 1:
+              raise SystemExit("Capability evaluation contains no scored math examples.")
+          if summary.get("python", {}).get("evaluated", 0) < 1:
+              raise SystemExit("Capability evaluation contains no scored Python examples.")
+          comparison = json.loads((root / "capability-evaluation-comparison.json").read_text(encoding="utf-8"))
+          if comparison.get("evaluation_data_sha256") != summary.get("evaluation_data_sha256"):
+              raise SystemExit("Stage comparison used different evaluation data.")
+          if set(comparison.get("stages", {})) != {"foundation", "aya", "task-sft"}:
+              raise SystemExit("Stage comparison is missing one or more training checkpoints.")
+          print(json.dumps({
+              "training_cycle": metadata.get("training_cycle"),
+              "repository_commit": metadata.get("repository_commit"),
+              "global_step": metadata.get("global_step"),
+              "verified_artifact_count": count,
+              "checkpoint_sha256": metadata.get("checkpoint_sha256"),
+          }, indent=2))
           if count == 0:
               raise SystemExit("No exported artifacts were verified")
           PY
+
+      - name: Version the private persistent training state
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p kaggle-state-update/current-provenance
+          cp .kaggle-state-metadata/dataset-metadata.json kaggle-state-update/dataset-metadata.json
+          cp verified-run/artemus-foundation-fineweb-edu.pt kaggle-state-update/artemus-foundation-current.pt
+          cp verified-run/artemus-aya-instruction-sft.pt kaggle-state-update/artemus-latest-aya.pt
+          cp verified-run/artemus-task-sft.pt kaggle-state-update/artemus-latest-instruction.pt
+          cp verified-run/tokenizer.model kaggle-state-update/tokenizer.model
+          cp verified-run/run-metadata.json kaggle-state-update/run-metadata.json
+          cp verified-run/export-manifest.json kaggle-state-update/export-manifest.json
+          find verified-run -maxdepth 1 -type f \
+            \( -name '*-manifest.json' -o -name '*-provenance.jsonl' \) \
+            -exec cp {} kaggle-state-update/current-provenance/ \;
+          python - <<'PY'
+          import hashlib
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          root = Path("kaggle-state-update")
+          checkpoint = root / "artemus-foundation-current.pt"
+          tokenizer = root / "tokenizer.model"
+          metadata = json.loads((root / "run-metadata.json").read_text(encoding="utf-8"))
+          foundation_sha256 = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+          foundation_global_step = metadata.get("foundation_global_step")
+          foundation_run_count = metadata.get("foundation_training_run_count")
+          training_cycle = metadata.get("training_cycle")
+          if metadata.get("foundation_checkpoint_sha256") != foundation_sha256:
+              raise SystemExit("Foundation checkpoint hash does not match run metadata.")
+          if not isinstance(foundation_global_step, int) or foundation_global_step < 1:
+              raise SystemExit("Run metadata does not contain a valid foundation checkpoint step.")
+          if foundation_run_count != training_cycle:
+              raise SystemExit("Foundation checkpoint run count does not match the training cycle.")
+          state = {
+              "schema_version": 1,
+              "updated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "training_cycle": training_cycle,
+              "repository_commit": metadata.get("repository_commit"),
+              "foundation_checkpoint": checkpoint.name,
+              "foundation_checkpoint_sha256": foundation_sha256,
+              "tokenizer_sha256": hashlib.sha256(tokenizer.read_bytes()).hexdigest(),
+              "global_step": foundation_global_step,
+              "foundation_global_step": foundation_global_step,
+              "final_candidate_global_step": metadata.get("final_candidate_global_step", metadata.get("global_step")),
+              "final_candidate_checkpoint": metadata.get("final_checkpoint"),
+              "final_candidate_sha256": metadata.get("checkpoint_sha256"),
+              "note": "Private state only. The next cycle resumes this foundation checkpoint, not the instruction-SFT candidate.",
+          }
+          (root / "state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(state, indent=2))
+          PY
+          kaggle datasets version \
+            -p kaggle-state-update \
+            -m "Artemus training cycle $GITHUB_RUN_NUMBER" \
+            --dir-mode zip
