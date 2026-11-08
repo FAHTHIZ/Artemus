@@ -68,8 +68,8 @@ jobs:
     env:
       KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
       KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
-      KAGGLE_STATE_DATASET: ${{ vars.KAGGLE_STATE_DATASET }}
-      KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG }}
+      KAGGLE_STATE_DATASET: ${{ vars.KAGGLE_STATE_DATASET || format('{0}/artemus-training-state', secrets.KAGGLE_USERNAME) }}
+      KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG || 'artemus-continuous-training' }}
       KAGGLE_ACCELERATOR: NvidiaTeslaT4
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
     steps:
