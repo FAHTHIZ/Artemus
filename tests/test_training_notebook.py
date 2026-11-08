@@ -317,6 +317,7 @@ def test_kaggle_workflows_support_api_token_and_preflight_authentication() -> No
         source = (root / relative).read_text(encoding="utf-8")
         assert "KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}" in source
         assert "kaggle quota" in source
+        assert "unset KAGGLE_KEY" in source
         assert "KAGGLE_API_TOKEN" in source and "KAGGLE_KEY" in source
 
 
