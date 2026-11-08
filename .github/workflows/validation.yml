@@ -165,10 +165,11 @@ jobs:
           echo "Verified offline input dataset: $KAGGLE_INPUT_DATASET"
 
           if kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-existing; then
-            echo "KAGGLE_STATE_DATASET_EXISTS=true" >> "$GITHUB_ENV"
+            export KAGGLE_STATE_DATASET_EXISTS=true
           else
-            echo "KAGGLE_STATE_DATASET_EXISTS=false" >> "$GITHUB_ENV"
+            export KAGGLE_STATE_DATASET_EXISTS=false
           fi
+          echo "KAGGLE_STATE_DATASET_EXISTS=$KAGGLE_STATE_DATASET_EXISTS" >> "$GITHUB_ENV"
           export KAGGLE_KERNEL_ID="$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG"
           mkdir -p .kaggle-kernel
           cp notebooks/kaggle-gpu-training.ipynb .kaggle-kernel/
