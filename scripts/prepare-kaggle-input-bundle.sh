@@ -243,3 +243,33 @@ print(json.dumps({
     "total_bytes": sum(item["size_bytes"] for item in m["artifacts"]),
 }, indent=2))
 PY
+
+python - "$BUNDLE_ROOT/bundle-manifest.json" "$GITHUB_SHA" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+root, commit = Path(sys.argv[1]).parent, sys.argv[2]
+records = []
+for path in sorted(p for p in root.rglob("*") if p.is_file() and p.name != "bundle-manifest.json"):
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    records.append({
+        "path": path.relative_to(root).as_posix(),
+        "size_bytes": path.stat().st_size,
+        "sha256": digest,
+    })
+payload = {
+    "schema_version": 1,
+    "repository_commit": commit,
+    "artifacts": records,
+    "total_bytes": sum(item["size_bytes"] for item in records),
+}
+(root / "bundle-manifest.json").write_text(
+    json.dumps(payload, indent=2) + "\\n", encoding="utf-8"
+)
+print(json.dumps({
+    "repository_commit": commit,
+    "artifact_count": len(records),
+    "total_bytes": payload["total_bytes"],
+}, indent=2))
+PY
