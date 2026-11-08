@@ -112,6 +112,8 @@ jobs:
           if [[ -n "${KAGGLE_API_TOKEN:-}" ]]; then
             printf '%s' "$KAGGLE_API_TOKEN" > "$HOME/.kaggle/access_token"
             chmod 600 "$HOME/.kaggle/access_token"
+            # Do not let an old legacy key hide a rejected API token during preflight.
+            unset KAGGLE_KEY
           else
             python - <<'PY'
           import json
