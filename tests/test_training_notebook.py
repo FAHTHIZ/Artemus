@@ -529,7 +529,7 @@ def test_offline_bundle_builder_embedded_python_heredocs_compile() -> None:
 
     root = Path(__file__).resolve().parents[1]
     script = (root / "scripts" / "prepare-kaggle-input-bundle.sh").read_text(encoding="utf-8")
-    blocks = re.findall(r"<<'PY'\\n(.*?)\\nPY", script, flags=re.DOTALL)
+    blocks = re.findall(r"<<'PY'\n(.*?)\nPY", script, flags=re.DOTALL)
     assert len(blocks) >= 5
     for index, block in enumerate(blocks):
         compile(block, f"prepare-kaggle-input-bundle.sh:python-heredoc-{index}", "exec")
