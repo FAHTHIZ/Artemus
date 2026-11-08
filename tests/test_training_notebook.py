@@ -535,3 +535,15 @@ def test_offline_bundle_builder_embedded_python_heredocs_compile() -> None:
         compile(block, f"prepare-kaggle-input-bundle.sh:python-heredoc-{index}", "exec")
     assert 'target.write_text(json.dumps(payload, indent=2)' in script
     assert '(root / "bundle-manifest.json").write_text(' in script
+
+
+def test_initial_training_waits_for_private_input_dataset_metadata_after_create() -> None:
+    workflow = (
+        Path(__file__).resolve().parents[1]
+        / ".github" / "workflows" / "validation.yml"
+    ).read_text(encoding="utf-8")
+    assert "input_verified=0" in workflow
+    assert "for attempt in $(seq 1 20)" in workflow
+    assert 'kaggle datasets metadata "$KAGGLE_INPUT_DATASET" -p .kaggle-input-verified' in workflow
+    assert 'sleep 15' in workflow
+    assert 'metadata.get("id") != expected' in workflow
