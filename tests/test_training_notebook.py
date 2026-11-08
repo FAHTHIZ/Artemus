@@ -417,3 +417,14 @@ def test_kaggle_notebook_records_exact_parameter_count_and_real_checkpoint_size(
     assert "model_weight_bytes" in export_source
     assert "final_checkpoint_bytes" in export_source
     assert "foundation_checkpoint_bytes" in export_source
+
+
+def test_training_workflows_require_and_check_the_exported_model_size_report() -> None:
+    root = Path(__file__).resolve().parents[1]
+    validation = (root / ".github" / "workflows" / "validation.yml").read_text(encoding="utf-8")
+    continuous = (root / ".github" / "workflows" / "continuous-kaggle-training.yml").read_text(encoding="utf-8")
+    assert '"model-size.json"' in validation
+    assert 'size_report.get("model_parameters") != metadata.get("model_parameters")' in validation
+    assert "model_size = root / \"model-size.json\"" in continuous
+    assert 'size_report.get("model_parameters") != run_metadata.get("model_parameters")' in continuous
+    assert "cp verified-run/model-size.json kaggle-state-update/model-size.json" in continuous
