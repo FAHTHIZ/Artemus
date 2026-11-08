@@ -428,3 +428,9 @@ def test_training_workflows_require_and_check_the_exported_model_size_report() -
     assert "model_size = root / \"model-size.json\"" in continuous
     assert 'size_report.get("model_parameters") != run_metadata.get("model_parameters")' in continuous
     assert "cp verified-run/model-size.json kaggle-state-update/model-size.json" in continuous
+
+
+def test_initial_training_persists_the_exact_model_size_report() -> None:
+    workflow_path = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "validation.yml"
+    source = workflow_path.read_text(encoding="utf-8")
+    assert "cp verified-run/model-size.json kaggle-state-update/model-size.json" in source
