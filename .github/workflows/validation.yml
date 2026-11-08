@@ -136,6 +136,39 @@ jobs:
             exit 1
           fi
           echo "Kaggle authentication verified."
+
+          export KAGGLE_INPUT_DATASET="$KAGGLE_USERNAME/artemus-training-inputs"
+          {
+            echo "KAGGLE_INPUT_DATASET=$KAGGLE_INPUT_DATASET"
+          } >> "$GITHUB_ENV"
+
+          # All code and training sources are prepared on this internet-connected
+          # runner. Kaggle API-launched notebooks may not have outbound DNS/network.
+          bash scripts/prepare-kaggle-input-bundle.sh .kaggle-input-bundle .kaggle-prepared-inputs
+
+          mkdir -p .kaggle-input-existing
+          if kaggle datasets metadata "$KAGGLE_INPUT_DATASET" -p .kaggle-input-existing; then
+            echo "Updating private offline training input dataset."
+            kaggle datasets version \
+              -p .kaggle-input-bundle \
+              -m "Artemus offline inputs for $GITHUB_SHA" \
+              --dir-mode zip
+          else
+            echo "Creating private offline training input dataset."
+            kaggle datasets create \
+              -p .kaggle-input-bundle \
+              -q \
+              --dir-mode zip
+          fi
+          mkdir -p .kaggle-input-verified
+          kaggle datasets metadata "$KAGGLE_INPUT_DATASET" -p .kaggle-input-verified
+          echo "Verified offline input dataset: $KAGGLE_INPUT_DATASET"
+
+          if kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-existing; then
+            echo "KAGGLE_STATE_DATASET_EXISTS=true" >> "$GITHUB_ENV"
+          else
+            echo "KAGGLE_STATE_DATASET_EXISTS=false" >> "$GITHUB_ENV"
+          fi
           export KAGGLE_KERNEL_ID="$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG"
           mkdir -p .kaggle-kernel
           cp notebooks/kaggle-gpu-training.ipynb .kaggle-kernel/
@@ -152,7 +185,10 @@ jobs:
               "enable_gpu": "true",
               "enable_internet": "true",
               "machine_shape": os.environ["KAGGLE_ACCELERATOR"],
-              "dataset_sources": [],
+              "dataset_sources": (
+                  [os.environ["KAGGLE_INPUT_DATASET"]]
+                  + ([os.environ["KAGGLE_STATE_DATASET"]] if os.environ.get("KAGGLE_STATE_DATASET_EXISTS") == "true" else [])
+              ),
               "competition_sources": [],
               "kernel_sources": [],
               "model_sources": [],
