@@ -258,10 +258,10 @@ jobs:
               "description": "Private, resumable foundation checkpoint and provenance for Artemus research cycles. Keep private.",
           }
           root = Path("kaggle-state-update")
-          (root / "dataset-metadata.json").write_text(json.dumps(metadata, indent=2) + "\\n", encoding="utf-8")
+          (root / "dataset-metadata.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
           (root / "README.md").write_text(
-              "# Artemus private training state\\n\\n"
-              "Foundation checkpoint, tokenizer, run metadata, manifests, and hashes. Keep private.\\n",
+              "# Artemus private training state\n\n"
+              "Foundation checkpoint, tokenizer, run metadata, manifests, and hashes. Keep private.\n",
               encoding="utf-8",
           )
           PY
