@@ -501,3 +501,10 @@ def test_recurring_kaggle_workflow_requires_and_attaches_offline_inputs() -> Non
     assert "KAGGLE_INPUT_DATASET" in source
     assert "kaggle datasets metadata \"$KAGGLE_INPUT_DATASET\"" in source
     assert '["KAGGLE_INPUT_DATASET"], os.environ["KAGGLE_STATE_DATASET"]' in source
+
+
+def test_offline_bundle_builder_shell_syntax_is_valid() -> None:
+    import subprocess
+
+    script = Path(__file__).resolve().parents[1] / "scripts" / "prepare-kaggle-input-bundle.sh"
+    subprocess.run(["bash", "-n", str(script)], check=True)
