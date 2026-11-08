@@ -6,9 +6,11 @@
 ## 1. Free / best-effort GPU paths
 
 ### Kaggle Notebooks — first choice for a no-cost pilot
-Official notebook documentation reports limited free GPU availability (T4 class) and explains that availability/usage are constrained. It is a good first place to run the bundled notebooks/kaggle-gpu-training.ipynb. The exact free quota and hardware assigned to an individual account can vary; this project does not assume a fixed weekly hour allowance.
+Official notebook documentation reports limited free GPU availability and explains that allocation can be queued or unavailable when resources are busy. The exact free quota and hardware assigned to an individual account can vary; this project does not assume a fixed weekly hour allowance. Kaggle staff guidance says GPU/TPU access is restricted to phone-verified accounts, so complete the Phone Verification section in Kaggle account settings before expecting a GPU worker. An API quota response alone is not proof that a kernel received a GPU: verify CUDA from inside the running notebook.
 
 Official docs: https://www.kaggle.com/docs/notebooks
+Account settings: https://www.kaggle.com/settings
+Kaggle staff note on phone verification: https://www.kaggle.com/discussions/product-feedback/268333
 
 ### Google Colab free tier — useful fallback
 Google says free access to GPUs/TPUs is provided on a best-effort basis. Resource availability and usage limits fluctuate and are not published as fixed allowances; GPU types vary. The free managed tier also prohibits remote-control/web-service use and distributed workers, so keep Artemus training inside the interactive notebook workflow. It is not a guaranteed long-running training server.
@@ -66,6 +68,8 @@ Before launching:
 - shut down compute immediately after validation/export;
 - verify the saved checkpoint can be loaded from persistent storage before deleting the instance.
 
-## 5. Why GitHub Actions is not the training cloud
+## 5. GitHub Actions orchestration and Kaggle compute
 
-The current Actions training workflow is a CPU runner used for reproducible pipeline checks and small experiments. It is not a general GPU pool. The repository now has a Kaggle notebook for user-controlled GPU training; this notebook can be run when the account has a GPU allocation. It does not run automatically from a Git push and it cannot provision a cloud account on the user's behalf.
+GitHub Actions is the orchestrator, not the GPU host. The initial launch workflow and recurring Kaggle workflow configure credentials, push the notebook, request the selected accelerator, poll remote status, and verify the exported checkpoint and evaluation artifacts. The actual accelerator is provisioned by Kaggle, not by the GitHub runner. A pushed kernel can still be assigned a CPU environment or fail before training, so the notebook's first cell performs a CUDA/`nvidia-smi` check and exits before any model updates if no usable GPU is visible.
+
+The first automated launch authenticated successfully, showed 30 GPU-hours available in Kaggle's quota response, and uploaded kernel version 1. Kaggle then ran it without a CUDA device, so the foundation loop did not start. This is consistent with account-level GPU eligibility not being enabled; Kaggle staff guidance requires phone verification for GPU/TPU access. Complete phone verification at https://www.kaggle.com/settings, then rerun the initial launch. Do not treat an accepted upload, quota number, or queued kernel as evidence that training occurred.
