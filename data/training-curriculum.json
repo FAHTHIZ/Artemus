@@ -197,14 +197,24 @@
   ],
   "compute": {
     "first_gpu_target": "Kaggle Notebook GPU allocation when available",
-    "fallback": "Google Colab free GPU allocation when available",
+    "fallback": "Kaggle CPU-only FP32 pilot if no CUDA device is allocated; Google Colab free GPU when available.",
     "paid_options": [
       "RunPod",
       "Vast.ai",
       "institutional GPU"
     ],
-    "github_actions": "CPU unit tests and integrity checks only; recurring model training runs on Kaggle GPU through continuous-kaggle-training.yml and requires Kaggle credentials plus a private persistent state dataset.",
-    "potential_intro_gpu_provider": "Lightning AI Studios (conditional free credits; eligibility and country availability vary; never assume zero-cost GPU time)"
+    "github_actions": "GitHub Actions runs CPU tests and orchestrates Kaggle notebooks; the notebook records GPU/CPU mode, exact model parameter count, checkpoint sizes, source provenance and held-out evaluations.",
+    "potential_intro_gpu_provider": "Lightning AI Studios (conditional free credits; eligibility and country availability vary; never assume zero-cost GPU time)",
+    "cpu_fallback_profile": {
+      "foundation_steps": 1000,
+      "aya_instruction_sft_steps": 250,
+      "task_sft_steps": 250,
+      "context_tokens": 256,
+      "batch_size": 1,
+      "gradient_accumulation": 1,
+      "precision": "fp32",
+      "note": "Explicit small pilot only; not equivalent to the larger Kaggle GPU schedule."
+    }
   },
   "continuous_cycle": {
     "cadence": "weekly",
