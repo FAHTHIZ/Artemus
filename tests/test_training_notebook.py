@@ -326,14 +326,16 @@ def test_initial_training_launcher_runs_fresh_and_preserves_first_foundation_che
     source = workflow_path.read_text(encoding="utf-8")
     assert "needs: tests" in source
     assert "kaggle quota" in source
-    assert '"dataset_sources": []' in source
+    assert '"dataset_sources": (' in source
+    assert 'os.environ["KAGGLE_INPUT_DATASET"]' in source
+    assert "bash scripts/prepare-kaggle-input-bundle.sh" in source
     assert "actions/upload-artifact@v4" in source
     assert "artemus-initial-training-${{ github.run_id }}" in source
     assert "kaggle datasets version" in source
     assert "artemus-foundation-current.pt" in source
     assert "artemus-latest-instruction.pt" in source
     assert "state.json" in source
-    assert source.index("kaggle kernels push") < source.index("kaggle datasets create")
+    assert source.index("bash scripts/prepare-kaggle-input-bundle.sh") < source.index("kaggle kernels push")
 
 
 def test_kaggle_username_normalizer_accepts_plain_quoted_field_and_json_values() -> None:
@@ -447,7 +449,8 @@ def test_kaggle_notebook_uses_attached_offline_source_and_prepared_data_bundle()
     assert "artemus-source.zip" in install
     assert "--no-index" in install
     assert "sentencepiece" in install
-    assert "git clone" in install
+    assert "Manual Kaggle UI execution" in install
+    assert "['git', 'clone'" in install
     assert "prepared-artifacts" in install
     for cell_id in ("stream", "fineweb2-ingest", "aya-code", "task-sft-code"):
         assert "manifest.json" in cells[cell_id], f"{cell_id} must reuse a prepared source manifest"
