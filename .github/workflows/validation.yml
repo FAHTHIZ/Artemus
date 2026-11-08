@@ -61,7 +61,7 @@ jobs:
         run: python -m compileall -q src tests
 
   foundation-training:
-    # Launch only for this explicit, one-time training commit.
+    # Launch only for this explicit, one-time training commit (initial run).
     if: github.event_name == 'push' && contains(github.event.head_commit.message, 'launch initial Artemus foundation run')
     runs-on: ubuntu-latest
     timeout-minutes: 360
