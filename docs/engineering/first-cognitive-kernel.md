@@ -1,20 +1,22 @@
 # First Artemus Cognitive Kernel — Implementation Milestone
 
-**Status:** K0 first vertical slice implemented; CI verification is tracked in GitHub Actions  
+**Status:** K0 control-loop slice implemented; K1 episodic-ledger integrity foundation implemented; full recovery/replay remains open  
 **Depends on:** [Artemus Cognitive System Architecture](../architecture/artemus-cognitive-system.md)
 
 ## Implementation status — 2026-11-06
 
-The first K0 implementation is present in `src/artemus`:
+The K0 implementation and first K1 ledger increment are present in `src/artemus`:
 
 - Typed goal, observation, plan, action, result, verification, and run contracts.
 - Replaceable `Reasoner`, `Environment`, and `Verifier` protocols.
 - Deterministic mock reasoner and simulated key/value environment.
 - Permission checks before action execution.
 - Independent exact-condition verification before a run can be marked complete.
-- Append-only SQLite task-event storage that survives closing and reopening the database.
+- SQLite episodic storage with UTC event timestamps, explicit scope/source provenance, and a global SHA-256 hash chain.
+- Automatic migration of the original four-column event table without inventing historical timestamps.
+- `verify_integrity()` checks event payload hashes and chain links across the complete ledger.
 
-Tests cover successful execution, already-satisfied goals, permission denial, no-plan blocking, and persisted event history. This is a narrow simulated K0 slice. Task resumption, replay, cancellation, world modelling, scoped/provenance-aware semantic memory, real tools, and model adapters are not implemented yet.
+Tests cover successful execution, already-satisfied goals, permission denial, no-plan blocking, persisted history, legacy migration, provenance, and tamper detection. This advances the ledger toward K1 but does not complete K1: task resumption/replay, crash-safe external-action idempotency, cancellation, world modelling, semantic memory, real tools, and model adapters remain unimplemented.
 
 ## Objective
 
