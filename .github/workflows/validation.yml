@@ -66,4 +66,6 @@ jobs:
     uses: ./.github/workflows/continuous-kaggle-training.yml
     with:
       accelerator: NvidiaTeslaT4
-    secrets: inherit
+    secrets:
+      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
