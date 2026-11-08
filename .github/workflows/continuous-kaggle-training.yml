@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 360
     env:
       KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
       KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
       KAGGLE_STATE_DATASET: ${{ vars.KAGGLE_STATE_DATASET || format('{0}/artemus-training-state', secrets.KAGGLE_USERNAME) }}
       KAGGLE_KERNEL_SLUG: ${{ vars.KAGGLE_KERNEL_SLUG || 'artemus-continuous-training' }}
@@ -54,12 +55,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in KAGGLE_USERNAME KAGGLE_KEY KAGGLE_STATE_DATASET KAGGLE_KERNEL_SLUG; do
+          for name in KAGGLE_USERNAME KAGGLE_STATE_DATASET KAGGLE_KERNEL_SLUG; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::Missing GitHub secret/variable: $name"
               exit 1
             fi
           done
+          if [[ -z "${KAGGLE_API_TOKEN:-}" && -z "${KAGGLE_KEY:-}" ]]; then
+            echo "::error::Set KAGGLE_API_TOKEN (recommended) or KAGGLE_KEY in GitHub Actions secrets."
+            exit 1
+          fi
           if [[ "$KAGGLE_KERNEL_SLUG" != "artemus-continuous-training" ]]; then
             echo "::error::KAGGLE_KERNEL_SLUG must be artemus-continuous-training to match the private kernel metadata."
             exit 1
@@ -69,18 +74,28 @@ jobs:
             exit 1
           fi
           mkdir -p "$HOME/.kaggle"
-          python - <<'PY'
+          if [[ -n "${KAGGLE_API_TOKEN:-}" ]]; then
+            # The current CLI recommends API tokens for non-interactive automation.
+            printf '%s' "$KAGGLE_API_TOKEN" > "$HOME/.kaggle/access_token"
+            chmod 600 "$HOME/.kaggle/access_token"
+          else
+            python - <<'PY'
           import json
           import os
           from pathlib import Path
-          credentials = {
+          path = Path.home() / ".kaggle" / "kaggle.json"
+          path.write_text(json.dumps({
               "username": os.environ["KAGGLE_USERNAME"],
               "key": os.environ["KAGGLE_KEY"],
-          }
-          path = Path.home() / ".kaggle" / "kaggle.json"
-          path.write_text(json.dumps(credentials), encoding="utf-8")
+          }), encoding="utf-8")
           path.chmod(0o600)
           PY
+          fi
+          echo "Validating Kaggle account authentication..."
+          if ! kaggle datasets list --mine --page-size 1 --csv >/dev/null; then
+            echo "::error::Kaggle rejected the configured credentials. Add a fresh KAGGLE_API_TOKEN secret, or regenerate the Legacy API Key."
+            exit 1
+          fi
           echo "KAGGLE_KERNEL_ID=$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG" >> "$GITHUB_ENV"
           kaggle --version
           # Fetch existing state metadata, or create an empty private state dataset on first use.
