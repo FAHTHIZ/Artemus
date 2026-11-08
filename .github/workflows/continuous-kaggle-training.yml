@@ -55,7 +55,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in KAGGLE_USERNAME KAGGLE_STATE_DATASET KAGGLE_KERNEL_SLUG; do
+          for name in KAGGLE_USERNAME KAGGLE_KERNEL_SLUG; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::Missing GitHub secret/variable: $name"
               exit 1
@@ -69,10 +69,13 @@ jobs:
             echo "::error::KAGGLE_KERNEL_SLUG must be artemus-continuous-training to match the private kernel metadata."
             exit 1
           fi
-          if [[ "$KAGGLE_STATE_DATASET" != "$KAGGLE_USERNAME/artemus-training-state" ]]; then
-            echo "::error::KAGGLE_STATE_DATASET must be $KAGGLE_USERNAME/artemus-training-state; the notebook reads that mounted Kaggle input path."
-            exit 1
-          fi
+          python kaggle_username.py
+          export KAGGLE_USERNAME="$(cat .kaggle-username)"
+          export KAGGLE_STATE_DATASET="$KAGGLE_USERNAME/artemus-training-state"
+          {
+            printf 'KAGGLE_USERNAME=%s\\n' "$KAGGLE_USERNAME"
+            printf 'KAGGLE_STATE_DATASET=%s\\n' "$KAGGLE_STATE_DATASET"
+          } >> "$GITHUB_ENV"
           mkdir -p "$HOME/.kaggle"
           if [[ -n "${KAGGLE_API_TOKEN:-}" ]]; then
             # The current CLI recommends API tokens for non-interactive automation.
