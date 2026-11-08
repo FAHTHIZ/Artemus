@@ -207,6 +207,7 @@ jobs:
               "tokenizer.model",
               "capability-evaluation-summary.json",
               "capability-evaluation-comparison.json",
+              "model-size.json",
           )
           for filename in required:
               path = root / filename
@@ -214,6 +215,15 @@ jobs:
                   raise SystemExit(f"Required training artifact is missing: {filename}")
           if metadata.get("final_checkpoint") != "artemus-task-sft.pt":
               raise SystemExit("Run metadata does not identify the task-SFT candidate as final.")
+          size_report = json.loads((root / "model-size.json").read_text(encoding="utf-8"))
+          if not isinstance(size_report.get("model_parameters"), int) or size_report["model_parameters"] < 1:
+              raise SystemExit("Model-size report does not contain a positive exact parameter count.")
+          if size_report.get("model_parameters") != metadata.get("model_parameters"):
+              raise SystemExit("Model-size report parameter count does not match run metadata.")
+          if size_report.get("final_checkpoint_bytes", 0) < 1:
+              raise SystemExit("Model-size report does not contain the final checkpoint byte size.")
+          if size_report.get("cpu_fallback") not in (True, False):
+              raise SystemExit("Model-size report does not identify the compute mode.")
           summary = json.loads((root / "capability-evaluation-summary.json").read_text(encoding="utf-8"))
           if summary.get("checkpoint_sha256") != metadata.get("checkpoint_sha256"):
               raise SystemExit("Capability evaluation was not run against the exported final checkpoint.")
