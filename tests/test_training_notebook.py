@@ -316,7 +316,7 @@ def test_kaggle_workflows_support_api_token_and_preflight_authentication() -> No
     for relative in (".github/workflows/validation.yml", ".github/workflows/continuous-kaggle-training.yml"):
         source = (root / relative).read_text(encoding="utf-8")
         assert "KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}" in source
-        assert "kaggle datasets list --mine --page-size 1 --csv" in source
+        assert "kaggle quota" in source
         assert "KAGGLE_API_TOKEN" in source and "KAGGLE_KEY" in source
 
 
