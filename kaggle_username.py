@@ -48,7 +48,7 @@ def normalize_username(raw: str) -> str:
 def main() -> None:
     raw = os.environ.get("KAGGLE_USERNAME", "")
     username = normalize_username(raw)
-    Path(".kaggle-username").write_text(username + "\\n", encoding="utf-8")
+    Path(".kaggle-username").write_text(username + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
