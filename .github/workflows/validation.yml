@@ -62,7 +62,7 @@ jobs:
 
   foundation-training:
     # Launch only for this explicit, one-time training commit.
-    if: github.event_name == 'push' && github.event.head_commit.message == 'train: launch initial Artemus foundation run'
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, 'launch initial Artemus foundation run')
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
