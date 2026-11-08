@@ -511,3 +511,13 @@ def test_offline_bundle_builder_shell_syntax_is_valid() -> None:
 
     script = Path(__file__).resolve().parents[1] / "scripts" / "prepare-kaggle-input-bundle.sh"
     subprocess.run(["bash", "-n", str(script)], check=True)
+
+
+def test_kaggle_notebook_explains_offline_prepared_inputs() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    setup = next(cell for cell in notebook["cells"] if cell.get("id") == "setup")
+    source = "".join(setup.get("source", []))
+    assert "artemus-training-inputs" in source
+    assert "without Kaggle runtime internet or DNS" in source
+    assert "bounded FP32 pilot" in source
