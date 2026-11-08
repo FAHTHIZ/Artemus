@@ -62,7 +62,7 @@ jobs:
 
   foundation-training:
     needs: tests
-    # Explicit one-time launcher: launch initial Artemus foundation run after normalizing the Kaggle username secret, authenticating the API token, and passing the complete repository tests. The first GPU cycle starts from random initialization without an input dataset; verified outputs are saved before optional resume-state publication.
+    # Explicit one-time launcher: launch initial Artemus foundation run after robustly parsing the configured Kaggle username secret, authenticating the API token, and passing all tests. First GPU cycle starts from random initialization with no input dataset; verified outputs are archived before optional resume-state publication.
     if: github.event_name == 'push' && contains(github.event.head_commit.message, 'launch initial Artemus foundation run')
     runs-on: ubuntu-latest
     timeout-minutes: 360
