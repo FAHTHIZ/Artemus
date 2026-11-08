@@ -62,7 +62,7 @@ jobs:
 
   foundation-training:
     needs: tests
-    # Explicit one-time launcher: launch initial Artemus foundation run with the corrected and syntax-checked private offline bundle builder. Validate the exact project/data bundle, attach it to Kaggle, run foundation training and staged tuning, measure exact parameters and held-out usability, and archive verified checkpoints.
+    # Explicit one-time launcher: launch initial Artemus foundation run after correcting the embedded-Python heredoc test. Verify all bundle-builder Python blocks, package pinned offline inputs, attach the private dataset, train the model, and record exact parameter count and held-out results.
     if: github.event_name == 'push' && contains(github.event.head_commit.message, 'launch initial Artemus foundation run')
     runs-on: ubuntu-latest
     timeout-minutes: 360
