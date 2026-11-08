@@ -337,8 +337,11 @@ def test_initial_training_launcher_runs_fresh_and_preserves_first_foundation_che
 
 
 def test_kaggle_username_normalizer_accepts_plain_quoted_field_and_json_values() -> None:
-    from kaggle_username import normalize_username
+    import runpy
 
+    normalize_username = runpy.run_path(
+        str(Path(__file__).resolve().parents[1] / "kaggle_username.py")
+    )["normalize_username"]
     assert normalize_username("muhammadhossen") == "muhammadhossen"
     assert normalize_username('"muhammadhossen"') == "muhammadhossen"
     assert normalize_username('"muhammadhossen",') == "muhammadhossen"
@@ -347,10 +350,12 @@ def test_kaggle_username_normalizer_accepts_plain_quoted_field_and_json_values()
 
 
 def test_kaggle_username_normalizer_rejects_display_names_without_echoing_input() -> None:
-    from kaggle_username import normalize_username
-
+    import runpy
     import pytest
 
+    normalize_username = runpy.run_path(
+        str(Path(__file__).resolve().parents[1] / "kaggle_username.py")
+    )["normalize_username"]
     with pytest.raises(ValueError, match="valid Kaggle profile handle"):
         normalize_username("Muhammad Hossen")
 
