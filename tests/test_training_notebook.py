@@ -367,3 +367,15 @@ def test_kaggle_workflows_normalize_username_before_kaggle_kernel_or_dataset_ids
         assert "python kaggle_username.py" in source
         assert 'export KAGGLE_USERNAME="$(cat .kaggle-username)"' in source
         assert 'export KAGGLE_STATE_DATASET="$KAGGLE_USERNAME/artemus-training-state"' in source
+
+
+def test_gpu_notebook_reports_accelerator_diagnostics_before_failing_fast() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    cell = next(cell for cell in notebook["cells"] if cell.get("id") == "gpu-check")
+    source = "".join(cell.get("source", []))
+    assert "torch.version.cuda" in source
+    assert "torch.cuda.device_count()" in source
+    assert "CUDA_VISIBLE_DEVICES" in source
+    assert 'shutil.which("nvidia-smi")' in source
+    assert "phone verification" in source
