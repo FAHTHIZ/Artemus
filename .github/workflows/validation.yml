@@ -104,10 +104,13 @@ jobs:
             echo "::error::KAGGLE_KERNEL_SLUG must be artemus-continuous-training."
             exit 1
           fi
-          if [[ ! "$KAGGLE_USERNAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$ ]]; then
-            echo "::error::KAGGLE_USERNAME must be the Kaggle profile handle, not a display name, email, or profile URL."
-            exit 1
-          fi
+          python kaggle_username.py
+          export KAGGLE_USERNAME="$(cat .kaggle-username)"
+          export KAGGLE_STATE_DATASET="$KAGGLE_USERNAME/artemus-training-state"
+          {
+            printf 'KAGGLE_USERNAME=%s\\n' "$KAGGLE_USERNAME"
+            printf 'KAGGLE_STATE_DATASET=%s\\n' "$KAGGLE_STATE_DATASET"
+          } >> "$GITHUB_ENV"
           mkdir -p "$HOME/.kaggle"
           if [[ -n "${KAGGLE_API_TOKEN:-}" ]]; then
             printf '%s' "$KAGGLE_API_TOKEN" > "$HOME/.kaggle/access_token"
