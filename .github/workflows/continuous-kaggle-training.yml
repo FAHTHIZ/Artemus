@@ -91,11 +91,12 @@ jobs:
           path.chmod(0o600)
           PY
           fi
-          echo "Validating Kaggle account authentication..."
-          if ! kaggle datasets list --mine --page-size 1 --csv >/dev/null; then
-            echo "::error::Kaggle rejected the configured credentials. Add a fresh KAGGLE_API_TOKEN secret, or regenerate the Legacy API Key."
+          echo "Validating Kaggle API credentials with the authenticated quota endpoint..."
+          if ! kaggle quota; then
+            echo "::error::Kaggle rejected the configured credentials. The datasets list endpoint can succeed anonymously; quota is the authenticated preflight."
             exit 1
           fi
+          echo "Kaggle authentication verified."
           echo "KAGGLE_KERNEL_ID=$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG" >> "$GITHUB_ENV"
           kaggle --version
           # Fetch existing state metadata, or create an empty private state dataset on first use.
