@@ -87,7 +87,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install --upgrade kaggle
+          python -m pip install --upgrade kaggle six
           for name in KAGGLE_USERNAME KAGGLE_KEY KAGGLE_STATE_DATASET KAGGLE_KERNEL_SLUG; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::Missing GitHub secret/variable: $name"
