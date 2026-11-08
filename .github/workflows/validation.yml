@@ -59,13 +59,3 @@ jobs:
 
       - name: Check Python syntax
         run: python -m compileall -q src tests
-
-  foundation-training:
-    # One-shot launch for the initial foundation-pretraining run; normal validation pushes do not train.
-    if: github.event_name == 'push' && github.event.head_commit.message == 'train: launch initial Artemus foundation run'
-    uses: ./.github/workflows/continuous-kaggle-training.yml
-    with:
-      accelerator: NvidiaTeslaT4
-    secrets:
-      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
