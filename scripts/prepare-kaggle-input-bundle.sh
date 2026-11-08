@@ -228,7 +228,7 @@ payload = {
         "and review notes are included in manifests."
     ),
 }
-    json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 PY
 
 echo "Offline training input bundle prepared:"
@@ -265,7 +265,7 @@ payload = {
     "total_bytes": sum(item["size_bytes"] for item in records),
 }
 (root / "bundle-manifest.json").write_text(
-    json.dumps(payload, indent=2) + "\\n", encoding="utf-8"
+    json.dumps(payload, indent=2) + "\n", encoding="utf-8"
 )
 print(json.dumps({
     "repository_commit": commit,
