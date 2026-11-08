@@ -266,6 +266,11 @@ jobs:
                   raise SystemExit(f"Required training state artifact is missing: {path.name}")
           if run_metadata.get("final_checkpoint") != instruction.name:
               raise SystemExit("Run metadata does not identify the instruction candidate as the final checkpoint.")
+          size_report = json.loads(model_size.read_text(encoding="utf-8"))
+          if not isinstance(size_report.get("model_parameters"), int) or size_report["model_parameters"] < 1:
+              raise SystemExit("Model-size report does not contain a positive exact parameter count.")
+          if size_report.get("model_parameters") != run_metadata.get("model_parameters"):
+              raise SystemExit("Model-size report parameter count does not match run metadata.")
           evaluation_summary = json.loads(capability_eval.read_text(encoding="utf-8"))
           if evaluation_summary.get("checkpoint_sha256") != run_metadata.get("checkpoint_sha256"):
               raise SystemExit("Capability evaluation was not run against the exported final checkpoint.")
@@ -298,6 +303,7 @@ jobs:
           cp verified-run/artemus-task-sft.pt kaggle-state-update/artemus-latest-instruction.pt
           cp verified-run/tokenizer.model kaggle-state-update/tokenizer.model
           cp verified-run/run-metadata.json kaggle-state-update/run-metadata.json
+          cp verified-run/model-size.json kaggle-state-update/model-size.json
           cp verified-run/export-manifest.json kaggle-state-update/export-manifest.json
           find verified-run -maxdepth 1 -type f \\
             \( -name '*-manifest.json' -o -name '*-provenance.jsonl' \) \\
