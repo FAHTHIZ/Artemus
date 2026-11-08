@@ -12,14 +12,21 @@ on:
           - NvidiaTeslaT4
           - NvidiaL4
           - NvidiaTeslaA100
+  workflow_call:
+    inputs:
+      accelerator:
+        description: Kaggle accelerator
+        required: false
+        type: string
+        default: NvidiaTeslaT4
+    secrets:
+      KAGGLE_USERNAME:
+        required: true
+      KAGGLE_KEY:
+        required: true
   schedule:
     # Weekly at 09:00 Bangladesh time (UTC+6); free accelerator availability is not guaranteed.
     - cron: "0 3 * * 1"
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/continuous-kaggle-training.yml"
 
 permissions:
   contents: read
@@ -30,8 +37,6 @@ concurrency:
 
 jobs:
   train:
-    # The push path is a one-shot bootstrap trigger; unrelated workflow edits do not launch training.
-    if: github.event_name != 'push' || github.event.head_commit.message == 'train: launch initial Artemus foundation run'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
