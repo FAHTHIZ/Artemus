@@ -62,7 +62,7 @@ jobs:
 
   foundation-training:
     needs: tests
-    # Explicit one-time launcher: launch initial Artemus foundation run after workflow fixes.
+    # Explicit one-time launcher: launch initial Artemus foundation run after workflow fixes. First run is gated behind tests and Kaggle API-token preflight.
     if: github.event_name == 'push' && contains(github.event.head_commit.message, 'launch initial Artemus foundation run')
     runs-on: ubuntu-latest
     timeout-minutes: 360
