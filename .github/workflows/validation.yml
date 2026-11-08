@@ -161,7 +161,32 @@ jobs:
               --dir-mode zip
           fi
           mkdir -p .kaggle-input-verified
-          kaggle datasets metadata "$KAGGLE_INPUT_DATASET" -p .kaggle-input-verified
+          input_verified=0
+          for attempt in $(seq 1 20); do
+            if kaggle datasets metadata "$KAGGLE_INPUT_DATASET" -p .kaggle-input-verified; then
+              input_verified=1
+              break
+            fi
+            echo "::notice::Kaggle is still creating or indexing the private input dataset (attempt $attempt/20)."
+            sleep 15
+          done
+          if [[ "$input_verified" -ne 1 ]]; then
+            echo "::error::Kaggle did not expose the private offline input dataset metadata after creation."
+            exit 1
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          metadata = json.loads(
+              Path(".kaggle-input-verified/dataset-metadata.json").read_text(encoding="utf-8")
+          )
+          expected = os.environ["KAGGLE_INPUT_DATASET"]
+          if metadata.get("id") != expected:
+              raise SystemExit(
+                  f"Offline training input dataset ID mismatch: expected {expected!r}, got {metadata.get('id')!r}"
+              )
+          print("Private offline dataset is visible and ready:", expected)
+          PY
           echo "Verified offline input dataset: $KAGGLE_INPUT_DATASET"
 
           if kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-existing; then
