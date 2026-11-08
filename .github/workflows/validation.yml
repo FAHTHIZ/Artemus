@@ -285,6 +285,7 @@ jobs:
           cp verified-run/artemus-task-sft.pt kaggle-state-update/artemus-latest-instruction.pt
           cp verified-run/tokenizer.model kaggle-state-update/tokenizer.model
           cp verified-run/run-metadata.json kaggle-state-update/run-metadata.json
+          cp verified-run/model-size.json kaggle-state-update/model-size.json
           cp verified-run/export-manifest.json kaggle-state-update/export-manifest.json
           find verified-run -maxdepth 1 -type f \
             \( -name '*-manifest.json' -o -name '*-provenance.jsonl' \) \
