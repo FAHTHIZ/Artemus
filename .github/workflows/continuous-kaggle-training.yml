@@ -261,7 +261,8 @@ jobs:
           tokenizer = root / "tokenizer.model"
           capability_eval = root / "capability-evaluation-summary.json"
           capability_comparison = root / "capability-evaluation-comparison.json"
-          for path in (foundation, aya_candidate, instruction, tokenizer, capability_eval, capability_comparison):
+          model_size = root / "model-size.json"
+          for path in (foundation, aya_candidate, instruction, tokenizer, capability_eval, capability_comparison, model_size):
               if not path.is_file() or path.stat().st_size == 0:
                   raise SystemExit(f"Required training state artifact is missing: {path.name}")
           if run_metadata.get("final_checkpoint") != instruction.name:
