@@ -369,7 +369,7 @@ def test_kaggle_workflows_normalize_username_before_kaggle_kernel_or_dataset_ids
         assert 'export KAGGLE_STATE_DATASET="$KAGGLE_USERNAME/artemus-training-state"' in source
 
 
-def test_gpu_notebook_reports_accelerator_diagnostics_before_failing_fast() -> None:
+def test_kaggle_notebook_reports_accelerator_diagnostics_and_selects_cpu_fallback() -> None:
     notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
     notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
     cell = next(cell for cell in notebook["cells"] if cell.get("id") == "gpu-check")
@@ -378,7 +378,8 @@ def test_gpu_notebook_reports_accelerator_diagnostics_before_failing_fast() -> N
     assert "torch.cuda.device_count()" in source
     assert "CUDA_VISIBLE_DEVICES" in source
     assert 'shutil.which("nvidia-smi")' in source
-    assert "phone verification" in source
+    assert "CPU_FALLBACK = not torch.cuda.is_available()" in source
+    assert 'ACCELERATOR_NAME = "CPU (bounded fallback)"' in source
 
 
 def test_kaggle_workflows_write_normalized_identity_as_separate_environment_lines() -> None:
