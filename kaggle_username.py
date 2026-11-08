@@ -39,7 +39,7 @@ def normalize_username(raw: str) -> str:
     if not isinstance(candidate, str):
         raise ValueError("KAGGLE_USERNAME must contain a username field or handle")
 
-    candidate = candidate.strip().strip("\\\"'").strip().rstrip(",").strip()
+    candidate = candidate.strip().rstrip(",").strip().strip("\\\"'").strip()
     if not _HANDLE_RE.fullmatch(candidate):
         raise ValueError("KAGGLE_USERNAME does not contain a valid Kaggle profile handle")
     return candidate
