@@ -300,7 +300,7 @@ def test_kaggle_notebook_code_cells_preserve_line_boundaries_and_export_executes
         source = cell.get("source", [])
         if isinstance(source, list):
             for line in source[:-1]:
-                assert line.endswith("\\n"), f"cell {cell.get('id')} has a joined source-line boundary"
+                assert line.endswith("\n"), f"cell {cell.get('id')} has a joined source-line boundary"
 
     export_cells = [cell for cell in code_cells if cell.get("id") == "export-code"]
     assert len(export_cells) == 1
