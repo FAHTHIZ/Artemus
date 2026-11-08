@@ -228,7 +228,7 @@ payload = {
         "and review notes are included in manifests."
     ),
 }
-target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    json.dumps(payload, indent=2) + "\n", encoding="utf-8"
 PY
 
 echo "Offline training input bundle prepared:"
