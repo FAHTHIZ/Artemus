@@ -62,7 +62,7 @@ jobs:
 
   foundation-training:
     needs: tests
-    # Explicit one-time launcher: launch initial Artemus foundation run with the verified CPU fallback when Kaggle allocates no CUDA device. The cycle records exact parameter count and capability results and archives verified outputs before optional resume-state publication.
+    # Explicit one-time launcher: launch the bounded FP32 CPU pilot when Kaggle allocates no CUDA device. The latest notebook, regression tests, model-size artifact checks, and checkpoint-persistence path are validated before training.
     if: github.event_name == 'push' && contains(github.event.head_commit.message, 'launch initial Artemus foundation run')
     runs-on: ubuntu-latest
     timeout-minutes: 360
