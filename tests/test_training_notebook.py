@@ -435,3 +435,37 @@ def test_initial_training_persists_the_exact_model_size_report() -> None:
     workflow_path = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "validation.yml"
     source = workflow_path.read_text(encoding="utf-8")
     assert "cp verified-run/model-size.json kaggle-state-update/model-size.json" in source
+
+
+def test_kaggle_notebook_uses_attached_offline_source_and_prepared_data_bundle() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "kaggle-gpu-training.ipynb"
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    cells = {cell.get("id"): "".join(cell.get("source", [])) for cell in notebook["cells"]}
+    install = cells["install"]
+    assert "Path('/kaggle/input/artemus-training-inputs')" in install
+    assert "bundle-manifest.json" in install
+    assert "artemus-source.zip" in install
+    assert "--no-index" in install
+    assert "sentencepiece" in install
+    assert "git clone" in install
+    assert "prepared-artifacts" in install
+    for cell_id in ("stream", "fineweb2-ingest", "aya-code", "task-sft-code"):
+        assert "manifest.json" in cells[cell_id], f"{cell_id} must reuse a prepared source manifest"
+
+
+def test_offline_kaggle_input_bundle_builder_pins_and_packages_all_training_sources() -> None:
+    root = Path(__file__).resolve().parents[1]
+    builder = (root / "scripts" / "prepare-kaggle-input-bundle.sh").read_text(encoding="utf-8")
+    for expected in (
+        "artemus-prepare-hf",
+        "HuggingFaceFW/fineweb-edu",
+        "HuggingFaceFW/fineweb-2",
+        "CohereLabs/aya_dataset",
+        "artemis.prepare_oasst1",
+        "artemis.prepare_capability_data",
+        "sentencepiece>=0.2.0",
+        "bundle-manifest.json",
+        "dataset-metadata.json",
+        "repository-commit.txt",
+    ):
+        assert expected in builder
