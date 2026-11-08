@@ -12,18 +12,6 @@ on:
           - NvidiaTeslaT4
           - NvidiaL4
           - NvidiaTeslaA100
-  workflow_call:
-    inputs:
-      accelerator:
-        description: Kaggle accelerator
-        required: false
-        type: string
-        default: NvidiaTeslaT4
-    secrets:
-      KAGGLE_USERNAME:
-        required: true
-      KAGGLE_KEY:
-        required: true
   schedule:
     # Weekly at 09:00 Bangladesh time (UTC+6); free accelerator availability is not guaranteed.
     - cron: "0 3 * * 1"
