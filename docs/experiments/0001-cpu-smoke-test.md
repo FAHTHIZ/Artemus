@@ -36,7 +36,7 @@ This is not a foundation-model pretraining run in the sense required to produce 
 - File: `examples/demo_corpus.txt`
 - Training split: 2,821 byte tokens
 - Validation split: 314 byte tokens
-- Content: short synthetic explanations of language modelling, software engineering, debugging, testing, and Bengali text.
+- Content: short synthetic explanations of language modelling, software engineering, debugging, testing, and English text.
 
 The split is a simple sequential 90/10 split. The validation set is too small and too closely related to the training material to support broad generalization claims.
 
