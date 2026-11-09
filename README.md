@@ -2,7 +2,9 @@
 
 **Artemus is the complete cognitive-system research project—not a single LLM.** The current `ArtemisLM` implementation is one experimental neural-model component within that larger system. The full Artemus architecture is intended to coordinate perception, world modelling, memory, multiple reasoning methods, planning, action, verification, and controlled learning.
 
-> **Latest documented model-component status (2026-11-06):** A 1,004,928-parameter compact `ArtemisLM` checkpoint from random initialization completed 16,000 task-SFT steps on an OASST1/GSM8K/MBPP mixture. The recovery/evaluation workflow now completes all 16 scripted dialogue turns (16 non-empty, zero context overflows; one old history window trimmed). However, direct math and Python spot checks remain incoherent. This is still an early experimental checkpoint—not a useful general assistant, foundation-pretrained model, or evidence of AGI.
+> **Latest foundation checkpoint (2026-11-09):** [Experiment 0011](docs/experiments/0011-cpu-foundation-edu-hq.md) — a 6,451,200-parameter ArtemisLM trained from random initialization for 10,000 CPU steps on FineWeb-Edu documents with educational score ≥ 3.5 (val loss 3.749; 1.346 bits/byte held-out). Weights: [release `f0-edu-6m-step10000`](https://github.com/FAHTHIZ/Artemus/releases/tag/f0-edu-6m-step10000).
+>
+> **Earlier model-component status (2026-11-06):** A 1,004,928-parameter compact `ArtemisLM` checkpoint from random initialization completed 16,000 task-SFT steps on an OASST1/GSM8K/MBPP mixture. The recovery/evaluation workflow now completes all 16 scripted dialogue turns (16 non-empty, zero context overflows; one old history window trimmed). However, direct math and Python spot checks remain incoherent. This is still an early experimental checkpoint—not a useful general assistant, foundation-pretrained model, or evidence of AGI.
 
 ## Mission
 
@@ -41,6 +43,7 @@ Measure ArtemisLM alone separately from the complete Artemus system. Never attri
 | [0007 — multi-task CPU task-SFT](docs/experiments/0007-multitask-cpu-task-sft.md) | 1,347,200-parameter full-MHA model trained 8,000 steps on OASST1/GSM8K/MBPP. | Checkpoint and generation pipeline passed; math/Python outputs remained incoherent. |
 | [0008 — incremental KV cache](docs/experiments/0008-incremental-kv-cache.md) | 47 tests passed; cached/uncached outputs matched; three tiny CPU runs measured 1.27–1.40× cached/uncached elapsed-time ratios. | Systems smoke result only; static cache and accelerator benchmarks remain. |
 | [0009 — size ladder profile](docs/experiments/0009-size-ladder-profile.md) | Exact profiles for 8.1M, 26.5M, and 88.7M parameter candidates. | Parameter accounting only; no training or capability claim. |
+| [0011 — CPU foundation on FineWeb-Edu ≥ 3.5](docs/experiments/0011-cpu-foundation-edu-hq.md) | 6.45M-parameter random-init model, 10,000 steps (~41M tokens) on 88k top-tier FineWeb-Edu docs; val loss 3.749, 1.346 bits/byte held-out. | First foundation checkpoint; fluent but repetitive and non-factual. Weights in GitHub Releases. |
 
 The incremental-cache benchmark is documented in [Experiment 0008](docs/experiments/0008-incremental-kv-cache.md).
 

@@ -1,0 +1,4 @@
+{"output":"ckpt/artemus-f1-math-6m.pt","parent":"release/artemus-f0-edu-6m-step10000.pt","steps":2500,"lr":6e-4,"min_lr":6e-5,"warmup":100,
+ "args":["--data","data/f1-math-mix/train.jsonl","--validation-data","data/f1-math-mix/validation.jsonl","--document-format","jsonl",
+ "--token-cache-dir","data/tokcache-f1","--data-manifest","data/f1-math-mix/manifest.json","--phase","continued_pretraining",
+ "--tokenizer","sentencepiece","--batch-size","16","--eval-interval","500","--checkpoint-interval","250","--eval-iters","20","--seed","2027"]}
