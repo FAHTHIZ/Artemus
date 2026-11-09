@@ -1,0 +1,103 @@
+{
+  "method": "deterministic_weighted_document_sampling",
+  "seed": 1338,
+  "text_field": "text",
+  "document_weights_are_not_token_weights": true,
+  "warning": "Document quotas do not guarantee token quotas. Measure per-source token shares after fitting the actual tokenizer; adjust document weights if necessary.",
+  "sources": [
+    {
+      "source_id": "finemath-4plus",
+      "weight": 0.4,
+      "train_path": "data/finemath/train.jsonl",
+      "validation_path": "data/finemath/validation.jsonl"
+    },
+    {
+      "source_id": "fineweb-edu-replay",
+      "weight": 0.6,
+      "train_path": "data/edu-hq/train.jsonl",
+      "validation_path": "data/edu-hq/validation.jsonl"
+    }
+  ],
+  "requested_budgets": {
+    "train_documents": 24000,
+    "validation_documents": 600
+  },
+  "train_source_stats": [
+    {
+      "source_id": "finemath-4plus",
+      "weight": 0.4,
+      "input_file": "data/finemath/train.jsonl",
+      "input_sha256": "24f999a9601ec81c765d05fd1184fda5be21b11bb77acff8a56719c7bbf645c0",
+      "eligible_unique_documents": 39564,
+      "selected_documents": 9600,
+      "selected_characters": 38682447,
+      "requested_document_quota": 9600,
+      "split": "train"
+    },
+    {
+      "source_id": "fineweb-edu-replay",
+      "weight": 0.6,
+      "input_file": "data/edu-hq/train.jsonl",
+      "input_sha256": "e6ecb98a43863e18e2d79e78bd7d4b5c63484a6170b1ea113fb86c4a4bff140e",
+      "eligible_unique_documents": 88355,
+      "selected_documents": 14400,
+      "selected_characters": 60746650,
+      "requested_document_quota": 14400,
+      "split": "train"
+    }
+  ],
+  "validation_source_stats": [
+    {
+      "source_id": "finemath-4plus",
+      "weight": 0.4,
+      "input_file": "data/finemath/validation.jsonl",
+      "input_sha256": "fc7925f73d03fd4956b814cffe06ab320d60e7975f49dd13b2d4bf6ecda2c326",
+      "eligible_unique_documents": 436,
+      "selected_documents": 240,
+      "selected_characters": 904733,
+      "requested_document_quota": 240,
+      "split": "validation"
+    },
+    {
+      "source_id": "fineweb-edu-replay",
+      "weight": 0.6,
+      "input_file": "data/edu-hq/validation.jsonl",
+      "input_sha256": "f00b06bb826b7f28591d9d048d956ae2851c5f17e64570a6978fe2850ad5a78f",
+      "eligible_unique_documents": 915,
+      "selected_documents": 360,
+      "selected_characters": 1422905,
+      "requested_document_quota": 360,
+      "split": "validation"
+    }
+  ],
+  "train": {
+    "documents": 24000,
+    "characters": 99429097,
+    "per_source_documents": {
+      "finemath-4plus": 9600,
+      "fineweb-edu-replay": 14400
+    },
+    "per_source_characters": {
+      "finemath-4plus": 38682447,
+      "fineweb-edu-replay": 60746650
+    }
+  },
+  "validation": {
+    "documents": 600,
+    "characters": 2327638,
+    "per_source_documents": {
+      "finemath-4plus": 240,
+      "fineweb-edu-replay": 360
+    },
+    "per_source_characters": {
+      "finemath-4plus": 904733,
+      "fineweb-edu-replay": 1422905
+    }
+  },
+  "train_validation_hash_overlap": 0,
+  "files": {
+    "train_jsonl": "train.jsonl",
+    "validation_jsonl": "validation.jsonl",
+    "tokenizer_text": "train.txt"
+  }
+}

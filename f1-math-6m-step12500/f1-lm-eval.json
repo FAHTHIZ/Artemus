@@ -1,0 +1,28 @@
+{
+  "checkpoint": "artemus-f1-math-6m-step12500.pt",
+  "checkpoint_sha256": "dcf408bed2fbc30c79fc6585a048251f16f4fb7d7864ef528b0e59f66b98cb9c",
+  "checkpoint_step": 12500,
+  "parameters": 6451200,
+  "datasets": {
+    "data/edu-hq/validation.jsonl": {
+      "documents": 300,
+      "tokens": 269505,
+      "bytes": 1088164,
+      "token_loss": 3.77850304018626,
+      "perplexity": 43.7504999508469,
+      "bits_per_byte": 1.3501026442846107,
+      "bytes_per_token": 4.037639375892841,
+      "data_sha256": "f00b06bb826b7f28591d9d048d956ae2851c5f17e64570a6978fe2850ad5a78f"
+    },
+    "data/finemath/validation.jsonl": {
+      "documents": 300,
+      "tokens": 446215,
+      "bytes": 1281774,
+      "token_loss": 3.0034425131892033,
+      "perplexity": 20.154800801461974,
+      "bits_per_byte": 1.5084348944030614,
+      "bytes_per_token": 2.87254798695696,
+      "data_sha256": "fc7925f73d03fd4956b814cffe06ab320d60e7975f49dd13b2d4bf6ecda2c326"
+    }
+  }
+}
