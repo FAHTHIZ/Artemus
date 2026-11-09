@@ -616,6 +616,56 @@ def test_kaggle_metadata_verifier_accepts_omitted_id_but_rejects_conflicts() -> 
         )
 
 
+def test_kaggle_metadata_verifier_unwraps_cli2_info_shape(tmp_path) -> None:
+    import importlib.util
+    import json
+    import subprocess
+    import sys
+
+    import pytest
+
+    verifier_path = (
+        Path(__file__).resolve().parents[1]
+        / "scripts" / "verify_kaggle_dataset_metadata.py"
+    )
+    spec = importlib.util.spec_from_file_location("kaggle_metadata_verifier2", verifier_path)
+    assert spec is not None and spec.loader is not None
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    expected_id = "example/artemus-training-inputs"
+    expected_title = "Artemus Training Inputs"
+    wrapped = {
+        "info": {
+            "datasetId": 123,
+            "datasetSlug": "artemus-training-inputs",
+            "ownerUser": "example",
+            "title": expected_title,
+            "isPrivate": True,
+            "licenses": [{"name": "other"}],
+        }
+    }
+    flat = verifier.validate_metadata(wrapped, expected_id, expected_title)
+    assert flat["title"] == expected_title
+    with pytest.raises(ValueError, match="ID mismatch"):
+        verifier.validate_metadata(
+            {"info": {**wrapped["info"], "ownerUser": "someone-else"}},
+            expected_id,
+            expected_title,
+        )
+
+    path = tmp_path / "dataset-metadata.json"
+    path.write_text(json.dumps(wrapped), encoding="utf-8")
+    subprocess.run(
+        [sys.executable, str(verifier_path), str(path), expected_id, expected_title],
+        check=True,
+    )
+    rewritten = json.loads(path.read_text(encoding="utf-8"))
+    assert rewritten["id"] == expected_id
+    assert rewritten["title"] == expected_title
+    assert "info" not in rewritten
+
+
 
 def test_bundle_builder_only_tolerates_native_shutdown_abort_after_source_verification():
     root = Path(__file__).resolve().parents[1]
