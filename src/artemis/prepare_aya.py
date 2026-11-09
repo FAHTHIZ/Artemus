@@ -1,4 +1,4 @@
-"""Prepare human-annotated multilingual Aya prompt/response pairs for SFT.
+"""Prepare human-annotated English Aya prompt/response pairs for SFT.
 
 Only prompt/response text and non-sensitive source labels are retained. Annotator
 IDs and demographic fields are intentionally discarded.
