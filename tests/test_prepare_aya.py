@@ -173,3 +173,24 @@ def test_aya_language_allowlist_keeps_initial_sft_english_first(tmp_path):
     assert result["counts"]["rejected_language_not_allowed"] == 120
     assert all(row["provenance"]["language_code"] == "eng" for row in train + validation)
     assert result["sampling"]["allowed_language_codes"] == ["eng"]
+
+
+
+def test_aya_rejects_conflicting_language_name_even_when_code_says_english(tmp_path):
+    rows = [
+        {
+            "inputs": f"Explain a safe English research concept {index}.",
+            "targets": f"This is a reviewed English explanation {index}.",
+            "language": "Unapproved",
+            "language_code": "eng",
+        }
+        for index in range(150)
+    ]
+    with pytest.raises(ValueError, match="empty split"):
+        prepare_aya_stream(
+            rows,
+            dataset_revision="f" * 40,
+            output_dir=tmp_path,
+            max_examples=100,
+            validation_percent=10,
+        )
