@@ -55,7 +55,7 @@ Exit criteria:
 Deliverables:
 - Dataset manifests and source provenance.
 - Deduplication and filtering pipeline.
-- Initial general, code, math, and multilingual evaluation sets.
+- Initial English, code and mathematics evaluation sets.
 - Contamination and regression management.
 
 Exit criteria:
