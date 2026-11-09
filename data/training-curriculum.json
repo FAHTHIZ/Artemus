@@ -1,84 +1,108 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "project": "Artemus",
-  "purpose": "staged, provenance-first general-purpose learning; independent base-model and integrated-system evaluation",
+  "purpose": "English-only, provenance-first general-purpose model learning; independently evaluate base weights and the integrated cognitive system.",
+  "language_policy": {
+    "scope": "English only",
+    "required_language": "en",
+    "accepted_pretraining_labels": [
+      "en",
+      "eng",
+      "english"
+    ],
+    "minimum_pretraining_language_score": 0.7,
+    "aya_language_codes": [
+      "eng"
+    ],
+    "reject_missing_language_metadata": true,
+    "reject_non_english_samples": true,
+    "note": "No non-English corpora, non-English task examples, tokenizer targets, or evaluation scenarios are permitted in the training pipeline."
+  },
   "default_policy": {
     "never_ingest_private_or_access_controlled_material": true,
     "require_pinned_revision": true,
     "require_explicit_license_review_note": true,
     "require_source_level_provenance": true,
     "keep_validation_and_test_splits_protected": true,
+    "deduplicate_across_sources": true,
     "model_generated_data_default": "candidate_only; human_review_and_independent_verification_required",
-    "online_weight_updates": false
+    "online_weight_updates": false,
+    "training_language_scope": "English only"
   },
   "stages": [
     {
       "id": "F0",
       "name": "foundation_pretraining",
       "method": "next-token prediction from random initialization",
-      "initial_dataset": [
-        "HuggingFaceFW/fineweb-edu",
-        "HuggingFaceFW/fineweb-2"
-      ],
-      "config": "sample-10BT",
-      "revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
-      "license": "ODC-By-1.0",
-      "max_documents_initial": 20000,
       "training_entry": "notebooks/kaggle-gpu-training.ipynb",
-      "promotion": "held-out loss, source/time holdouts, privacy and contamination review",
+      "mixture": {
+        "document_weights": {
+          "HuggingFaceFW/fineweb": 0.8,
+          "HuggingFaceFW/fineweb-edu": 0.2
+        },
+        "note": "Document weights are a pilot hypothesis. Measure actual token shares after SentencePiece tokenization and adjust only from held-out loss and quality results."
+      },
       "datasets": [
+        {
+          "id": "HuggingFaceFW/fineweb",
+          "config": "sample-10BT",
+          "revision": "resolve once at run start and record SHA",
+          "license": "ODC-By-1.0",
+          "role": "general English web pretraining",
+          "max_documents_initial": 20000,
+          "language_gate": {
+            "required_language": "en",
+            "minimum_language_score": 0.7
+          }
+        },
         {
           "id": "HuggingFaceFW/fineweb-edu",
           "config": "sample-10BT",
           "revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
           "license": "ODC-By-1.0",
-          "document_weight": 0.85
-        },
-        {
-          "id": "HuggingFaceFW/fineweb-2",
-          "config": "ben_Beng",
-          "revision": "resolved_at_runtime_and_recorded_in_manifest",
-          "license": "ODC-By-1.0 plus Common Crawl terms",
-          "document_weight": 0.15,
-          "notes": "filtered train only; conservative PII/phone checks; token share measured with fitted tokenizer"
+          "role": "educational English supplement",
+          "max_documents_initial": 20000,
+          "language_gate": {
+            "required_language": "en",
+            "minimum_language_score": 0.7
+          }
         }
-      ]
+      ],
+      "caveats": [
+        "Both corpora derive from Common Crawl and require attribution/terms review.",
+        "Regex/privacy screening is not a complete PII audit.",
+        "FineWeb-Edu is a quality-filtered subset; deduplicate it against FineWeb before training.",
+        "The sample-10BT configuration is not a promise that 10B tokens are actually consumed by a bounded pilot."
+      ],
+      "promotion": "held-out next-token loss, source/time holdouts, document quality, privacy review, and contamination analysis"
     },
     {
       "id": "F1",
       "name": "domain_adaptive_pretraining",
-      "method": "continued next-token training with a bounded general-data replay mixture",
+      "method": "continued next-token learning with a replay mixture of general English",
       "datasets": [
         {
           "id": "OpenScientificCodeRegistry/Database",
           "revision": "b0e3fadb276678880f7f3d764308fbebd3bcd044",
-          "license_policy": "repository/file exact SPDX allowlist; default permissive allowlist only",
-          "filter": "Python syntax, source hash, repository grouped split, obvious secret/contact patterns"
+          "role": "code-domain continuation",
+          "license_policy": "per-repository and per-file exact SPDX evidence; allowlist only reviewed permissive licences",
+          "filter": "syntax, secrets/contact data, source hashes, repository-grouped split"
         },
         {
           "id": "open-web-math/open-web-math",
-          "status": "candidate_after_source_and_terms_review"
+          "role": "English mathematics/scientific web text",
+          "license": "ODC-By-1.0 plus original source terms",
+          "status": "candidate_after_review",
+          "use": "domain adaptation only; web text is not verified answer supervision"
         },
         {
-          "id": "nahid-hub/B-CORE-bengali-corpus",
-          "status": "candidate_after_component_source_license_review"
-        },
-        {
-          "id": "HuggingFaceFW/fineweb-edu",
-          "revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
+          "id": "HuggingFaceFW/fineweb",
+          "config": "sample-10BT",
+          "role": "general English replay",
           "license": "ODC-By-1.0"
-        },
-        {
-          "id": "HuggingFaceFW/fineweb-2",
-          "config": "ben_Beng",
-          "status": "used_in_bounded_F0_multilingual_foundation_mixture",
-          "license": "ODC-By-1.0 plus Common Crawl terms",
-          "split": "filtered train only; never upstream test or _removed",
-          "use": "85/15 document-weight mixture with FineWeb-Edu before tokenizer training; actual token share recorded",
-          "caveats": "20.2 TB full corpus; Bengali subset about 22.25 GB on disk; residual PII likely and phone numbers not upstream-filtered"
         }
       ],
-      "promotion": "domain uplift without unacceptable general or multilingual forgetting"
+      "promotion": "domain uplift without unacceptable general-English forgetting"
     },
     {
       "id": "S1",
@@ -87,10 +111,15 @@
       "datasets": [
         {
           "id": "CohereLabs/aya_dataset",
-          "license": "Apache-2.0",
-          "status": "bounded_human_annotated_multilingual_sft",
-          "languages": "65 languages / 71 with dialects and scripts; Bengali ben listed mid-resource",
+          "revision": "resolve once and record SHA",
+          "license": "Apache-2.0 per upstream card",
+          "role": "human-annotated instruction examples",
           "max_examples_initial": 10000,
+          "filter": {
+            "language_codes": [
+              "eng"
+            ]
+          },
           "fields_used": [
             "inputs",
             "targets",
@@ -105,20 +134,17 @@
             "languages",
             "dialects"
           ],
-          "split": "prompt-hash grouped train/validation split",
-          "loss": "response-only"
+          "split": "prompt-hash grouped train/validation split"
         },
         {
           "id": "OpenAssistant/oasst1",
           "revision": "a4992e1595393714c9e6c567b1ed645bbf7d00ee",
-          "license": "Apache-2.0"
-        },
-        {
-          "id": "human_teaching_candidates",
-          "status": "human_corrected_or_explicitly_human_approved_only"
+          "license": "Apache-2.0 per upstream card",
+          "role": "reviewed English assistant conversations",
+          "filter": "lang=en; review_result=true; deleted=false; synthetic=false; exclude positive PII labels"
         }
       ],
-      "promotion": "protected instruction-following and multilingual test suite"
+      "promotion": "protected English instruction-following and factuality regression suite"
     },
     {
       "id": "S2",
@@ -129,91 +155,132 @@
           "id": "openai/grade-school-math",
           "revision": "3101c7d5072418e28b9008a6636bde82a006892c",
           "license": "MIT",
-          "split": "train only"
+          "role": "English math word problems",
+          "split": "official train only; keep official test out"
         },
         {
-          "id": "google-research/MBPP",
+          "id": "google-research-datasets/mbpp",
           "revision": "83f1e7b59e762648c953de751d31f75720683622",
           "license": "CC-BY-4.0",
-          "split": "approved training IDs only"
+          "role": "English natural-language-to-Python tasks",
+          "split": "approved task IDs only; attribution retained"
         }
       ],
-      "promotion": "exact-answer, compile and unit-test evaluation"
-    },
-    {
-      "id": "V1",
-      "name": "verified_outcome_training",
-      "method": "train only on examples with independent exact validators",
-      "datasets": [
-        "offline code task suite",
-        "math exact-answer suite",
-        "structured tool/API tasks"
-      ],
-      "promotion": "sandbox isolation, hidden tests, no reward hacking"
+      "promotion": "exact-answer math, compile and unit-test code evaluation"
     },
     {
       "id": "P1",
       "name": "human_preference_learning",
-      "method": "DPO-like preference optimization from human chosen/rejected pairs",
-      "status": "not_implemented",
+      "method": "preference/reward-model training",
+      "datasets": [
+        {
+          "id": "Anthropic/hh-rlhf",
+          "license": "MIT",
+          "role": "helpful/harmless chosen-rejected preference pairs",
+          "status": "deferred_until_preference_training_objective_exists",
+          "notes": "Preference data is not dialogue SFT. Review upstream warning about training dialogue agents on preference-model data; do not automatically merge red-team data into SFT."
+        }
+      ],
       "promotion": "human preference agreement and regression checks"
+    },
+    {
+      "id": "T1",
+      "name": "teacher_candidate_data",
+      "method": "human-reviewed teacher-output distillation candidates",
+      "datasets": [
+        {
+          "id": "DeepSeek-R1 model/API outputs",
+          "license": "follow the exact model/API terms and output provenance",
+          "status": "candidate_only_not_active_training_data",
+          "notes": "DeepSeek's public report describes its training methodology but does not publish its full base pretraining corpus. Outputs can be considered only as new, traceable candidate examples with independent verification and human review."
+        }
+      ],
+      "promotion": "verified targets, source/version provenance, human review, contamination checks"
+    },
+    {
+      "id": "V1",
+      "name": "verified_outcome_training",
+      "method": "train against independently verified outcomes",
+      "datasets": [
+        "private English code tasks authored by the project",
+        "English math tasks with deterministic exact validators",
+        "structured API/tool tasks with sandboxed action outcomes"
+      ],
+      "promotion": "isolated execution, private holdouts, no reward hacking"
     },
     {
       "id": "R1",
       "name": "environment_outcome_optimization",
-      "method": "RL/GRPO-style outcome optimisation in bounded environments",
+      "method": "bounded outcome optimization",
       "status": "not_implemented",
-      "promotion": "verified rewards, matched budgets, rollback and reward-hacking analysis"
-    },
-    {
-      "id": "M1",
-      "name": "multimodal",
-      "method": "modality-specific supervised/contrastive training",
-      "status": "future",
-      "promotion": "modality-specific source rights and protected evaluations"
-    },
-    {
-      "id": "A1",
-      "name": "audio_speech_branch",
-      "method": "ASR/speech encoder supervised learning; separate from text-only ArtemisLM",
-      "datasets": [
-        {
-          "id": "google/fleurs",
-          "license": "CC-BY-4.0",
-          "languages": 102,
-          "bengali": true,
-          "status": "candidate_after_audio_model_and_loader"
-        },
-        {
-          "id": "Mozilla Common Voice Scripted Speech 27.0",
-          "license": "CC0-1.0",
-          "bengali": true,
-          "status": "candidate_after_audio_model_and_loader",
-          "notes": "Current Bengali listing about 24.85 GB MP3"
-        }
-      ],
-      "promotion": "word/character error rates, speaker-held-out generalisation, noise robustness, attribution/privacy review"
+      "promotion": "matched-budget success rate, verifier integrity, rollback and reward-hacking analysis"
     }
   ],
-  "compute": {
-    "first_gpu_target": "Kaggle Notebook GPU allocation when available",
-    "fallback": "Kaggle CPU-only FP32 pilot if no CUDA device is allocated; Google Colab free GPU when available.",
-    "paid_options": [
-      "RunPod",
-      "Vast.ai",
-      "institutional GPU"
+  "research_sources": {
+    "reference_labs": [
+      {
+        "name": "Anthropic",
+        "what_is_public": "Claude transparency materials describe broad categories of proprietary training data, not a downloadable complete pretraining corpus. HH-RLHF is a separately available preference dataset.",
+        "not_available": "The proprietary Claude base pretraining mixture and private licensed corpora."
+      },
+      {
+        "name": "DeepSeek",
+        "what_is_public": "DeepSeek technical reports describe broad public/licensed data and data-quality methods. DeepSeek-R1's release provides model/code terms and discusses permitted use of model outputs for distillation.",
+        "not_available": "A complete itemised base-model pretraining corpus."
+      },
+      {
+        "name": "OpenAI",
+        "what_is_public": "Public research and model documentation describe methods and some dataset families, but not a complete itemised training inventory for this model.",
+        "not_available": "A complete exact list of the datasets used to train ChatGPT."
+      },
+      {
+        "name": "AI2 OLMo",
+        "what_is_public": "Open model and dataset releases such as Dolma provide a more auditable public research path.",
+        "not_available": "This does not imply access to every upstream work without source-level terms review."
+      }
     ],
-    "github_actions": "GitHub Actions runs CPU tests and orchestrates Kaggle notebooks; the notebook records GPU/CPU mode, exact model parameter count, checkpoint sizes, source provenance and held-out evaluations.",
-    "potential_intro_gpu_provider": "Lightning AI Studios (conditional free credits; eligibility and country availability vary; never assume zero-cost GPU time)",
+    "alternative_english_pretraining": [
+      {
+        "id": "allenai/dolma",
+        "role": "large English-heavy open corpus alternative",
+        "status": "evaluate as separate matched-budget alternative",
+        "warning": "Very large; audit release version, component sources, terms, privacy and deduplication."
+      },
+      {
+        "id": "Cerebras/SlimPajama-627B",
+        "role": "smaller-scale open pretraining alternative",
+        "status": "evaluate as separate matched-budget alternative",
+        "warning": "Check component licences and exact release; deduplicate against FineWeb."
+      },
+      {
+        "id": "DCLM-baseline",
+        "role": "large quality-filtered English web corpus",
+        "status": "evaluate after storage/compute and licence review",
+        "warning": "Multi-terabyte scale; do not stack blindly with FineWeb due web-crawl overlap."
+      }
+    ]
+  },
+  "compute": {
+    "first_gpu_target": "Kaggle GPU allocation when available",
+    "github_actions": "CPU tests and orchestration only; GitHub Actions does not provide a training GPU.",
+    "gpu_profile": {
+      "foundation_steps": 6000,
+      "english_aya_steps": 1500,
+      "task_sft_steps": 1000,
+      "context_tokens": 512,
+      "batch_size": 4,
+      "gradient_accumulation": 4,
+      "precision": "bf16 if supported else fp16"
+    },
     "cpu_fallback_profile": {
       "foundation_steps": 1000,
-      "aya_instruction_sft_steps": 250,
+      "english_aya_steps": 250,
       "task_sft_steps": 250,
       "context_tokens": 256,
       "batch_size": 1,
       "gradient_accumulation": 1,
       "precision": "fp32",
-      "note": "Explicit small pilot only; not equivalent to the larger Kaggle GPU schedule."
+      "note": "Small pipeline pilot, not equivalent to the GPU schedule."
     }
   },
   "continuous_cycle": {
@@ -221,37 +288,30 @@
     "execution": "Kaggle GPU through .github/workflows/continuous-kaggle-training.yml",
     "state_store": "private Kaggle dataset <username>/artemus-training-state",
     "foundation_checkpoint": "artemus-foundation-current.pt",
-    "tokenizer": "tokenizer.model; reused byte-identically across continued-pretraining cycles",
+    "tokenizer": "tokenizer.model; byte-identical across continued-pretraining cycles",
     "per_cycle": {
       "fresh_stream_sample": true,
-      "sample_seeds": "deterministic and derived from the foundation checkpoint run count",
-      "foundation_phase": "continued_pretraining from the last foundation checkpoint",
-      "foundation_steps": 2000,
-      "multilingual_instruction_examples_max": 10000,
-      "multilingual_instruction_phase": "response-only instruction_sft on Aya",
+      "foundation_phase": "continue from foundation checkpoint only",
+      "foundation_steps": 6000,
+      "english_instruction_examples_max": 10000,
+      "english_instruction_phase": "response-only Aya SFT restricted to language code eng",
       "task_sources": [
         "OpenAssistant/oasst1",
         "openai/grade-school-math",
         "google-research-datasets/mbpp"
       ],
-      "task_phase": "response-only task_sft from the cycle's Aya checkpoint",
-      "task_steps": 750,
+      "task_steps": 1000,
       "final_candidate": "artemus-task-sft.pt"
     },
     "invariants": [
-      "The next cycle resumes only the foundation checkpoint, never an Aya or task-SFT candidate.",
-      "The SentencePiece tokenizer and vocabulary are reused unchanged after the first foundation cycle.",
-      "Each streamed source records its immutable revision and per-cycle sampling seed.",
-      "Only the official GSM8K training file is used; validation is derived deterministically from it and the official test file is never ingested.",
-      "MBPP training IDs are 601-974 and validation IDs 511-600; prompt IDs 1-10 and protected test IDs 11-510 are excluded.",
+      "Only English text enters the training pipeline.",
+      "The next cycle resumes only the foundation checkpoint, never an SFT candidate.",
+      "The SentencePiece tokenizer and vocabulary are reused byte-identically after the first cycle.",
+      "Every web sample passes the explicit English label and language-confidence gate.",
+      "Aya accepts only language code eng.",
       "No model-generated examples enter training without human review and independent verification.",
-      "The Kaggle state dataset remains private and stores checkpoints, tokenizer, manifests, and hashes, never API credentials."
+      "The Kaggle state dataset remains private and stores checkpoints, tokenizer, manifests and hashes, never API credentials."
     ],
-    "promotion": "A completed cycle produces a candidate only; promotion requires protected exact-answer, isolated code-execution, multilingual and regression evaluations.",
-    "evaluation_partition": {
-      "gsm8k": "Official train split only: hash bucket 0 is optimizer validation, bucket 1 is diagnostic evaluation, buckets 2-9 are training.",
-      "mbpp": "Task IDs 511-555 are optimizer validation, 556-600 are diagnostic evaluation, and 601-974 are training. IDs 1-510 stay excluded.",
-      "invariant": "Diagnostic evaluation examples are disjoint from both training and optimizer validation."
-    }
+    "promotion": "A completed cycle produces a candidate only; promotion requires protected exact-answer, isolated code-execution, factuality, and regression evaluations."
   }
 }
