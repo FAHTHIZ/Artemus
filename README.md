@@ -45,6 +45,7 @@ Measure ArtemisLM alone separately from the complete Artemus system. Never attri
 | [0009 — size ladder profile](docs/experiments/0009-size-ladder-profile.md) | Exact profiles for 8.1M, 26.5M, and 88.7M parameter candidates. | Parameter accounting only; no training or capability claim. |
 | [0011 — CPU foundation on FineWeb-Edu ≥ 3.5](docs/experiments/0011-cpu-foundation-edu-hq.md) | 6.45M-parameter random-init model, 10,000 steps (~41M tokens) on 88k top-tier FineWeb-Edu docs; val loss 3.749, 1.346 bits/byte held-out. | First foundation checkpoint; fluent but repetitive and non-factual. Weights on the `checkpoints` branch. |
 | [0012 — CPU math adaptation on FineMath-4+](docs/experiments/0012-cpu-math-adaptation-finemath.md) | F0 + 2,500 steps on 40% FineMath-4+ / 60% edu replay; FineMath 1.887 → 1.508 bits/byte, FineWeb-Edu 1.346 → 1.350. | Math formatting learned, no arithmetic yet. Weights on the `checkpoints` branch. |
+| [0013 — CPU English instruction SFT on Aya](docs/experiments/0013-cpu-aya-instruction-sft.md) | F1 + 800 response-only SFT steps on 3,775 human-written English Aya conversations; Aya val loss 3.496 → 3.314. | Learns the chat format and `<|end|>`; answers only trivial facts correctly. Weights on the `checkpoints` branch. |
 
 The incremental-cache benchmark is documented in [Experiment 0008](docs/experiments/0008-incremental-kv-cache.md).
 

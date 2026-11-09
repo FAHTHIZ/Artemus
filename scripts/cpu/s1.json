@@ -1,0 +1,4 @@
+{"output":"ckpt/artemus-s1-aya-6m.pt","parent":"ckpt/artemus-f1-math-6m.pt","steps":800,"lr":3e-4,"min_lr":3e-5,"warmup":50,
+ "args":["--data","data/aya/train.jsonl","--validation-data","data/aya/validation.jsonl","--document-format","jsonl","--text-field","text",
+ "--token-cache-dir","data/tokcache-aya","--data-manifest","data/aya/manifest.json","--phase","instruction_sft","--response-only","--allow-objective-change",
+ "--tokenizer","sentencepiece","--batch-size","16","--eval-interval","200","--checkpoint-interval","200","--eval-iters","10","--seed","2028"]}

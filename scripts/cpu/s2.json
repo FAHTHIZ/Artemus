@@ -1,0 +1,4 @@
+{"output":"ckpt/artemus-s2-task-6m.pt","parent":"ckpt/artemus-s1-aya-6m.pt","steps":1500,"lr":2e-4,"min_lr":2e-5,"warmup":50,
+ "args":["--data","data/capability/train.txt","--validation-data","data/capability/validation.txt","--document-format","text",
+ "--data-manifest","data/capability/manifest.json","--phase","task_sft","--response-only",
+ "--tokenizer","sentencepiece","--batch-size","16","--eval-interval","250","--checkpoint-interval","250","--eval-iters","10","--seed","2029"]}
