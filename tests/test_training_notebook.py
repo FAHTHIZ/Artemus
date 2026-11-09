@@ -448,7 +448,7 @@ def test_kaggle_notebook_uses_attached_offline_source_and_prepared_data_bundle()
     install = cells["install"]
     assert "Path('/kaggle/input/artemus-training-inputs')" in install
     assert "bundle-manifest.json" in install
-    assert "artemus-source.zip" in install
+    assert "artemus-source.zipdata" in install
     assert "--no-index" in install
     assert "sentencepiece" in install
     assert "rglob('bundle-manifest.json')" in install
@@ -504,7 +504,7 @@ def test_offline_bundle_builder_creates_private_dataset_metadata_and_python313_w
     builder = (root / "scripts" / "prepare-kaggle-input-bundle.sh").read_text(encoding="utf-8")
     assert '"id": dataset_id' in builder
     assert '"title": "Artemus Training Inputs"' in builder
-    assert '"artemus-source.zip"' in builder
+    assert '"artemus-source.zipdata"' in builder
     assert "--python-version 3.13" in builder
     assert "--abi cp313" in builder
     assert "KAGGLE_INPUT_DATASET" in builder
@@ -674,3 +674,17 @@ def test_bundle_builder_only_tolerates_native_shutdown_abort_after_source_verifi
     assert '[[ "$command_status" -eq 134 ]]' in builder
     assert "verify_pretraining_source.py" in builder
     assert "source output passed manifest, split, hash, provenance and English-language verification" in builder
+
+
+def test_kaggle_bundle_avoids_auto_extracted_zip_names_and_waits_for_version() -> None:
+    root = Path(__file__).resolve().parents[1]
+    builder = (root / "scripts" / "prepare-kaggle-input-bundle.sh").read_text(encoding="utf-8")
+    assert '"artemus-source.zip"' not in builder
+    assert 'f"{name}.zip"' not in builder
+    assert 'f"{name}.zipdata"' in builder
+    notebook = (root / "notebooks" / "kaggle-gpu-training.ipynb").read_text(encoding="utf-8")
+    assert "artemus-source.zipdata" in notebook
+    assert "format='zip'" in notebook
+    workflow = (root / ".github" / "workflows" / "validation.yml").read_text(encoding="utf-8")
+    assert "kaggle datasets status" in workflow
+    assert "repository-commit.txt -p .kaggle-input-commit" in workflow

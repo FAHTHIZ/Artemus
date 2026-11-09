@@ -179,6 +179,34 @@ jobs:
             .kaggle-input-verified/dataset-metadata.json \
             "$KAGGLE_INPUT_DATASET" \
             "Artemus Training Inputs"
+          # Metadata exists as soon as an older version exists. Wait until Kaggle has
+          # processed the version for this commit, otherwise the kernel mounts stale files.
+          input_ready=0
+          for attempt in $(seq 1 60); do
+            status="$(kaggle datasets status "$KAGGLE_INPUT_DATASET" 2>&1 || true)"
+            rm -rf .kaggle-input-commit && mkdir -p .kaggle-input-commit
+            if grep -qi 'ready' <<<"$status" && kaggle datasets download "$KAGGLE_INPUT_DATASET" \
+                -f repository-commit.txt -p .kaggle-input-commit --force >/dev/null 2>&1; then
+              python - <<'PY' || true
+          import zipfile
+          from pathlib import Path
+          root = Path(".kaggle-input-commit")
+          for archive in root.glob("*.zip"):
+              with zipfile.ZipFile(archive) as handle:
+                  handle.extractall(root)
+          PY
+              if [[ "$(cat .kaggle-input-commit/repository-commit.txt 2>/dev/null | tr -d '[:space:]')" == "$GITHUB_SHA" ]]; then
+                input_ready=1
+                break
+              fi
+            fi
+            echo "::notice::Waiting for Kaggle to process the input bundle for $GITHUB_SHA (attempt $attempt/60): $status"
+            sleep 30
+          done
+          if [[ "$input_ready" -ne 1 ]]; then
+            echo "::error::Kaggle did not finish processing the input bundle for this commit."
+            exit 1
+          fi
           echo "Private offline dataset is visible and ready: $KAGGLE_INPUT_DATASET"
           echo "Verified offline input dataset: $KAGGLE_INPUT_DATASET"
 

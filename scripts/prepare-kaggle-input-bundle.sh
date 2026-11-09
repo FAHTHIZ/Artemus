@@ -207,7 +207,7 @@ commit = sys.argv[2]
 prepared = Path(sys.argv[3])
 repo = Path.cwd()
 
-with zipfile.ZipFile(bundle / "artemus-source.zip", "w", compression=zipfile.ZIP_DEFLATED) as archive:
+with zipfile.ZipFile(bundle / "artemus-source.zipdata", "w", compression=zipfile.ZIP_DEFLATED) as archive:
     for relative in (Path("src"), Path("pyproject.toml"), Path("README.md"), Path("data/evaluation")):
         path = repo / relative
         if path.is_dir():
@@ -224,7 +224,7 @@ for name in ("fineweb_general", "fineweb_edu", "aya_sft", "oasst1", "capability_
         raise SystemExit(f"Prepared source is incomplete: {name}")
     target = bundle / "prepared-artifacts" / name
     target.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(bundle / "prepared-artifacts" / f"{name}.zip", "w", zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(bundle / "prepared-artifacts" / f"{name}.zipdata", "w", zipfile.ZIP_DEFLATED) as archive:
         for file in sorted(source.rglob("*")):
             if file.is_file():
                 archive.write(file, file.relative_to(source).as_posix())
