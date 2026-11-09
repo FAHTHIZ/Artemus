@@ -131,7 +131,7 @@ def test_aya_manifest_records_deterministic_stream_sampling(tmp_path):
         "method": "huggingface_iterable_bounded_buffer_shuffle",
         "seed": 2026,
         "buffer_size": 512,
-        "allowed_language_codes": None,
+        "allowed_language_codes": ["eng"],
     }
 
 
