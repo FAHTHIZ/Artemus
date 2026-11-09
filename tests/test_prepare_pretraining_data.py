@@ -159,3 +159,55 @@ def test_prepare_stream_enforces_english_language_and_confidence_gate(tmp_path):
         rows = [json.loads(line) for line in (tmp_path / split).read_text().splitlines()]
         assert rows
         assert all(row["provenance"]["language"] == "en" for row in rows)
+
+
+def test_prepare_stream_applies_optional_educational_quality_gate(tmp_path):
+    body = "Photosynthesis converts light energy into chemical energy in plants. " * 10
+    records = [
+        {"id": f"doc-{index}", "language": "en", "language_score": 0.95,
+         "score": score, "text": f"Lesson {index}. " + body}
+        for index, score in enumerate([4.2, 3.1, None, 3.6] * 30)
+    ]
+    manifest = prepare_stream(
+        records,
+        dataset_id="example/edu",
+        dataset_revision="b" * 40,
+        dataset_config="default",
+        dataset_split="train",
+        license_id="ODC-By-1.0",
+        license_review_note="test-only review record",
+        output_dir=tmp_path,
+        max_documents=200,
+        validation_percent=5,
+        min_chars=100,
+        max_chars=5000,
+        min_quality_score=3.5,
+    )
+    assert manifest["accepted_documents"] == 60
+    assert manifest["counts"]["rejected_quality_score"] == 60
+    assert manifest["educational_quality_policy"]["minimum_score"] == 3.5
+    rows = [json.loads(line) for line in (tmp_path / "train.jsonl").read_text().splitlines()]
+    assert all(row["provenance"]["score"] >= 3.5 for row in rows)
+
+
+def test_prepare_stream_quality_gate_is_disabled_by_default(tmp_path):
+    records = [
+        {"id": f"doc-{index}", "language": "en", "language_score": 0.95,
+         "text": f"Doc {index}. " + "Plain useful explanatory text. " * 10}
+        for index in range(120)
+    ]
+    manifest = prepare_stream(
+        records,
+        dataset_id="example/web",
+        dataset_revision="c" * 40,
+        dataset_config=None,
+        dataset_split="train",
+        license_id="ODC-By-1.0",
+        license_review_note="test-only review record",
+        output_dir=tmp_path,
+        max_documents=120,
+        min_chars=100,
+        max_chars=5000,
+    )
+    assert manifest["accepted_documents"] == 120
+    assert manifest["educational_quality_policy"]["missing_score"] == "not_checked"

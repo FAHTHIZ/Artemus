@@ -1,0 +1,12 @@
+torch>=2.3
+sentencepiece>=0.2.0
+numpy>=1.26
+
+[data]
+datasets>=3.0
+huggingface_hub>=0.26
+pyarrow>=18.0
+
+[dev]
+pytest>=8
+ruff>=0.6

@@ -91,6 +91,8 @@ def prepare_stream(
     shuffle_buffer_size: int = 10_000,
     required_language: str = "en",
     min_language_score: float = 0.70,
+    min_quality_score: float | None = None,
+    quality_score_field: str = "score",
 ) -> dict[str, Any]:
     if len(dataset_revision) < 7 or dataset_revision in {"main", "master", "latest"}:
         raise ValueError("dataset_revision must be a pinned commit or immutable release")
@@ -108,6 +110,8 @@ def prepare_stream(
         raise ValueError("this training pipeline accepts English only (required_language='en')")
     if min_chars < 1 or max_chars < min_chars:
         raise ValueError("invalid character limits")
+    if min_quality_score is not None and not 0.0 <= min_quality_score <= 5.0:
+        raise ValueError("min_quality_score must be between zero and five")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     train_path = output_dir / "train.jsonl"
@@ -147,6 +151,15 @@ def prepare_stream(
             ):
                 counts["rejected_language_confidence"] += 1
                 continue
+            if min_quality_score is not None:
+                quality_score = record.get(quality_score_field)
+                if (
+                    isinstance(quality_score, bool)
+                    or not isinstance(quality_score, (int, float))
+                    or float(quality_score) < min_quality_score
+                ):
+                    counts["rejected_quality_score"] += 1
+                    continue
             raw_text = record.get(text_field)
             if not isinstance(raw_text, str):
                 counts["rejected_missing_text"] += 1
@@ -188,7 +201,10 @@ def prepare_stream(
                 "license": license_id,
                 "split": split,
             }
-            for field in ("url", "date", "dump", "language", "language_score", "token_count"):
+            for field in (
+                "url", "date", "dump", "language", "language_score", "token_count",
+                "score", "int_score",
+            ):
                 value = record.get(field)
                 if isinstance(value, (str, int, float)) and not isinstance(value, bool):
                     metadata[field] = value
@@ -217,6 +233,12 @@ def prepare_stream(
             "accepted_labels": ["en", "eng", "english"],
             "minimum_language_score": min_language_score,
             "missing_language_metadata": "rejected",
+        },
+        "educational_quality_policy": {
+            "score_field": quality_score_field if min_quality_score is not None else None,
+            "minimum_score": min_quality_score,
+            "missing_score": "rejected" if min_quality_score is not None else "not_checked",
+            "note": "FineWeb-Edu classifier score (0-5); higher keeps more educational text.",
         },
         "sampling": {
             "method": "huggingface_iterable_bounded_buffer_shuffle" if sampling_seed is not None else "upstream_stream_order",
@@ -286,6 +308,12 @@ def parse_args() -> argparse.Namespace:
         help="strictly require a recognised English label and language confidence score",
     )
     parser.add_argument("--min-language-score", type=float, default=0.70)
+    parser.add_argument(
+        "--min-quality-score",
+        type=float,
+        help="optional minimum educational-quality score (e.g. FineWeb-Edu `score` >= 3.5)",
+    )
+    parser.add_argument("--quality-score-field", default="score")
     return parser.parse_args()
 
 
@@ -323,6 +351,8 @@ def main() -> None:
         shuffle_buffer_size=args.shuffle_buffer_size,
         required_language=args.required_language,
         min_language_score=args.min_language_score,
+        min_quality_score=args.min_quality_score,
+        quality_score_field=args.quality_score_field,
     )
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
 
