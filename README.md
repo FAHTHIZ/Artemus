@@ -51,6 +51,8 @@ The 0007 checkpoint used format v2 and did not embed run metadata. Its sidecar r
 
 **Training artifact policy:** every exported run includes source-language gate manifests and an explicit English-only scope; unverified legacy checkpoints are not promoted as foundation weights.
 
+The initial foundation run is launched through GitHub Actions only after validation succeeds; GitHub CI itself does not provide training compute. Kaggle must allocate the requested GPU, and every run records whether it actually used CUDA or the bounded CPU fallback.
+
 **Active training scope:** English only. Foundation text must carry an explicit English label and language-confidence score of at least 0.70; Aya instruction examples must use language code `eng`. The initial foundation run starts from random initialization and uses the FineWeb / FineWeb-Edu English mixture.
 
 The old 16k-step checkpoint is a task-SFT experiment, not the foundation model. The next model-learning phase therefore starts from **fresh random initialization** on broad, pinned pretraining data, then adds reviewed specialist and human-taught data in separate stages.
