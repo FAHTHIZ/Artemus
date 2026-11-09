@@ -43,7 +43,7 @@ The target is not “the smallest model at any cost.” It is the best Pareto po
 
 ## 4. Frontier flagship ambition
 
-Artemis's long-term ambition is a compact, independently trained flagship capable of frontier-level software engineering, reasoning, mathematics, multilingual communication, knowledge work, and reliable tool use.
+Artemis's long-term ambition is a compact, independently trained flagship capable of frontier-level software engineering, reasoning, mathematics, English communication, knowledge work, and reliable tool use.
 
 This is a target, not a promise. We will not claim parity with GPT-6 Astra, GPT-6.1 Sol, Claude Fable 5.1, or any other reference from parameter counts, training loss, a single benchmark, or a compelling demo. Parity must be supported by comparable independent evaluations across the intended capability areas.
 
