@@ -310,6 +310,11 @@
       "Model-generated examples remain candidate-only until independently verified and human-reviewed.",
       "The private Kaggle dataset stores checkpoints, tokenizer, manifests and hashes, never API credentials."
     ],
-    "promotion": "candidate only; promote after held-out exact-answer, sandboxed-code and regression evaluation."
+    "promotion": "candidate only; promote after held-out exact-answer, sandboxed-code and regression evaluation.",
+    "evaluation_partition": {
+      "gsm8k": "Official train split only: bucket 0 is optimizer validation, bucket 1 is diagnostic evaluation, and buckets 2-9 are training. The official test split is never ingested.",
+      "mbpp": "Task IDs 511-555 are optimizer validation, 556-600 are diagnostic evaluation, and 601-974 are training. IDs 1-510 remain excluded.",
+      "invariant": "Diagnostic evaluation examples are disjoint from both training and optimizer validation."
+    }
   }
 }
