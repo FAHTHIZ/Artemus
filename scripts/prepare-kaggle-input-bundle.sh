@@ -315,7 +315,12 @@ import sys
 from pathlib import Path
 root, commit = Path(sys.argv[1]).parent, sys.argv[2]
 records = []
-for path in sorted(p for p in root.rglob("*") if p.is_file() and p.name != "bundle-manifest.json"):
+# Kaggle consumes dataset-metadata.json as dataset settings and does not mount
+# it, so it must not be listed as a verifiable artifact.
+for path in sorted(
+    p for p in root.rglob("*")
+    if p.is_file() and p.name not in {"bundle-manifest.json", "dataset-metadata.json"}
+):
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     records.append({
         "path": path.relative_to(root).as_posix(),

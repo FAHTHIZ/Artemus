@@ -688,3 +688,11 @@ def test_kaggle_bundle_avoids_auto_extracted_zip_names_and_waits_for_version() -
     workflow = (root / ".github" / "workflows" / "validation.yml").read_text(encoding="utf-8")
     assert "kaggle datasets status" in workflow
     assert "repository-commit.txt -p .kaggle-input-commit" in workflow
+
+
+def test_kaggle_bundle_manifest_skips_unmounted_dataset_metadata() -> None:
+    root = Path(__file__).resolve().parents[1]
+    builder = (root / "scripts" / "prepare-kaggle-input-bundle.sh").read_text(encoding="utf-8")
+    assert '{"bundle-manifest.json", "dataset-metadata.json"}' in builder
+    notebook = (root / "notebooks" / "kaggle-gpu-training.ipynb").read_text(encoding="utf-8")
+    assert "item['path'] == 'dataset-metadata.json'" in notebook
