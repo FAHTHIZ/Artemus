@@ -110,14 +110,10 @@ jobs:
             exit 1
           fi
           test -s .kaggle-input-metadata/dataset-metadata.json
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          metadata = json.loads(Path(".kaggle-input-metadata/dataset-metadata.json").read_text(encoding="utf-8"))
-          expected = os.environ["KAGGLE_INPUT_DATASET"]
-          if metadata.get("id") != expected:
-              raise SystemExit("Offline input dataset metadata ID mismatch.")
-          PY
+          python scripts/verify_kaggle_dataset_metadata.py \
+            .kaggle-input-metadata/dataset-metadata.json \
+            "$KAGGLE_INPUT_DATASET" \
+            "Artemus Training Inputs"
           echo "KAGGLE_KERNEL_ID=$KAGGLE_USERNAME/$KAGGLE_KERNEL_SLUG" >> "$GITHUB_ENV"
           kaggle --version
           # Fetch existing state metadata, or create an empty private state dataset on first use.
@@ -157,20 +153,10 @@ jobs:
             kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-metadata
           fi
           test -s .kaggle-state-metadata/dataset-metadata.json
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          metadata = json.loads(
-              Path(".kaggle-state-metadata/dataset-metadata.json").read_text(encoding="utf-8")
-          )
-          expected = os.environ["KAGGLE_STATE_DATASET"]
-          if metadata.get("id") != expected:
-              raise SystemExit(
-                  f"Dataset metadata ID mismatch: expected {expected!r}, got {metadata.get('id')!r}"
-              )
-          PY
+          python scripts/verify_kaggle_dataset_metadata.py \
+            .kaggle-state-metadata/dataset-metadata.json \
+            "$KAGGLE_STATE_DATASET" \
+            "Artemus Training State"
 
       - name: Prepare the private GPU kernel
         shell: bash
