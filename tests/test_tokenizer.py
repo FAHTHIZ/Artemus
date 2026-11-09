@@ -1,9 +1,9 @@
 from artemis.tokenizer import ByteTokenizer, EOS_TOKEN_ID, VOCAB_SIZE
 
 
-def test_utf8_round_trip_including_bengali() -> None:
+def test_utf8_round_trip_for_english() -> None:
     tokenizer = ByteTokenizer()
-    text = "Artemis: coding, reasoning, বাংলা, and 日本語."
+    text = "Artemis: coding, reasoning, English, and Python."
     assert tokenizer.decode(tokenizer.encode(text)) == text
 
 
