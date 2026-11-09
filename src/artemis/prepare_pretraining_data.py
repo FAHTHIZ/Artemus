@@ -14,7 +14,7 @@ EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECAS
 IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 PRIVATE_KEY_RE = re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----")
 TOKEN_RE = re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{24,})\b")
-PHONE_LIKE_RE = re.compile(r"(?<![0-9০-৯])\+?[0-9০-৯](?:[0-9০-৯\s().-]{6,}[0-9০-৯])(?![0-9০-৯])")
+PHONE_LIKE_RE = re.compile(r"(?<![0-9])\+?[0-9](?:[0-9\s().-]{6,}[0-9])(?![0-9])")
 
 
 def stable_bucket(value: str, buckets: int = 10_000) -> int:
@@ -89,6 +89,8 @@ def prepare_stream(
     text_field: str = "text",
     sampling_seed: int | None = None,
     shuffle_buffer_size: int = 10_000,
+    required_language: str | None = None,
+    min_language_score: float = 0.70,
 ) -> dict[str, Any]:
     if len(dataset_revision) < 7 or dataset_revision in {"main", "master", "latest"}:
         raise ValueError("dataset_revision must be a pinned commit or immutable release")
@@ -100,6 +102,10 @@ def prepare_stream(
         raise ValueError("max_documents must be at least 100")
     if shuffle_buffer_size < 1:
         raise ValueError("shuffle_buffer_size must be positive")
+    if not 0.0 <= min_language_score <= 1.0:
+        raise ValueError("min_language_score must be between zero and one")
+    if required_language is not None and required_language.strip().lower() != "en":
+        raise ValueError("this training pipeline accepts English only (required_language='en')")
     if min_chars < 1 or max_chars < min_chars:
         raise ValueError("invalid character limits")
 
@@ -125,6 +131,23 @@ def prepare_stream(
         for record in records:
             if accepted >= max_documents:
                 break
+            if required_language is not None:
+                language_label = record.get("language")
+                normalized_language = (
+                    str(language_label).strip().lower() if language_label is not None else ""
+                )
+                if normalized_language not in {"en", "eng", "english"}:
+                    counts["rejected_language_filter"] += 1
+                    continue
+                language_score = record.get("language_score")
+                if (
+                    isinstance(language_score, bool)
+                    or not isinstance(language_score, (int, float))
+                    or not 0.0 <= float(language_score) <= 1.0
+                    or float(language_score) < min_language_score
+                ):
+                    counts["rejected_language_confidence"] += 1
+                    continue
             raw_text = record.get(text_field)
             if not isinstance(raw_text, str):
                 counts["rejected_missing_text"] += 1
@@ -190,6 +213,12 @@ def prepare_stream(
         "license_review_note": license_review_note,
         "max_documents": max_documents,
         "validation_percent": validation_percent,
+        "language_policy": {
+            "required_language": required_language,
+            "accepted_labels": ["en", "eng", "english"] if required_language == "en" else None,
+            "minimum_language_score": min_language_score if required_language == "en" else None,
+            "missing_language_metadata": "rejected" if required_language == "en" else "not_checked",
+        },
         "sampling": {
             "method": "huggingface_iterable_bounded_buffer_shuffle" if sampling_seed is not None else "upstream_stream_order",
             "seed": sampling_seed,
@@ -251,6 +280,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--text-field", default="text")
     parser.add_argument("--shuffle-seed", type=int, help="deterministic per-cycle streaming shuffle seed")
     parser.add_argument("--shuffle-buffer-size", type=int, default=10_000)
+    parser.add_argument(
+        "--required-language",
+        choices=("en",),
+        help="strictly require a recognised English label and language confidence score",
+    )
+    parser.add_argument("--min-language-score", type=float, default=0.70)
     return parser.parse_args()
 
 
@@ -286,6 +321,8 @@ def main() -> None:
         text_field=args.text_field,
         sampling_seed=args.shuffle_seed,
         shuffle_buffer_size=args.shuffle_buffer_size,
+        required_language=args.required_language,
+        min_language_score=args.min_language_score,
     )
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
 
