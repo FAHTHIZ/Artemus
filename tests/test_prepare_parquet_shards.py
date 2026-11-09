@@ -1,6 +1,7 @@
-import pyarrow as pa
-import pyarrow.parquet as pq
 import pytest
+
+pa = pytest.importorskip("pyarrow")
+pq = pytest.importorskip("pyarrow.parquet")
 
 from artemis.prepare_parquet_shards import iter_parquet_records
 
