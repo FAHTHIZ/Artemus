@@ -151,8 +151,9 @@ jobs:
             echo "Updating private offline training input dataset."
             kaggle datasets version \
               -p .kaggle-input-bundle \
-              -m "Artemus offline inputs for $GITHUB_SHA" \
-              --dir-mode zip
+              -m "Artemus English-only offline inputs for $GITHUB_SHA" \
+              --dir-mode zip \
+              --delete-old-versions
           else
             echo "Creating private offline training input dataset."
             kaggle datasets create \
