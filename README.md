@@ -47,6 +47,7 @@ Measure ArtemisLM alone separately from the complete Artemus system. Never attri
 | [0012 — CPU math adaptation on FineMath-4+](docs/experiments/0012-cpu-math-adaptation-finemath.md) | F0 + 2,500 steps on 40% FineMath-4+ / 60% edu replay; FineMath 1.887 → 1.508 bits/byte, FineWeb-Edu 1.346 → 1.350. | Math formatting learned, no arithmetic yet. Weights on the `checkpoints` branch. |
 | [0013 — CPU English instruction SFT on Aya](docs/experiments/0013-cpu-aya-instruction-sft.md) | F1 + 800 response-only SFT steps on 3,775 human-written English Aya conversations; Aya val loss 3.496 → 3.314. | Learns the chat format and `<|end|>`; answers only trivial facts correctly. Weights on the `checkpoints` branch. |
 | [0014 — CPU task SFT](docs/experiments/0014-cpu-task-sft.md) | S1 + 1,500 response-only steps on OASST1 + GSM8K train + MBPP train; capability val loss 3.252 → 3.102; edu/math bits/byte 1.410 / 1.632. | Learns the GSM8K annotation format but gets 0/100 held-out maths answers right. More SFT is not the lever at 6.45M params. Weights on the `checkpoints` branch. |
+| [0015 — first end-to-end Kaggle cycle](docs/experiments/0015-kaggle-pipeline-first-success.md) | Fixed 3 bundle/notebook bugs; GitHub Actions → Kaggle → evals → export → private state dataset now completes. | Kaggle still assigned CPU (smoke profile, 1.27M params); GPU needs a phone-verified Kaggle account. |
 
 The incremental-cache benchmark is documented in [Experiment 0008](docs/experiments/0008-incremental-kv-cache.md).
 
