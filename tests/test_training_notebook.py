@@ -475,8 +475,15 @@ def test_offline_kaggle_input_bundle_builder_pins_and_packages_all_training_sour
         "bundle-manifest.json",
         "dataset-metadata.json",
         "repository-commit.txt",
+        "verify_pretraining_source.py",
+        "HF_HUB_DISABLE_XET=1",
+        "datasets==3.6.0",
+        "huggingface_hub==0.34.4",
+        "pyarrow==20.0.0",
+        "run_english_preparation",
     ):
         assert expected in builder
+    assert builder.count('run_english_preparation "$PREP_ROOT/') == 2
 
 
 def test_initial_training_uploads_and_attaches_private_offline_input_bundle() -> None:
@@ -607,3 +614,13 @@ def test_kaggle_metadata_verifier_accepts_omitted_id_but_rejects_conflicts() -> 
             expected_id,
             expected_title,
         )
+
+
+
+def test_bundle_builder_only_tolerates_native_shutdown_abort_after_source_verification():
+    root = Path(__file__).resolve().parents[1]
+    builder = (root / "scripts" / "prepare-kaggle-input-bundle.sh").read_text(encoding="utf-8")
+    assert "command_status" in builder
+    assert '[[ "$command_status" -eq 134 ]]' in builder
+    assert "verify_pretraining_source.py" in builder
+    assert "source output passed manifest, split, hash, provenance and English-language verification" in builder
