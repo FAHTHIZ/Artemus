@@ -452,7 +452,9 @@ def test_kaggle_notebook_uses_attached_offline_source_and_prepared_data_bundle()
     assert "--no-index" in install
     assert "sentencepiece" in install
     assert "Manual Kaggle UI execution" in install
-    assert "['git', 'clone'" in install
+    assert "rglob('bundle-manifest.json')" in install
+    assert "refusing to guess" in install.lower()
+    assert "git', 'clone" not in install
     assert "prepared-artifacts" in install
     for cell_id in ("stream", "fineweb-general-ingest", "aya-code", "task-sft-code"):
         assert "manifest.json" in cells[cell_id], f"{cell_id} must reuse a prepared source manifest"
