@@ -1,8 +1,8 @@
 {"id":"general-explanation","capability":"general_conversation","turns":["Explain why the sky looks blue in simple language.","Can you explain it using an everyday analogy?"]}
-{"id":"math-reasoning","capability":"mathematics","turns":["A notebook costs 35 taka. What do 4 notebooks cost? Show the calculation.","Now explain how you could check the answer a second way."]}
+{"id":"math-reasoning","capability":"mathematics","turns":["A notebook costs 35 dollars. What do 4 notebooks cost? Show the calculation.","Now explain how you could check the answer a second way."]}
 {"id":"python-basics","capability":"programming","turns":["Write a Python function named add_numbers(a, b) that returns the sum of two numbers.","Show a short test call and its expected output."]}
 {"id":"science-basics","capability":"science","turns":["What is the difference between mass and weight?","What happens to an object's weight on the Moon, and why?"]}
 {"id":"logical-fractions","capability":"reasoning","turns":["A box contains 12 red balls and 8 blue balls. What fraction are blue?","Convert that fraction into a percentage and show the steps."]}
-{"id":"bangla","capability":"bengali","turns":["বাংলায় সহজভাবে জলচক্র কীভাবে কাজ করে বোঝাও।","বৃষ্টির পানি কীভাবে আবার নদী ও সমুদ্রে ফিরে যায়?"]}
-{"id":"banglish","capability":"banglish","turns":["Banglish e bujhao, internet browser ar search engine er moddhe parthokko ki?","Google ki browser, naki search engine? Keno?"]}
+{"id":"reading-comprehension","capability":"reading_comprehension","turns":["Summarise the main claim of a short technical paragraph in two sentences.","Identify one assumption the author makes and explain why it matters."]}
+{"id":"planning-constraints","capability":"planning","turns":["Plan a four-step process for diagnosing a software build failure.","A required test is unavailable. Explain how you would adapt the plan without claiming the test passed."]}
 {"id":"writing","capability":"writing","turns":["Write a polite two-sentence message asking to reschedule a meeting.","Make the message a little warmer while keeping it professional."]}
