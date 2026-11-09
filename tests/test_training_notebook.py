@@ -484,6 +484,7 @@ def test_initial_training_uploads_and_attaches_private_offline_input_bundle() ->
     assert 'export KAGGLE_INPUT_DATASET="$KAGGLE_USERNAME/artemus-training-inputs"' in workflow
     assert "kaggle datasets create" in workflow
     assert "kaggle datasets version" in workflow
+    assert "--delete-old-versions" in workflow
     assert 'os.environ["KAGGLE_INPUT_DATASET"]' in workflow
     assert 'os.environ["KAGGLE_STATE_DATASET"]' in workflow
     assert "dataset_sources" in workflow
