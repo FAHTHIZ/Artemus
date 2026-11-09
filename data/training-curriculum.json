@@ -36,8 +36,8 @@
       "training_entry": "notebooks/kaggle-gpu-training.ipynb",
       "mixture": {
         "document_weights": {
-          "HuggingFaceFW/fineweb": 0.8,
-          "HuggingFaceFW/fineweb-edu": 0.2
+          "HuggingFaceFW/fineweb": 0.3,
+          "HuggingFaceFW/fineweb-edu": 0.7
         },
         "note": "Document quotas are not token quotas. Measure actual source token shares and deduplicate before mixing."
       },
@@ -48,7 +48,7 @@
           "revision": "resolve once and record immutable SHA",
           "license": "ODC-By-1.0",
           "role": "general English web pretraining",
-          "max_documents_initial": 20000,
+          "max_documents_initial": 40000,
           "language_gate": {
             "required_language": "en",
             "minimum_language_score": 0.7
@@ -60,11 +60,17 @@
           "revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
           "license": "ODC-By-1.0",
           "role": "educational English supplement",
-          "max_documents_initial": 20000,
+          "max_documents_initial": 80000,
           "language_gate": {
             "required_language": "en",
             "minimum_language_score": 0.7
-          }
+          },
+          "quality_gate": {
+            "field": "score",
+            "minimum": 3.5,
+            "note": "FineWeb-Edu classifier tier 4+ (top ~12% of sample-10BT rows)"
+          },
+          "ingestion": "pinned Parquet shard sample/10BT/000_00000.parquet read in bounded row batches"
         }
       ],
       "caveats": [

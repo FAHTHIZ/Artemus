@@ -26,7 +26,7 @@ Do not use preference pairs as ordinary instruction targets. Do not jump to rewa
 
 ## 3. Foundation mixture
 
-The first English foundation mixture uses 80% general FineWeb `sample-10BT` documents and 20% FineWeb-Edu `sample-10BT` documents. This is a document-weight hypothesis, not a token allocation. The pipeline measures actual tokenizer shares. FineWeb-Edu may overlap with general web content, so cross-source deduplication is required. The pilot accepts up to 20,000 documents per source; it does not download the complete upstream corpora.
+The English foundation mixture uses 70% FineWeb-Edu `sample-10BT` documents with an educational-classifier score of at least 3.5 (the top tier; about 12% of rows pass) and 30% general FineWeb `sample-10BT` documents for breadth. Earlier pilots used an 80/20 general/edu split; the change follows the FineWeb-Edu result that educational filtering gives large knowledge/reasoning gains at small budgets. This is a document-weight hypothesis, not a token allocation. The pipeline measures actual tokenizer shares. FineWeb-Edu may overlap with general web content, so cross-source deduplication is required. GPU bundles accept up to 80,000 FineWeb-Edu and 40,000 general documents (100,000 mixed training documents); they do not download the complete upstream corpora.
 
 Both sources declare ODC-By 1.0 and derive from Common Crawl. Attribution, underlying terms, privacy and content filtering require review before model-weight redistribution. Regex checks are not a complete PII audit.
 
@@ -49,7 +49,7 @@ Anthropic's public HH-RLHF dataset supplies preference pairs, not Claude's priva
 
 ## 6. Compute schedule
 
-The Kaggle GPU notebook requests a GPU and uses 6,000 foundation steps (512-token context, batch 4, gradient accumulation 4), up to 10,000 English Aya examples for 1,500 steps, and 1,000 task-SFT steps.
+The Kaggle GPU notebook requests a GPU and trains a ~25M-parameter GQA model (8 layers, width 512, 8 query / 2 KV heads, 8,192-token vocabulary) for 6,000 foundation steps (512-token context, batch 8, gradient accumulation 4; about 98M tokens), up to 10,000 English Aya examples for 1,500 steps, and 1,000 task-SFT steps.
 
 If no CUDA device is allocated, it explicitly switches to a bounded CPU pilot: 1,000 foundation steps (256-token context, batch 1, FP32), 250 English Aya steps and 250 task-SFT steps.
 

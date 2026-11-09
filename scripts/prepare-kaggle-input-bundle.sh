@@ -58,22 +58,38 @@ run_english_preparation() {
 }
 
 FINEWEB_NOTE="ODC-By-1.0 research pilot; Common Crawl terms and residual PII caveats require separate review before redistribution."
+# FineWeb-Edu is read from one pinned Parquet shard in bounded row batches.
+# Streaming hundreds of thousands of rows to reach the score >= 3.5 tier can
+# exhaust runner memory; the local reader applies identical gates.
+FINEWEB_EDU_REVISION="87f09149ef4734204d70ed1d046ddc9ca3f2b8f9"
+FINEWEB_EDU_SHARD="sample/10BT/000_00000.parquet"
+FINEWEB_EDU_SHARD_PATH="$(python - "$FINEWEB_EDU_REVISION" "$FINEWEB_EDU_SHARD" "$PREP_ROOT/raw" <<'PY'
+import sys
+from huggingface_hub import hf_hub_download
+revision, filename, local_dir = sys.argv[1:4]
+print(hf_hub_download(
+    "HuggingFaceFW/fineweb-edu", filename, repo_type="dataset",
+    revision=revision, local_dir=local_dir,
+))
+PY
+)"
 run_english_preparation "$PREP_ROOT/fineweb_edu" "HuggingFaceFW/fineweb-edu" \
-  artemus-prepare-hf \
+  artemus-prepare-parquet \
+  --parquet "$FINEWEB_EDU_SHARD_PATH" \
   --dataset HuggingFaceFW/fineweb-edu \
   --config sample-10BT \
   --split train \
-  --revision 87f09149ef4734204d70ed1d046ddc9ca3f2b8f9 \
+  --revision "$FINEWEB_EDU_REVISION" \
   --license ODC-By-1.0 \
   --license-review-note "$FINEWEB_NOTE" \
   --output-dir "$PREP_ROOT/fineweb_edu" \
-  --max-documents 20000 \
+  --max-documents 80000 \
   --validation-percent 1.0 \
   --min-chars 300 \
   --max-chars 40000 \
-  --required-language en \
   --min-language-score 0.70 \
-  --shuffle-seed 1337
+  --min-quality-score 3.5
+rm -rf "$PREP_ROOT/raw"
 
 # General English web text is the foundation base; FineWeb-Edu is a smaller
 # quality-weighted supplement rather than the whole language distribution.
@@ -95,7 +111,7 @@ run_english_preparation "$PREP_ROOT/fineweb_general" "HuggingFaceFW/fineweb" \
   --license ODC-By-1.0 \
   --license-review-note "$FINEWEB_GENERAL_NOTE" \
   --output-dir "$PREP_ROOT/fineweb_general" \
-  --max-documents 20000 \
+  --max-documents 40000 \
   --validation-percent 1.0 \
   --min-chars 300 \
   --max-chars 40000 \
