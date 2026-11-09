@@ -9,6 +9,7 @@ Each folder is one promoted training stage, with its held-out evaluation, sample
 | `f1-math-6m-step12500/` | F1 math adaptation, 40% FineMath-4+ / 60% edu replay (Experiment 0012) | 6,451,200 | 1.350 | 1.508 |
 | `s1-aya-6m-step13300/` | S1 response-only English instruction SFT on Aya (Experiment 0013) | 6,451,200 | 1.479 | 1.692 |
 | `s2-task-6m-step14800/` | S2 response-only task SFT on OASST1 + GSM8K train + MBPP train (Experiment 0014) | 6,451,200 | 1.410 | 1.632 |
+| `f2-edu2-6m-step17500/` | F2 continued pre-training from F1 on FineWeb-Edu shards 000+007 + FineMath (Experiment 0016) | 6,451,200 | 1.321 | 1.507 |
 
 `*-inference.pt` drops optimizer state (for `artemus-generate` / `artemus-lm-eval`); the full `.pt` resumes with `artemus-train --resume`.
 

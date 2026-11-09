@@ -1,0 +1,135 @@
+{
+  "method": "deterministic_weighted_document_sampling",
+  "seed": 1340,
+  "text_field": "text",
+  "document_weights_are_not_token_weights": true,
+  "warning": "Document quotas do not guarantee token quotas. Measure per-source token shares after fitting the actual tokenizer; adjust document weights if necessary.",
+  "sources": [
+    {
+      "source_id": "fineweb-edu-shard000",
+      "weight": 0.45,
+      "train_path": "data/edu-hq/train.jsonl",
+      "validation_path": "data/edu-hq/validation.jsonl"
+    },
+    {
+      "source_id": "fineweb-edu-shard007",
+      "weight": 0.45,
+      "train_path": "data/edu-hq2/train.dedup.jsonl",
+      "validation_path": "data/edu-hq2/validation.jsonl"
+    },
+    {
+      "source_id": "finemath-4plus",
+      "weight": 0.1,
+      "train_path": "data/finemath/train.jsonl",
+      "validation_path": "data/finemath/validation.jsonl"
+    }
+  ],
+  "requested_budgets": {
+    "train_documents": 190000,
+    "validation_documents": 900
+  },
+  "train_source_stats": [
+    {
+      "source_id": "fineweb-edu-shard000",
+      "weight": 0.45,
+      "input_file": "data/edu-hq/train.jsonl",
+      "input_sha256": "e6ecb98a43863e18e2d79e78bd7d4b5c63484a6170b1ea113fb86c4a4bff140e",
+      "eligible_unique_documents": 88355,
+      "selected_documents": 85500,
+      "selected_characters": 362091297,
+      "requested_document_quota": 85500,
+      "split": "train"
+    },
+    {
+      "source_id": "fineweb-edu-shard007",
+      "weight": 0.45,
+      "input_file": "data/edu-hq2/train.dedup.jsonl",
+      "input_sha256": "41cfe7e142eafe83446922f600eaec5e353be9a117fb392b7866317026048eaa",
+      "eligible_unique_documents": 86996,
+      "selected_documents": 85500,
+      "selected_characters": 359979084,
+      "requested_document_quota": 85500,
+      "split": "train"
+    },
+    {
+      "source_id": "finemath-4plus",
+      "weight": 0.1,
+      "input_file": "data/finemath/train.jsonl",
+      "input_sha256": "24f999a9601ec81c765d05fd1184fda5be21b11bb77acff8a56719c7bbf645c0",
+      "eligible_unique_documents": 39564,
+      "selected_documents": 19000,
+      "selected_characters": 76636100,
+      "requested_document_quota": 19000,
+      "split": "train"
+    }
+  ],
+  "validation_source_stats": [
+    {
+      "source_id": "fineweb-edu-shard000",
+      "weight": 0.45,
+      "input_file": "data/edu-hq/validation.jsonl",
+      "input_sha256": "f00b06bb826b7f28591d9d048d956ae2851c5f17e64570a6978fe2850ad5a78f",
+      "eligible_unique_documents": 915,
+      "selected_documents": 405,
+      "selected_characters": 1645082,
+      "requested_document_quota": 405,
+      "split": "validation"
+    },
+    {
+      "source_id": "fineweb-edu-shard007",
+      "weight": 0.45,
+      "input_file": "data/edu-hq2/validation.jsonl",
+      "input_sha256": "bbcccf6104a057088ce85730c38f450d1d40ae6411e227a62ea952c54e5bab6c",
+      "eligible_unique_documents": 882,
+      "selected_documents": 405,
+      "selected_characters": 1639800,
+      "requested_document_quota": 405,
+      "split": "validation"
+    },
+    {
+      "source_id": "finemath-4plus",
+      "weight": 0.1,
+      "input_file": "data/finemath/validation.jsonl",
+      "input_sha256": "fc7925f73d03fd4956b814cffe06ab320d60e7975f49dd13b2d4bf6ecda2c326",
+      "eligible_unique_documents": 436,
+      "selected_documents": 90,
+      "selected_characters": 289362,
+      "requested_document_quota": 90,
+      "split": "validation"
+    }
+  ],
+  "train": {
+    "documents": 190000,
+    "characters": 798706481,
+    "per_source_documents": {
+      "fineweb-edu-shard007": 85500,
+      "fineweb-edu-shard000": 85500,
+      "finemath-4plus": 19000
+    },
+    "per_source_characters": {
+      "fineweb-edu-shard007": 359979084,
+      "fineweb-edu-shard000": 362091297,
+      "finemath-4plus": 76636100
+    }
+  },
+  "validation": {
+    "documents": 900,
+    "characters": 3574244,
+    "per_source_documents": {
+      "fineweb-edu-shard007": 405,
+      "fineweb-edu-shard000": 405,
+      "finemath-4plus": 90
+    },
+    "per_source_characters": {
+      "fineweb-edu-shard007": 1639800,
+      "fineweb-edu-shard000": 1645082,
+      "finemath-4plus": 289362
+    }
+  },
+  "train_validation_hash_overlap": 0,
+  "files": {
+    "train_jsonl": "train.jsonl",
+    "validation_jsonl": "validation.jsonl",
+    "tokenizer_text": "train.txt"
+  }
+}
