@@ -39,6 +39,7 @@ def prepare_aya_stream(
     max_response_chars: int = 20_000,
     sampling_seed: int | None = None,
     shuffle_buffer_size: int = 10_000,
+    allowed_language_codes: set[str] | None = None,
 ) -> dict[str, Any]:
     if len(dataset_revision) < 7 or dataset_revision in {"main", "master", "latest"}:
         raise ValueError("dataset_revision must be a pinned commit or immutable release")
@@ -74,6 +75,12 @@ def prepare_aya_stream(
         for row_number, record in enumerate(records, start=1):
             if accepted >= max_examples:
                 break
+            raw_language_code = record.get("language_code")
+            language_code = raw_language_code if isinstance(raw_language_code, str) else "und"
+            if allowed_language_codes is not None and language_code not in allowed_language_codes:
+                counts["rejected_language_not_allowed"] += 1
+                continue
+
             prompt = record.get("inputs")
             response = record.get("targets")
             if not isinstance(prompt, str) or not isinstance(response, str):
@@ -102,7 +109,6 @@ def prepare_aya_stream(
             seen_pairs.add(pair_sha)
 
             language = record.get("language")
-            language_code = record.get("language_code")
             annotation_type = record.get("annotation_type")
             language = language if isinstance(language, str) else "unknown"
             language_code = language_code if isinstance(language_code, str) else "und"
@@ -187,6 +193,7 @@ def prepare_aya_stream(
             "method": "huggingface_iterable_bounded_buffer_shuffle" if sampling_seed is not None else "upstream_stream_order",
             "seed": sampling_seed,
             "buffer_size": shuffle_buffer_size if sampling_seed is not None else None,
+            "allowed_language_codes": sorted(allowed_language_codes) if allowed_language_codes is not None else None,
         },
         "accepted_examples": accepted,
         "counts": dict(counts),
@@ -219,6 +226,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-response-chars", type=int, default=20_000)
     parser.add_argument("--shuffle-seed", type=int, help="deterministic per-cycle streaming shuffle seed")
     parser.add_argument("--shuffle-buffer-size", type=int, default=10_000)
+    parser.add_argument(
+        "--language-codes",
+        nargs="+",
+        help="optional ISO language-code allowlist, e.g. eng; omitted means all languages",
+    )
     return parser.parse_args()
 
 
@@ -250,6 +262,7 @@ def main() -> None:
         max_response_chars=args.max_response_chars,
         sampling_seed=args.shuffle_seed,
         shuffle_buffer_size=args.shuffle_buffer_size,
+        allowed_language_codes=set(args.language_codes) if args.language_codes else None,
     )
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
 
