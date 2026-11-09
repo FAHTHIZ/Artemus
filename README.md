@@ -53,6 +53,8 @@ The 0007 checkpoint used format v2 and did not embed run metadata. Its sidecar r
 
 The initial foundation run is launched through GitHub Actions only after validation succeeds; GitHub CI itself does not provide training compute. Kaggle must allocate the requested GPU, and every run records whether it actually used CUDA or the bounded CPU fallback.
 
+The source-bundle builder pins its Hugging Face data-ingestion dependencies, disables the optional Xet backend for preparation, and independently verifies every English train/validation/provenance record before packaging.
+
 A read-only Kaggle kernel status probe is available through the validation workflow and does not modify training state.
 
 **Active training scope:** English only. Foundation text must carry an explicit English label and language-confidence score of at least 0.70; Aya instruction examples must use language code `eng`. The initial foundation run starts from random initialization and uses the FineWeb / FineWeb-Edu English mixture.
