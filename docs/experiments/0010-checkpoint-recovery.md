@@ -6,7 +6,7 @@
 
 ## Why this run exists
 
-A previous continuation run reached 16,000 optimizer steps and saved a format-v3 checkpoint, but its final dialogue evaluation failed because one Bangla follow-up prompt exceeded the model's 256-token context window. The checkpoint artifact was uploaded despite that post-training failure.
+A previous continuation run reached 16,000 optimizer steps and saved a format-v3 checkpoint, but its final dialogue evaluation failed because one English follow-up prompt exceeded the model's 256-token context window. The checkpoint artifact was uploaded despite that post-training failure.
 
 The continuation workflow was changed to select the newest completed run that contains the expected non-expired checkpoint artifact, rather than requiring every post-training evaluation step to have succeeded. The dialogue evaluator now trims the oldest complete user/assistant turns when the context would overflow. It never silently truncates the current user prompt.
 
@@ -39,6 +39,6 @@ The math prompt produced nonsensical arithmetic text. The Python prompt produced
 
 ## Decision
 
-Do not repeat the OASST1/GSM8K/MBPP task mixture beyond its current budget. Keep this checkpoint as a historical task-SFT baseline. Start a separate foundation-pretraining run from random initialization using a pinned, broader corpus and a newly trained tokenizer. Evaluate that checkpoint against the same protected and private tests, then add code, math, Bangla, and reviewed human-teaching data as separate stages.
+Do not repeat the OASST1/GSM8K/MBPP task mixture beyond its current budget. Keep this checkpoint as a historical task-SFT baseline. Start a separate foundation-pretraining run from random initialization using a pinned, broader corpus and a newly trained tokenizer. Evaluate that checkpoint against the same protected and private tests, then add code, mathematics and reviewed human-teaching data as separate stages.
 
 The new general pretraining entry point is `notebooks/kaggle-gpu-training.ipynb`; actual GPU allocation requires a Kaggle account with an available GPU accelerator.
