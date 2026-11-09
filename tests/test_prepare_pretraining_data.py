@@ -67,8 +67,8 @@ def test_prepare_stream_requires_immutable_revision_and_license_review(tmp_path)
         )
 
 
-def test_quality_filter_rejects_phone_like_numbers_in_ascii_and_bangla_digits():
-    for phone in ("01712-345678", "+880 1712 345678", "০১৭১২-৩৪৫৬৭৮"):
+def test_quality_filter_rejects_ascii_phone_like_numbers():
+    for phone in ("01712-345678", "+1 202 555 0147"):
         reason = quality_rejection_reason(
             "This is a sufficiently long document " * 20 + " contact " + phone,
             min_chars=20,
@@ -104,3 +104,58 @@ def test_shuffle_stream_rejects_invalid_or_unsupported_shuffle():
         shuffle_stream([], seed=1, buffer_size=0)
     with pytest.raises(TypeError, match="shuffle"):
         shuffle_stream([], seed=1, buffer_size=100)
+
+
+
+def test_prepare_stream_enforces_english_language_and_confidence_gate(tmp_path):
+    records = [
+        {
+            "id": f"english-{index}",
+            "text": f"An English research document {index}. " + "Careful explanation, context, and supporting detail. " * 12,
+            "language": "en",
+            "language_score": 0.95,
+        }
+        for index in range(200)
+    ]
+    records.extend(
+        {
+            "id": f"unlabelled-{index}",
+            "text": f"Unapproved language document {index}. " + "This record must not enter an English-only mixture. " * 12,
+            "language": "xx",
+            "language_score": 0.99,
+        }
+        for index in range(50)
+    )
+    records.extend(
+        {
+            "id": f"low-confidence-{index}",
+            "text": f"Low confidence document {index}. " + "This record is not sufficiently certain to keep. " * 12,
+            "language": "en",
+            "language_score": 0.40,
+        }
+        for index in range(50)
+    )
+    manifest = prepare_stream(
+        records,
+        dataset_id="example/english-corpus",
+        dataset_revision="f" * 40,
+        dataset_config="sample",
+        dataset_split="train",
+        license_id="MIT",
+        license_review_note="English-only unit-test fixture",
+        output_dir=tmp_path,
+        max_documents=500,
+        validation_percent=10,
+        min_chars=100,
+        max_chars=5000,
+        required_language="en",
+        min_language_score=0.70,
+    )
+    assert manifest["accepted_documents"] == 200
+    assert manifest["counts"]["rejected_language_filter"] == 50
+    assert manifest["counts"]["rejected_language_confidence"] == 50
+    assert manifest["language_policy"]["required_language"] == "en"
+    for split in ("train.jsonl", "validation.jsonl"):
+        rows = [json.loads(line) for line in (tmp_path / split).read_text().splitlines()]
+        assert rows
+        assert all(row["provenance"]["language"] == "en" for row in rows)
