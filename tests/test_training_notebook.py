@@ -254,7 +254,8 @@ def test_kaggle_workflow_bootstraps_private_state_dataset_on_first_run() -> None
     assert '"licenses": [{"name": "other"}]' in source
     assert '"id": dataset_id' in source
     assert "KAGGLE_STATE_DATASET" in source
-    assert "if metadata.get(\"id\") != expected:" in source
+    assert "verify_kaggle_dataset_metadata.py" in source
+    assert '"Artemus Training State"' in source
     assert "kaggle datasets create -p .kaggle-state-bootstrap -q --public" not in source
 
 
