@@ -56,8 +56,8 @@ The short smoke loss is not a meaningful quality benchmark and is not compared w
 
 ## Limits and next test
 
-Factorized embeddings reduce parameter storage but add two projections and may constrain the representational capacity of rare tokens, code identifiers, mathematical notation, Bengali, and Banglish.
+Factorized embeddings reduce parameter storage but add two projections and may constrain the representational capacity of rare English technical terms, code identifiers, and mathematical notation.
 
-The next comparison must train baseline and factorized candidates on identical tokenizer/data/seed/token budgets, then evaluate held-out language, coding, mathematics, and multilingual tasks. Retain the smaller embedding only if quality survives.
+The next comparison must train baseline and factorized candidates on identical tokenizer/data/seed/token budgets, then evaluate held-out English, coding and mathematics tasks. Retain the smaller embedding only if quality survives.
 
 The current code still does not implement incremental KV caching. The theoretical GQA KV-cache estimate remains separate from measured inference memory or speed.
