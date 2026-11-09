@@ -303,7 +303,7 @@
     },
     "invariants": [
       "Only English text enters training.",
-      "Resume only the foundation checkpoint, never an SFT candidate.",
+      "The next cycle resumes only the foundation checkpoint, never an Aya or task-SFT candidate.",
       "Reuse the tokenizer byte-identically after the first cycle.",
       "Foundation records pass the English label and confidence gate.",
       "Aya accepts only language code eng.",
