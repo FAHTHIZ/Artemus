@@ -61,4 +61,4 @@ This is a theoretical compact cache layout. Current Artemis generation recompute
 - Context length, dtype width, and architecture options are validated.
 - The architecture CI also validates GQA/RoPE/QKNorm/SwiGLU forward/backward and causal masking.
 
-This experiment is arithmetic and implementation validation—not model-quality evidence. A matched-budget training run with held-out language, coding, mathematics, and multilingual tasks is required before choosing the architecture.
+This experiment is arithmetic and implementation validation—not model-quality evidence. A matched-budget training run with held-out English, coding and mathematics tasks is required before choosing the architecture.
