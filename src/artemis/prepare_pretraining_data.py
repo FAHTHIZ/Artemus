@@ -89,7 +89,7 @@ def prepare_stream(
     text_field: str = "text",
     sampling_seed: int | None = None,
     shuffle_buffer_size: int = 10_000,
-    required_language: str | None = None,
+    required_language: str = "en",
     min_language_score: float = 0.70,
 ) -> dict[str, Any]:
     if len(dataset_revision) < 7 or dataset_revision in {"main", "master", "latest"}:
@@ -104,7 +104,7 @@ def prepare_stream(
         raise ValueError("shuffle_buffer_size must be positive")
     if not 0.0 <= min_language_score <= 1.0:
         raise ValueError("min_language_score must be between zero and one")
-    if required_language is not None and required_language.strip().lower() != "en":
+    if not isinstance(required_language, str) or required_language.strip().lower() != "en":
         raise ValueError("this training pipeline accepts English only (required_language='en')")
     if min_chars < 1 or max_chars < min_chars:
         raise ValueError("invalid character limits")
@@ -131,23 +131,22 @@ def prepare_stream(
         for record in records:
             if accepted >= max_documents:
                 break
-            if required_language is not None:
-                language_label = record.get("language")
-                normalized_language = (
-                    str(language_label).strip().lower() if language_label is not None else ""
-                )
-                if normalized_language not in {"en", "eng", "english"}:
-                    counts["rejected_language_filter"] += 1
-                    continue
-                language_score = record.get("language_score")
-                if (
-                    isinstance(language_score, bool)
-                    or not isinstance(language_score, (int, float))
-                    or not 0.0 <= float(language_score) <= 1.0
-                    or float(language_score) < min_language_score
-                ):
-                    counts["rejected_language_confidence"] += 1
-                    continue
+            language_label = record.get("language")
+            normalized_language = (
+                str(language_label).strip().lower() if language_label is not None else ""
+            )
+            if normalized_language not in {"en", "eng", "english"}:
+                counts["rejected_language_filter"] += 1
+                continue
+            language_score = record.get("language_score")
+            if (
+                isinstance(language_score, bool)
+                or not isinstance(language_score, (int, float))
+                or not 0.0 <= float(language_score) <= 1.0
+                or float(language_score) < min_language_score
+            ):
+                counts["rejected_language_confidence"] += 1
+                continue
             raw_text = record.get(text_field)
             if not isinstance(raw_text, str):
                 counts["rejected_missing_text"] += 1
@@ -215,9 +214,9 @@ def prepare_stream(
         "validation_percent": validation_percent,
         "language_policy": {
             "required_language": required_language,
-            "accepted_labels": ["en", "eng", "english"] if required_language == "en" else None,
-            "minimum_language_score": min_language_score if required_language == "en" else None,
-            "missing_language_metadata": "rejected" if required_language == "en" else "not_checked",
+            "accepted_labels": ["en", "eng", "english"],
+            "minimum_language_score": min_language_score,
+            "missing_language_metadata": "rejected",
         },
         "sampling": {
             "method": "huggingface_iterable_bounded_buffer_shuffle" if sampling_seed is not None else "upstream_stream_order",
@@ -283,6 +282,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--required-language",
         choices=("en",),
+        default="en",
         help="strictly require a recognised English label and language confidence score",
     )
     parser.add_argument("--min-language-score", type=float, default=0.70)
