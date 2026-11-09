@@ -12,6 +12,7 @@ src/artemis/prepare_capability_data.py
 src/artemis/prepare_corpus_mixture.py
 src/artemis/prepare_oasst1.py
 src/artemis/prepare_oscr_code.py
+src/artemis/prepare_parquet_shards.py
 src/artemis/prepare_pretraining_data.py
 src/artemis/prepare_teaching_data.py
 src/artemis/profile.py
@@ -42,6 +43,7 @@ tests/test_prepare_capability_data.py
 tests/test_prepare_corpus_mixture.py
 tests/test_prepare_oasst1.py
 tests/test_prepare_oscr_code.py
+tests/test_prepare_parquet_shards.py
 tests/test_prepare_pretraining_data.py
 tests/test_prepare_teaching_data.py
 tests/test_profile.py

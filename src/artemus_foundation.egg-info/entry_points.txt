@@ -7,6 +7,7 @@ artemus-prepare-aya = artemis.prepare_aya:main
 artemus-prepare-hf = artemis.prepare_pretraining_data:main
 artemus-prepare-mixture = artemis.prepare_corpus_mixture:main
 artemus-prepare-oscr = artemis.prepare_oscr_code:main
+artemus-prepare-parquet = artemis.prepare_parquet_shards:main
 artemus-prepare-teaching = artemis.prepare_teaching_data:main
 artemus-profile = artemis.profile:main
 artemus-teach = artemis.teach:main
