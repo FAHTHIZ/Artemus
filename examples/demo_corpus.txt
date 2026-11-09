@@ -14,8 +14,8 @@ Inspect the error message and the relevant code path. Form a hypothesis and test
 Change one thing at a time when practical. Run the focused test again, then run regression tests.
 Record what was tested and what could not be verified.
 
-বাংলা ভাষাসহ একাধিক ভাষার লেখা সঠিকভাবে সংরক্ষণ ও টোকেনাইজ করা গুরুত্বপূর্ণ।
-একটি ছোট পরীক্ষামূলক মডেল বড় মডেলের বিকল্প নয়। এটি প্রশিক্ষণ প্রক্রিয়ার ভুল খুঁজে বের করতে সাহায্য করে।
+A small experimental model is not a substitute for a large model.
+It helps identify training-pipeline mistakes before expensive experiments begin.
 
 A test suite is a collection of executable expectations.
 A passing test gives evidence about the behaviour it covers; it does not prove that every possible behaviour is correct.
