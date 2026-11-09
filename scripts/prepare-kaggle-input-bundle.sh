@@ -12,14 +12,54 @@ fi
 rm -rf "$PREP_ROOT" "$BUNDLE_ROOT"
 mkdir -p "$PREP_ROOT" "$BUNDLE_ROOT/prepared-artifacts" "$BUNDLE_ROOT/wheelhouse"
 
-# Install only the project entry points plus data-ingestion tooling on GitHub's
-# internet-connected runner. No model training or model weights are produced here.
-python -m pip install --upgrade pip
+# Avoid the optional native Xet transfer backend in this streaming-preparation
+# process. Keep a tested, mutually compatible data-ingestion stack instead of
+# silently taking the newest Hub/fsspec/pyarrow combination.
+export HF_HUB_DISABLE_XET=1
+export HF_HUB_DISABLE_TELEMETRY=1
+ulimit -c 0 || true
+
+# Install only the project entry points plus pinned data-ingestion tooling on
+# the internet-connected runner. This step prepares data; it does not train weights.
 python -m pip install --no-deps --no-build-isolation -e .
-python -m pip install "datasets>=3.0" "huggingface_hub>=0.26" "pyarrow>=18.0"
+python -m pip install \
+  "numpy==1.26.4" \
+  "fsspec[http]==2025.3.0" \
+  "pyarrow==20.0.0" \
+  "huggingface_hub==0.34.4" \
+  "datasets==3.6.0"
+
+# A native extension can abort during interpreter finalization after the
+# complete manifest has been written. Only tolerate SIGABRT (134) when a
+# separate verifier proves every split and provenance record is complete.
+run_english_preparation() {
+  local output_dir="$1"
+  local expected_dataset="$2"
+  shift 2
+  local command_status=0
+
+  set +e
+  "$@"
+  command_status=$?
+  set -e
+
+  python scripts/verify_pretraining_source.py "$output_dir" \
+    --minimum-language-score 0.70 \
+    --expected-dataset-id "$expected_dataset"
+
+  if [[ "$command_status" -ne 0 ]]; then
+    if [[ "$command_status" -eq 134 ]]; then
+      echo "::warning::The source output passed manifest, split, hash, provenance and English-language verification despite a native interpreter-shutdown abort (exit 134)."
+    else
+      echo "::error::English source preparation failed with exit code $command_status."
+      return "$command_status"
+    fi
+  fi
+}
 
 FINEWEB_NOTE="ODC-By-1.0 research pilot; Common Crawl terms and residual PII caveats require separate review before redistribution."
-artemus-prepare-hf \
+run_english_preparation "$PREP_ROOT/fineweb_edu" "HuggingFaceFW/fineweb-edu" \
+  artemus-prepare-hf \
   --dataset HuggingFaceFW/fineweb-edu \
   --config sample-10BT \
   --split train \
@@ -46,7 +86,8 @@ print(revision)
 PY
 )"
 FINEWEB_GENERAL_NOTE="ODC-By-1.0 research pilot; Common Crawl terms and residual PII/content caveats apply. Local pattern screening is not a complete privacy audit."
-artemus-prepare-hf \
+run_english_preparation "$PREP_ROOT/fineweb_general" "HuggingFaceFW/fineweb" \
+  artemus-prepare-hf \
   --dataset HuggingFaceFW/fineweb \
   --config sample-10BT \
   --split train \
