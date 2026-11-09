@@ -19,8 +19,8 @@ def test_aya_stream_preserves_language_and_discards_demographics(tmp_path):
         {
             "inputs": f"Explain a general concept number {index}.",
             "targets": f"A reviewed explanation for concept {index}.",
-            "language": "Bengali" if index % 2 else "English",
-            "language_code": "ben" if index % 2 else "eng",
+            "language": "English",
+            "language_code": "eng",
             "annotation_type": "original-annotations",
             "user_id": f"private-user-{index}",
             "age_range": [25, 35],
@@ -42,7 +42,7 @@ def test_aya_stream_preserves_language_and_discards_demographics(tmp_path):
     ]
     assert manifest["accepted_examples"] == 400
     assert train and validation
-    assert manifest["examples_by_language_code"]["ben"] == 200
+    assert manifest["examples_by_language_code"]["eng"] == 400
     assert all("user_id" not in row for row in train + validation)
     assert all("user_id" not in row["provenance"] for row in train + validation)
     assert "<|assistant|>" in train[0]["text"]
@@ -59,7 +59,7 @@ def test_aya_keeps_identical_prompts_in_same_split_and_deduplicates_pairs(tmp_pa
         {
             "inputs": f"Unique prompt {index}?",
             "targets": f"Unique response {index}.",
-            "language_code": "ben",
+            "language_code": "eng",
         }
         for index in range(300)
     )
@@ -147,10 +147,10 @@ def test_aya_language_allowlist_keeps_initial_sft_english_first(tmp_path):
         for index in range(120)
     ] + [
         {
-            "inputs": f"বাংলায় ধারণাটি ব্যাখ্যা করো {index}.",
-            "targets": f"এটি একটি বাংলা ব্যাখ্যা {index}.",
-            "language": "Bengali",
-            "language_code": "ben",
+            "inputs": f"Explain this additional concept for an unapproved language label {index}.",
+            "targets": f"This record uses a non-approved source label and must be excluded {index}.",
+            "language": "Unapproved",
+            "language_code": "xx",
         }
         for index in range(120)
     ]
