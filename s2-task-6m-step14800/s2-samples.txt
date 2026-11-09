@@ -1,0 +1,25 @@
+### What is the capital of France?
+<|prompter|> What is the capital of France? <|assistant|> The capital of France is a country located in the West Indies and is the capital of France. The capital of France is known for its capital city and is located in the North and is known for its capital and its trade. <|end|>
+
+NOTE: generated text is experimental; evaluate it before treating it as useful advice.
+
+### Explain why the sky is blue.
+<|prompter|> Explain why the sky is blue. <|assistant|> The sky is blue and blue. The sky is blue and blue. They are called red and blue. They are made of blue and yellow, and they are called blue and blue. <|end|>
+
+NOTE: generated text is experimental; evaluate it before treating it as useful advice.
+
+### Tom has 3 apples and buys 5 more. How many apples does he have?
+<|prompter|> Tom has 3 apples and buys 5 more. How many apples does he have? <|assistant|> The second one is 5 + 3 apples = <<5+3=2>>2 apples. The second one is 3 apples + 2 apples + 2 apples + 2 apples + 3 apples = <<3*2=12>>12 apples. If the apples are left, then the
+
+NOTE: generated text is experimental; evaluate it before treating it as useful advice.
+
+### Write a Python function that returns the square of a number.
+<|prompter|> Write a Python function that returns the square of a number. <|assistant|> A Python function that returns a value of $n$. 3. Look for the base of a number. The following code takes the square of a number of digits: $n$, $n$ = 100$. 4. The square of the square is $n$. The square of the square is $n
+
+NOTE: generated text is experimental; evaluate it before treating it as useful advice.
+
+### Give me three tips for studying.
+<|prompter|> Give me three tips for studying. <|assistant|> 1. Cite the following steps: 1. Create a breakdown: Make sure you have a new bowl, such as the pillow, or the rum, or the apex, or the wood. 2. Please take the bars of the pillow. 3. Create a breakdown: Make sure you have a new bow
+
+NOTE: generated text is experimental; evaluate it before treating it as useful advice.
+

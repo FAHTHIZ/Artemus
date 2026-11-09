@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "checkpoint_sha256": "2f2532e34f2270bfccf70d5e8706beeedb467e188ab449783a2477ed45eead8a",
+  "evaluation_data_sha256": "623f9171080ea45fb28ca84f55c6afc83680b41ffdab98268ffc148767e3d855",
+  "checkpoint_step": 14800,
+  "model_parameters": 6451200,
+  "device": "cpu",
+  "seed": 1337,
+  "generation": {
+    "max_new_tokens": 96,
+    "top_k": 1,
+    "temperature": 1.0
+  },
+  "math": {
+    "evaluated": 100,
+    "correct": 0,
+    "unparsed_answers": 88,
+    "exact_match_accuracy": 0.0
+  },
+  "python": {
+    "evaluated": 38,
+    "syntax_valid": 0,
+    "exact_text_matches": 0,
+    "syntax_valid_rate": 0.0,
+    "exact_text_match_rate": 0.0,
+    "execution_tests_run": 0,
+    "note": "Syntax and exact text only; generated code is never executed by this evaluator."
+  },
+  "skipped_context": 7,
+  "total_records_selected": 145,
+  "result_file": "runs/cap-s2-task-6m/results.jsonl",
+  "evaluation_scope": "Internal held-out partitions from the declared source training splits. These diagnostic metrics are not official GSM8K or MBPP benchmark scores."
+}

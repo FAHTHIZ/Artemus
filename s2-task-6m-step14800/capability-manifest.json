@@ -1,0 +1,57 @@
+{
+  "mixture": "OASST1 + GSM8K-main-train + MBPP-official-train-ids",
+  "sources": {
+    "oasst1": {
+      "license": "Apache-2.0",
+      "preprocessing": "reviewed English conversations; conversation-tree grouped split"
+    },
+    "gsm8k": {
+      "license": "MIT",
+      "revision": "3101c7d5072418e28b9008a6636bde82a006892c",
+      "url": "https://raw.githubusercontent.com/openai/grade-school-math/3101c7d5072418e28b9008a6636bde82a006892c/grade_school_math/data/train.jsonl",
+      "train_source_sha256": "17f347dc51477c50d4efb83959dbb7c56297aba886e5544ee2aaed3024813465",
+      "official_train_examples": 7473,
+      "validation": "deterministic 10% hash bucket 0 from official train only",
+      "evaluation": "deterministic 10% hash bucket 1 from official train only; disjoint from train and validation",
+      "official_test": "not downloaded or ingested"
+    },
+    "mbpp": {
+      "license": "CC-BY-4.0",
+      "revision": "83f1e7b59e762648c953de751d31f75720683622",
+      "url": "https://raw.githubusercontent.com/google-research/google-research/83f1e7b59e762648c953de751d31f75720683622/mbpp/mbpp.jsonl",
+      "git_blob_sha": "96e2dc2f7dd95b7b87b38dc46e42cbed444251bb",
+      "training_task_ids": "601-974",
+      "validation_task_ids": "511-555 (monitor only)",
+      "evaluation_task_ids": "556-600 (diagnostic only)",
+      "excluded_task_ids": "1-10 prompt; 11-510 protected test",
+      "counts": {
+        "train": 374,
+        "validation": 45,
+        "evaluation": 45,
+        "excluded": 510
+      }
+    }
+  },
+  "mixture_policy": "concatenate each eligible source once; no benchmark test split in training",
+  "train_components": {
+    "oasst1": true,
+    "gsm8k": 6011,
+    "mbpp": 374
+  },
+  "validation_components": {
+    "oasst1": true,
+    "gsm8k": 772,
+    "mbpp": 45
+  },
+  "train_bytes": 24230289,
+  "validation_bytes": 2791274,
+  "evaluation_file": "evaluation.jsonl",
+  "evaluation_examples": 735,
+  "evaluation_examples_by_task": {
+    "math": 690,
+    "python": 45
+  },
+  "evaluation_sha256": "623f9171080ea45fb28ca84f55c6afc83680b41ffdab98268ffc148767e3d855",
+  "evaluation_policy": "GSM8K hash bucket 1 and MBPP IDs 556-600; disjoint from optimizer validation. Not an official benchmark score.",
+  "test_integrity": "GSM8K official test file and MBPP IDs 1-510 were not included"
+}

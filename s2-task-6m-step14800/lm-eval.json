@@ -1,0 +1,28 @@
+{
+  "checkpoint": "artemus-s2-task-6m.pt",
+  "checkpoint_sha256": "2f2532e34f2270bfccf70d5e8706beeedb467e188ab449783a2477ed45eead8a",
+  "checkpoint_step": 14800,
+  "parameters": 6451200,
+  "datasets": {
+    "data/edu-hq/validation.jsonl": {
+      "documents": 300,
+      "tokens": 269505,
+      "bytes": 1088164,
+      "token_loss": 3.946550242192816,
+      "perplexity": 51.75651107952073,
+      "bits_per_byte": 1.4101478445611988,
+      "bytes_per_token": 4.037639375892841,
+      "data_sha256": "f00b06bb826b7f28591d9d048d956ae2851c5f17e64570a6978fe2850ad5a78f"
+    },
+    "data/finemath/validation.jsonl": {
+      "documents": 300,
+      "tokens": 446215,
+      "bytes": 1281774,
+      "token_loss": 3.24886948946161,
+      "perplexity": 25.76120014064377,
+      "bits_per_byte": 1.6316969889533655,
+      "bytes_per_token": 2.87254798695696,
+      "data_sha256": "fc7925f73d03fd4956b814cffe06ab320d60e7975f49dd13b2d4bf6ecda2c326"
+    }
+  }
+}
