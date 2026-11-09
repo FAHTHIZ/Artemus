@@ -80,7 +80,12 @@ def prepare_aya_stream(
                 break
             raw_language_code = record.get("language_code")
             language_code = raw_language_code if isinstance(raw_language_code, str) else "und"
-            if allowed_language_codes is not None and language_code not in allowed_language_codes:
+            raw_language = record.get("language")
+            language_label = raw_language.strip().lower() if isinstance(raw_language, str) else ""
+            if (
+                language_code not in allowed_language_codes
+                or (language_label and language_label not in {"en", "eng", "english"})
+            ):
                 counts["rejected_language_not_allowed"] += 1
                 continue
 
