@@ -1,0 +1,70 @@
+{
+  "dataset_id": "HuggingFaceFW/fineweb-edu",
+  "dataset_revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
+  "dataset_config": "sample-10BT",
+  "upstream_split": "train",
+  "license": "ODC-By-1.0",
+  "license_review_note": "ODC-By 1.0; Common Crawl terms apply; reviewed for private research training",
+  "max_documents": 120000,
+  "validation_percent": 1.0,
+  "language_policy": {
+    "required_language": "en",
+    "accepted_labels": [
+      "en",
+      "eng",
+      "english"
+    ],
+    "minimum_language_score": 0.7,
+    "missing_language_metadata": "rejected"
+  },
+  "educational_quality_policy": {
+    "score_field": "score",
+    "minimum_score": 3.5,
+    "missing_score": "rejected",
+    "note": "FineWeb-Edu classifier score (0-5); higher keeps more educational text."
+  },
+  "sampling": {
+    "method": "upstream_stream_order",
+    "seed": null,
+    "buffer_size": null
+  },
+  "quality_policy": {
+    "min_chars": 300,
+    "max_chars": 40000,
+    "min_alpha_ratio": 0.35,
+    "filters": [
+      "missing/non-string text",
+      "obvious email/IP/private-key/token and phone-like number patterns",
+      "length and low alphanumeric ratio",
+      "highly repetitive lines",
+      "exact duplicate content"
+    ],
+    "limitations": [
+      "Regex filters are not comprehensive PII or secrets detection; phone-like filtering can create false positives.",
+      "Exact deduplication does not detect semantic or near-duplicate documents.",
+      "A dataset-level licence label does not replace upstream terms or component-level rights review."
+    ]
+  },
+  "counts": {
+    "rejected_quality_score": 627247,
+    "accepted_train": 88355,
+    "rejected_possible_personal_or_secret_data": 6063,
+    "rejected_language_confidence": 2423,
+    "rejected_too_long": 772,
+    "accepted_validation": 915,
+    "rejected_too_short": 17,
+    "rejected_exact_duplicate": 208
+  },
+  "accepted_documents": 89270,
+  "accepted_characters": 377859630,
+  "files": {
+    "train_jsonl": "train.jsonl",
+    "validation_jsonl": "validation.jsonl",
+    "train_text_for_tokenizer": "train.txt",
+    "validation_text_for_inspection": "validation.txt",
+    "provenance_jsonl": "provenance.jsonl"
+  },
+  "parquet_shards": [
+    "000_00000.parquet"
+  ]
+}
