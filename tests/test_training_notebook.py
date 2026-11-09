@@ -101,7 +101,8 @@ def test_kaggle_training_notebook_resumes_foundation_state_and_rotates_samples()
     assert "foundation_checkpoint_sha256" in settings
     assert "tokenizer_sha256" in settings
     assert "recorded_cycle != CYCLE_INDEX" in settings
-    assert "FINEWEB_SHUFFLE_SEED" in settings
+    assert "FINEWEB_GENERAL_SHUFFLE_SEED" in settings
+    assert "FINEWEB_EDU_SHUFFLE_SEED" in settings
     assert "--shuffle-seed" in preparation
     assert "HAS_FOUNDATION_STATE" in tokenizer
     assert "SentencePieceTokenizer.train" in tokenizer
