@@ -6,6 +6,7 @@ src/artemis/capability_eval.py
 src/artemis/config.py
 src/artemis/dialogue_eval.py
 src/artemis/generate.py
+src/artemis/lm_eval.py
 src/artemis/model.py
 src/artemis/prepare_aya.py
 src/artemis/prepare_capability_data.py
@@ -35,6 +36,7 @@ tests/test_capability_eval.py
 tests/test_cognitive_kernel.py
 tests/test_dialogue_eval.py
 tests/test_generation.py
+tests/test_lm_eval.py
 tests/test_memory.py
 tests/test_model.py
 tests/test_model_compat.py

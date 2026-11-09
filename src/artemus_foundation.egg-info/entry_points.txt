@@ -3,6 +3,7 @@ artemus-bench-kv-cache = artemis.bench_kv_cache:main
 artemus-capability-eval = artemis.capability_eval:main
 artemus-dialogue-eval = artemis.dialogue_eval:main
 artemus-generate = artemis.generate:main
+artemus-lm-eval = artemis.lm_eval:main
 artemus-prepare-aya = artemis.prepare_aya:main
 artemus-prepare-hf = artemis.prepare_pretraining_data:main
 artemus-prepare-mixture = artemis.prepare_corpus_mixture:main
