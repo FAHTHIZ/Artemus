@@ -43,6 +43,9 @@ def prepare_aya_stream(
 ) -> dict[str, Any]:
     if len(dataset_revision) < 7 or dataset_revision in {"main", "master", "latest"}:
         raise ValueError("dataset_revision must be a pinned commit or immutable release")
+    allowed_language_codes = {"eng"} if allowed_language_codes is None else set(allowed_language_codes)
+    if allowed_language_codes != {"eng"}:
+        raise ValueError("Aya preparation accepts English only (language code eng).")
     if max_examples < 100:
         raise ValueError("max_examples must be at least 100")
     if shuffle_buffer_size < 1:
@@ -229,7 +232,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--language-codes",
         nargs="+",
-        help="optional ISO language-code allowlist, e.g. eng; omitted means all languages",
+        choices=("eng",),
+        default=["eng"],
+        help="Aya preparation is restricted to English (eng).",
     )
     return parser.parse_args()
 
@@ -262,7 +267,7 @@ def main() -> None:
         max_response_chars=args.max_response_chars,
         sampling_seed=args.shuffle_seed,
         shuffle_buffer_size=args.shuffle_buffer_size,
-        allowed_language_codes=set(args.language_codes) if args.language_codes else None,
+        allowed_language_codes=set(args.language_codes),
     )
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
 
