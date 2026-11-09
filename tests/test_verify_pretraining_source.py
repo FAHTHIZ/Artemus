@@ -67,7 +67,7 @@ def test_verifier_accepts_complete_english_source_and_matches_counts(tmp_path):
     assert result["validation_documents"] == 2
 
 
-@pytest.mark.parametrize(("language", "score"), [("bn", 0.99), ("en", 0.40), ("", 0.99)])
+@pytest.mark.parametrize(("language", "score"), [("xx", 0.99), ("en", 0.40), ("", 0.99)])
 def test_verifier_rejects_non_english_or_low_confidence_source(tmp_path, language, score):
     verifier = load_verifier()
     write_source(tmp_path, language=language, score=score)
