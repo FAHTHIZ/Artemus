@@ -22,7 +22,7 @@ def test_quality_filter_rejects_email_and_private_key_patterns():
 
 def test_prepare_stream_writes_provenance_and_deterministic_split(tmp_path):
     records = [
-        {"id": f"doc-{index}", "text": (f"Document {index}. " + "Useful words, facts and explanation. " * 20)}
+        {"id": f"doc-{index}", "language": "en", "language_score": 0.99, "text": (f"Document {index}. " + "Useful words, facts and explanation. " * 20)}
         for index in range(300)
     ]
     manifest = prepare_stream(
