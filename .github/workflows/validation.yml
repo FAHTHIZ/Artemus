@@ -174,22 +174,18 @@ jobs:
             echo "::error::Kaggle did not expose the private offline input dataset metadata after creation."
             exit 1
           fi
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          metadata = json.loads(
-              Path(".kaggle-input-verified/dataset-metadata.json").read_text(encoding="utf-8")
-          )
-          expected = os.environ["KAGGLE_INPUT_DATASET"]
-          if metadata.get("id") != expected:
-              raise SystemExit(
-                  f"Offline training input dataset ID mismatch: expected {expected!r}, got {metadata.get('id')!r}"
-              )
-          print("Private offline dataset is visible and ready:", expected)
-          PY
+          python scripts/verify_kaggle_dataset_metadata.py \
+            .kaggle-input-verified/dataset-metadata.json \
+            "$KAGGLE_INPUT_DATASET" \
+            "Artemus Training Inputs"
+          echo "Private offline dataset is visible and ready: $KAGGLE_INPUT_DATASET"
           echo "Verified offline input dataset: $KAGGLE_INPUT_DATASET"
 
           if kaggle datasets metadata "$KAGGLE_STATE_DATASET" -p .kaggle-state-existing; then
+            python scripts/verify_kaggle_dataset_metadata.py \
+              .kaggle-state-existing/dataset-metadata.json \
+              "$KAGGLE_STATE_DATASET" \
+              "Artemus Training State"
             export KAGGLE_STATE_DATASET_EXISTS=true
           else
             export KAGGLE_STATE_DATASET_EXISTS=false
