@@ -131,4 +131,45 @@ def test_aya_manifest_records_deterministic_stream_sampling(tmp_path):
         "method": "huggingface_iterable_bounded_buffer_shuffle",
         "seed": 2026,
         "buffer_size": 512,
+        "allowed_language_codes": None,
     }
+
+
+
+def test_aya_language_allowlist_keeps_initial_sft_english_first(tmp_path):
+    rows = [
+        {
+            "inputs": f"Explain one English research concept {index}.",
+            "targets": f"This is a reviewed English explanation {index}.",
+            "language": "English",
+            "language_code": "eng",
+        }
+        for index in range(120)
+    ] + [
+        {
+            "inputs": f"বাংলায় ধারণাটি ব্যাখ্যা করো {index}.",
+            "targets": f"এটি একটি বাংলা ব্যাখ্যা {index}.",
+            "language": "Bengali",
+            "language_code": "ben",
+        }
+        for index in range(120)
+    ]
+
+    result = prepare_aya_stream(
+        rows,
+        dataset_revision="e" * 40,
+        output_dir=tmp_path,
+        max_examples=120,
+        validation_percent=10,
+        allowed_language_codes={"eng"},
+    )
+    train = [json.loads(line) for line in (tmp_path / "train.jsonl").read_text().splitlines()]
+    validation = [
+        json.loads(line)
+        for line in (tmp_path / "validation.jsonl").read_text().splitlines()
+    ]
+    assert result["accepted_examples"] == 120
+    assert result["examples_by_language_code"] == {"eng": 120}
+    assert result["counts"]["rejected_language_not_allowed"] == 120
+    assert all(row["provenance"]["language_code"] == "eng" for row in train + validation)
+    assert result["sampling"]["allowed_language_codes"] == ["eng"]
