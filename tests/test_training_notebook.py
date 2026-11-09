@@ -505,6 +505,9 @@ def test_recurring_kaggle_workflow_requires_and_attaches_offline_inputs() -> Non
     assert "KAGGLE_INPUT_DATASET" in source
     assert "kaggle datasets metadata \"$KAGGLE_INPUT_DATASET\"" in source
     assert '["KAGGLE_INPUT_DATASET"], os.environ["KAGGLE_STATE_DATASET"]' in source
+    assert "verify_kaggle_dataset_metadata.py" in source
+    assert '"Artemus Training Inputs"' in source
+    assert '"Artemus Training State"' in source
 
 
 def test_offline_bundle_builder_shell_syntax_is_valid() -> None:
@@ -546,7 +549,8 @@ def test_initial_training_waits_for_private_input_dataset_metadata_after_create(
     assert "for attempt in $(seq 1 20)" in workflow
     assert 'kaggle datasets metadata "$KAGGLE_INPUT_DATASET" -p .kaggle-input-verified' in workflow
     assert 'sleep 15' in workflow
-    assert 'metadata.get("id") != expected' in workflow
+    assert "verify_kaggle_dataset_metadata.py" in workflow
+    assert '"Artemus Training Inputs"' in workflow
 
 
 def test_validation_runs_have_unique_concurrency_groups_for_independent_training_attempts() -> None:
@@ -555,3 +559,45 @@ def test_validation_runs_have_unique_concurrency_groups_for_independent_training
         / ".github" / "workflows" / "validation.yml"
     ).read_text(encoding="utf-8")
     assert "group: ${{ format('artemus-validation-{0}-{1}', github.ref, github.run_id) }}" in workflow
+
+
+
+def test_kaggle_metadata_verifier_accepts_omitted_id_but_rejects_conflicts() -> None:
+    import importlib.util
+
+    verifier_path = (
+        Path(__file__).resolve().parents[1]
+        / "scripts" / "verify_kaggle_dataset_metadata.py"
+    )
+    spec = importlib.util.spec_from_file_location("kaggle_metadata_verifier", verifier_path)
+    assert spec is not None and spec.loader is not None
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    expected_id = "example/artemus-training-inputs"
+    expected_title = "Artemus Training Inputs"
+    verifier.validate_metadata(
+        {"title": expected_title, "licenses": [{"name": "other"}]},
+        expected_id,
+        expected_title,
+    )
+    verifier.validate_metadata(
+        {"id": expected_id, "title": expected_title},
+        expected_id,
+        expected_title,
+    )
+
+    import pytest
+
+    with pytest.raises(ValueError, match="ID mismatch"):
+        verifier.validate_metadata(
+            {"id": "someone-else/wrong-dataset", "title": expected_title},
+            expected_id,
+            expected_title,
+        )
+    with pytest.raises(ValueError, match="title mismatch"):
+        verifier.validate_metadata(
+            {"title": "Wrong title"},
+            expected_id,
+            expected_title,
+        )
