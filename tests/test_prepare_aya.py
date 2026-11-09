@@ -137,7 +137,16 @@ def test_aya_manifest_records_deterministic_stream_sampling(tmp_path):
 
 
 def test_aya_language_allowlist_keeps_initial_sft_english_first(tmp_path):
-    rows = [
+    unapproved = [
+        {
+            "inputs": f"Explain this unapproved source label {index}.",
+            "targets": f"This record must be excluded from the English training set {index}.",
+            "language": "Unapproved",
+            "language_code": "xx",
+        }
+        for index in range(120)
+    ]
+    english = [
         {
             "inputs": f"Explain one English research concept {index}.",
             "targets": f"This is a reviewed English explanation {index}.",
@@ -145,18 +154,10 @@ def test_aya_language_allowlist_keeps_initial_sft_english_first(tmp_path):
             "language_code": "eng",
         }
         for index in range(120)
-    ] + [
-        {
-            "inputs": f"Explain this additional concept for an unapproved language label {index}.",
-            "targets": f"This record uses a non-approved source label and must be excluded {index}.",
-            "language": "Unapproved",
-            "language_code": "xx",
-        }
-        for index in range(120)
     ]
 
     result = prepare_aya_stream(
-        rows,
+        unapproved + english,
         dataset_revision="e" * 40,
         output_dir=tmp_path,
         max_examples=120,
@@ -165,15 +166,13 @@ def test_aya_language_allowlist_keeps_initial_sft_english_first(tmp_path):
     )
     train = [json.loads(line) for line in (tmp_path / "train.jsonl").read_text().splitlines()]
     validation = [
-        json.loads(line)
-        for line in (tmp_path / "validation.jsonl").read_text().splitlines()
+        json.loads(line) for line in (tmp_path / "validation.jsonl").read_text().splitlines()
     ]
     assert result["accepted_examples"] == 120
     assert result["examples_by_language_code"] == {"eng": 120}
     assert result["counts"]["rejected_language_not_allowed"] == 120
     assert all(row["provenance"]["language_code"] == "eng" for row in train + validation)
     assert result["sampling"]["allowed_language_codes"] == ["eng"]
-
 
 
 def test_aya_rejects_conflicting_language_name_even_when_code_says_english(tmp_path):
