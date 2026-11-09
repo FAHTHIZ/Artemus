@@ -1,0 +1,60 @@
+{
+  "dataset_id": "CohereLabs/aya_dataset",
+  "dataset_revision": "f9ea04583f02a8f86404ff6c58bf75fe637df8a2",
+  "license": "Apache-2.0",
+  "license_review_note": "The upstream card declares Apache-2.0. This adapter retains only input/target text and non-sensitive language/annotation labels; annotator IDs and demographic fields are discarded. Human annotation is not a guarantee of factual correctness.",
+  "split_policy": "Deterministic split by dataset revision, language code, and prompt hash so re-annotations of an identical prompt stay in one split.",
+  "quality_policy": {
+    "max_prompt_chars": 20000,
+    "max_response_chars": 20000,
+    "filters": [
+      "missing or empty prompt/response",
+      "overlong prompt or response",
+      "obvious email/IP/private-key/token and phone-like patterns",
+      "exact prompt-response duplicates"
+    ],
+    "limitations": [
+      "Regex filters are not comprehensive PII or secrets detection.",
+      "Human annotations may still contain factual or reasoning errors.",
+      "Prompt-group splits do not guarantee semantic deduplication."
+    ]
+  },
+  "demographic_fields_discarded": [
+    "user_id",
+    "age_range",
+    "gender",
+    "languages",
+    "dialects"
+  ],
+  "sampling": {
+    "method": "huggingface_iterable_bounded_buffer_shuffle",
+    "seed": 2026,
+    "buffer_size": 10000,
+    "allowed_language_codes": [
+      "eng"
+    ]
+  },
+  "accepted_examples": 3858,
+  "counts": {
+    "accepted_train": 3775,
+    "rejected_language_not_allowed": 198418,
+    "rejected_possible_personal_or_secret_data": 20,
+    "accepted_validation": 83,
+    "rejected_exact_duplicate": 63,
+    "rejected_empty_prompt_or_response": 3
+  },
+  "examples_by_language_code": {
+    "eng": 3858
+  },
+  "examples_by_annotation_type": {
+    "re-annotations": 1742,
+    "original-annotations": 2116
+  },
+  "files": {
+    "train_jsonl": "train.jsonl",
+    "validation_jsonl": "validation.jsonl",
+    "train_text": "train.txt",
+    "validation_text": "validation.txt",
+    "provenance_jsonl": "provenance.jsonl"
+  }
+}
