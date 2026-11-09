@@ -2,7 +2,7 @@
 
 **Artemus is the complete cognitive-system research project—not a single LLM.** The current `ArtemisLM` implementation is one experimental neural-model component within that larger system. The full Artemus architecture is intended to coordinate perception, world modelling, memory, multiple reasoning methods, planning, action, verification, and controlled learning.
 
-> **Latest foundation checkpoint (2026-11-09):** [Experiment 0011](docs/experiments/0011-cpu-foundation-edu-hq.md) — a 6,451,200-parameter ArtemisLM trained from random initialization for 10,000 CPU steps on FineWeb-Edu documents with educational score ≥ 3.5 (val loss 3.749; 1.346 bits/byte held-out). Weights: [`checkpoints` branch, `f0-edu-6m-step10000/`](https://github.com/FAHTHIZ/Artemus/tree/checkpoints/f0-edu-6m-step10000).
+> **Latest checkpoint (2026-11-09):** [Experiment 0012](docs/experiments/0012-cpu-math-adaptation-finemath.md) — the 6,451,200-parameter F0 foundation model (Experiment 0011, 1.346 bits/byte on FineWeb-Edu) continued for 2,500 steps on a 40% FineMath-4+ / 60% FineWeb-Edu replay mix: held-out FineMath 1.887 → 1.508 bits/byte with no general-text forgetting (1.350). Weights: [`checkpoints` branch](https://github.com/FAHTHIZ/Artemus/tree/checkpoints).
 >
 > **Earlier model-component status (2026-11-06):** A 1,004,928-parameter compact `ArtemisLM` checkpoint from random initialization completed 16,000 task-SFT steps on an OASST1/GSM8K/MBPP mixture. The recovery/evaluation workflow now completes all 16 scripted dialogue turns (16 non-empty, zero context overflows; one old history window trimmed). However, direct math and Python spot checks remain incoherent. This is still an early experimental checkpoint—not a useful general assistant, foundation-pretrained model, or evidence of AGI.
 
@@ -44,6 +44,7 @@ Measure ArtemisLM alone separately from the complete Artemus system. Never attri
 | [0008 — incremental KV cache](docs/experiments/0008-incremental-kv-cache.md) | 47 tests passed; cached/uncached outputs matched; three tiny CPU runs measured 1.27–1.40× cached/uncached elapsed-time ratios. | Systems smoke result only; static cache and accelerator benchmarks remain. |
 | [0009 — size ladder profile](docs/experiments/0009-size-ladder-profile.md) | Exact profiles for 8.1M, 26.5M, and 88.7M parameter candidates. | Parameter accounting only; no training or capability claim. |
 | [0011 — CPU foundation on FineWeb-Edu ≥ 3.5](docs/experiments/0011-cpu-foundation-edu-hq.md) | 6.45M-parameter random-init model, 10,000 steps (~41M tokens) on 88k top-tier FineWeb-Edu docs; val loss 3.749, 1.346 bits/byte held-out. | First foundation checkpoint; fluent but repetitive and non-factual. Weights on the `checkpoints` branch. |
+| [0012 — CPU math adaptation on FineMath-4+](docs/experiments/0012-cpu-math-adaptation-finemath.md) | F0 + 2,500 steps on 40% FineMath-4+ / 60% edu replay; FineMath 1.887 → 1.508 bits/byte, FineWeb-Edu 1.346 → 1.350. | Math formatting learned, no arithmetic yet. Weights on the `checkpoints` branch. |
 
 The incremental-cache benchmark is documented in [Experiment 0008](docs/experiments/0008-incremental-kv-cache.md).
 
