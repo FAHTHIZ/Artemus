@@ -53,7 +53,7 @@ The old 16k-step checkpoint is a task-SFT experiment, not the foundation model. 
 
 - [Continuous training programme](docs/training/continuous-training-programme.md): F0 foundation pretraining → F1 domain adaptation → SFT → verified outcomes → human preferences → bounded environment optimisation → multimodal research.
 - [Cloud compute options](docs/training/cloud-compute.md): Kaggle/Colab free allocations, institutional compute, and careful paid fallbacks.
-- [Kaggle training notebook](notebooks/kaggle-gpu-training.ipynb): pinned FineWeb-Edu + streamed FineWeb2 Bangla foundation mix, provenance-preserving filtering, multilingual tokenizer training, disk-backed training, optional OSCR code adaptation, Aya multilingual response-only SFT, task SFT, held-out evaluation, exact parameter/checkpoint-size reporting, and export. It uses the full pilot schedule on CUDA or an explicitly smaller FP32 schedule on CPU.
+- [Kaggle training notebook](notebooks/kaggle-gpu-training.ipynb): pinned general-English FineWeb + FineWeb-Edu foundation mix, strict English language-confidence filtering, disk-backed training, optional licence-filtered OSCR code adaptation, English-only Aya response-only SFT, task SFT, held-out evaluation, exact parameter/checkpoint-size reporting, and export. It uses the full pilot schedule on CUDA or an explicitly smaller FP32 schedule on CPU.
 - [Machine-readable training curriculum](data/training-curriculum.json): source revisions, stages, licences, and promotion gates.
 
 **Direct human teaching:** install the project and run `artemus-teach --checkpoint <checkpoint.pt>`. You can correct an answer, explicitly approve it, or skip it. Corrections become candidate supervised data with checkpoint/session provenance; they do not silently update the model. Curate them with `artemus-prepare-teaching --input candidates.jsonl --output-dir prepared/`; it keeps whole teaching sessions together across train/validation. Then use the prepared JSONL splits in a separate response-only SFT run after reviewing the samples and manifest.
@@ -75,11 +75,11 @@ The current model-component research direction is documented in:
 - [Data Source Registry](docs/data/source-registry.md)
 - [Additional Data Sources and Ingestion Priorities](docs/data/next-sources.md)
 
-The strategy is informed by architecture-aware scaling laws, data-quality scaling, compute/data trade-offs, multilingual ATLAS results, small-model reasoning studies, and modern sparse-expert research. Those papers guide experiments; they do not guarantee that a small model can match closed frontier systems.
+The strategy is informed by architecture-aware scaling laws, data-quality scaling, compute/data trade-offs, small-model reasoning studies, and modern sparse-expert research. Those papers guide experiments; they do not guarantee that a small model can match closed frontier systems.
 
 ## Data and training policy
 
-Use version-pinned, licence-reviewed, deduplicated sources with source-level provenance. Keep protected benchmark splits out of training. FineWeb is a potential broad English pretraining source, not a code corpus; its ODC-By attribution requirements, Common Crawl terms, and residual PII/content risks require additional processing. Code datasets retain original repository/file licences and removal obligations. Bangla datasets with ShareAlike conditions require review before weight distribution.
+Use version-pinned, licence-reviewed, deduplicated sources with source-level provenance. Keep protected benchmark splits out of training. FineWeb is a potential broad English pretraining source, not a code corpus; its ODC-By attribution requirements, Common Crawl terms, and residual PII/content risks require additional processing. Code datasets retain original repository/file licences and removal obligations. The training language scope is English only. Every text source must pass the explicit English language gate before ingestion.
 
 The current OASST1/GSM8K/MBPP mixture is an early **task-SFT** experiment. It is not the broad next-token foundation-pretraining corpus required for a frontier model.
 
@@ -117,8 +117,8 @@ The byte tokenizer, tiny demo corpus, and smoke model are engineering baselines�
 3. Build a versioned world-state model that distinguishes observations, inferences, predictions, and contradictions.
 4. Add explicit goal graphs, bounded planning, permission-checked actions, and independent verification.
 5. Connect ArtemisLM behind a replaceable reasoning adapter; benchmark base-model and full-system results separately.
-6. Build protected evaluations for generalisation, reasoning, mathematics, coding, multilingual use, memory, long-horizon work, and reliability.
-7. Run the pinned FineWeb-Edu foundation-pretraining pilot on an allocated Kaggle GPU, or the bounded FP32 CPU profile when no GPU is assigned; then add OSCR/Bangla/math/code sources under their own provenance and licensing reviews.
+6. Build protected evaluations for generalisation, reasoning, mathematics, coding, English language use, memory, long-horizon work, and reliability.
+7. Run the pinned FineWeb-Edu foundation-pretraining pilot on an allocated Kaggle GPU, or the bounded FP32 CPU profile when no GPU is assigned; then add OSCR/math/code sources under their own provenance and licensing reviews.
 8. Make any frontier or AGI capability claim only after broad, independent, reproducible evidence.
 
 ## Repository hygiene
