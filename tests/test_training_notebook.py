@@ -696,3 +696,10 @@ def test_kaggle_bundle_manifest_skips_unmounted_dataset_metadata() -> None:
     assert '{"bundle-manifest.json", "dataset-metadata.json"}' in builder
     notebook = (root / "notebooks" / "kaggle-gpu-training.ipynb").read_text(encoding="utf-8")
     assert "item['path'] == 'dataset-metadata.json'" in notebook
+
+
+def test_kaggle_notebook_makes_sources_importable_in_running_kernel() -> None:
+    root = Path(__file__).resolve().parents[1]
+    notebook = (root / "notebooks" / "kaggle-gpu-training.ipynb").read_text(encoding="utf-8")
+    assert "sys.path.insert(0, SOURCE_PATH)" in notebook
+    assert "import artemis  # noqa: F401" in notebook
