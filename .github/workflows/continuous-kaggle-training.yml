@@ -13,7 +13,7 @@ on:
           - NvidiaL4
           - NvidiaTeslaA100
   schedule:
-    # Weekly at 09:00 Bangladesh time (UTC+6); free accelerator availability is not guaranteed.
+    # Weekly at 03:00 UTC; free accelerator availability is not guaranteed.
     - cron: "0 3 * * 1"
 
 permissions:
