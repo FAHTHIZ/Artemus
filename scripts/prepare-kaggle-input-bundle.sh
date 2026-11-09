@@ -31,6 +31,8 @@ artemus-prepare-hf \
   --validation-percent 1.0 \
   --min-chars 300 \
   --max-chars 40000 \
+  --required-language en \
+  --min-language-score 0.70 \
   --shuffle-seed 1337
 
 # General English web text is the foundation base; FineWeb-Edu is a smaller
@@ -56,39 +58,10 @@ artemus-prepare-hf \
   --validation-percent 1.0 \
   --min-chars 300 \
   --max-chars 40000 \
+  --required-language en \
+  --min-language-score 0.70 \
   --shuffle-seed 11337
 python - "$PREP_ROOT/fineweb_general/manifest.json" "$FINEWEB_GENERAL_REVISION" <<'PY'
-import json, sys
-from pathlib import Path
-path, revision = Path(sys.argv[1]), sys.argv[2]
-data = json.loads(path.read_text(encoding="utf-8"))
-data["resolved_revision"] = revision
-path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
-PY
-
-FINEWEB2_REVISION="$(python - <<'PY'
-from huggingface_hub import HfApi
-revision = HfApi().dataset_info("HuggingFaceFW/fineweb-2").sha
-if not revision or len(revision) < 7:
-    raise SystemExit("Could not resolve FineWeb2 revision")
-print(revision)
-PY
-)"
-FINEWEB2_NOTE="ODC-By-1.0 research pilot; Common Crawl terms and residual PII caveats apply. Additional pattern filtering is not a complete privacy audit."
-artemus-prepare-hf \
-  --dataset HuggingFaceFW/fineweb-2 \
-  --config ben_Beng \
-  --split train \
-  --revision "$FINEWEB2_REVISION" \
-  --license ODC-By-1.0 \
-  --license-review-note "$FINEWEB2_NOTE" \
-  --output-dir "$PREP_ROOT/fineweb2_bangla" \
-  --max-documents 5000 \
-  --validation-percent 1.0 \
-  --min-chars 300 \
-  --max-chars 40000 \
-  --shuffle-seed 2337
-python - "$PREP_ROOT/fineweb2_bangla/manifest.json" "$FINEWEB2_REVISION" <<'PY'
 import json, sys
 from pathlib import Path
 path, revision = Path(sys.argv[1]), sys.argv[2]
@@ -109,9 +82,10 @@ artemus-prepare-aya \
   --revision "$AYA_REVISION" \
   --split train \
   --output-dir "$PREP_ROOT/aya_sft" \
-  --max-examples 1500 \
+  --max-examples 10000 \
   --validation-percent 2.0 \
-  --shuffle-seed 3337
+  --shuffle-seed 3337 \
+  --language-codes eng
 python - "$PREP_ROOT/aya_sft/manifest.json" "$AYA_REVISION" <<'PY'
 import json, sys
 from pathlib import Path
@@ -187,7 +161,7 @@ with zipfile.ZipFile(bundle / "artemus-source.zip", "w", compression=zipfile.ZIP
             archive.write(path, path.relative_to(repo).as_posix())
 
 (bundle / "repository-commit.txt").write_text(commit + "\n", encoding="utf-8")
-for name in ("fineweb_general", "fineweb_edu", "fineweb2_bangla", "aya_sft", "oasst1", "capability_sft"):
+for name in ("fineweb_general", "fineweb_edu", "aya_sft", "oasst1", "capability_sft"):
     source = prepared / name
     if not source.is_dir() or not (source / "manifest.json").is_file():
         raise SystemExit(f"Prepared source is incomplete: {name}")
