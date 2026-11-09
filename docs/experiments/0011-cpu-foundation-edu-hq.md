@@ -3,7 +3,7 @@
 **Date:** 2026-11-09
 **Status:** Completed (F0 foundation checkpoint)
 **Hardware:** 2 CPU cores, 8 GB RAM, no GPU, FP32
-**Weights:** GitHub Release [`f0-edu-6m-step10000`](https://github.com/FAHTHIZ/Artemus/releases/tag/f0-edu-6m-step10000) (not committed to Git)
+**Weights:** [`checkpoints` branch, `f0-edu-6m-step10000/`](https://github.com/FAHTHIZ/Artemus/tree/checkpoints/f0-edu-6m-step10000) (kept off `main`)
 
 ## Purpose
 
