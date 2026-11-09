@@ -286,7 +286,7 @@
     "execution": "Kaggle via .github/workflows/continuous-kaggle-training.yml",
     "state_store": "private Kaggle dataset <username>/artemus-training-state",
     "foundation_checkpoint": "artemus-foundation-current.pt",
-    "tokenizer": "tokenizer.model; reused byte-identically",
+    "tokenizer": "tokenizer.model; reused byte-identically across continued-pretraining cycles",
     "per_cycle": {
       "fresh_stream_sample": true,
       "foundation_phase": "continue from foundation checkpoint only",
