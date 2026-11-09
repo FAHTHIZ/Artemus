@@ -46,8 +46,8 @@ def test_kaggle_training_notebook_exports_complete_stage_provenance() -> None:
     source = "".join(export_cells[0].get("source", []))
 
     for expected in (
-        '("fineweb-edu", DATA_DIR)',
-        '("fineweb2-bangla", FINEWEB2_DIR)',
+        '("fineweb-general-english", GENERAL_DATA_DIR)',
+        '("fineweb-edu-english", DATA_DIR)',
         '("foundation-mixture", MIX_DIR)',
         '("aya-instruction-sft", AYA_DIR)',
         '"run-metadata.json"',
@@ -230,9 +230,9 @@ def test_machine_readable_curriculum_matches_continuous_training_cycle() -> None
     assert cycle["cadence"] == "weekly"
     assert cycle["foundation_checkpoint"] == "artemus-foundation-current.pt"
     assert cycle["tokenizer"] == "tokenizer.model; reused byte-identically across continued-pretraining cycles"
-    assert cycle["per_cycle"]["foundation_steps"] == 2000
-    assert cycle["per_cycle"]["multilingual_instruction_examples_max"] == 10000
-    assert cycle["per_cycle"]["task_steps"] == 750
+    assert cycle["per_cycle"]["foundation_steps"] == 6000
+    assert cycle["per_cycle"]["english_instruction_examples_max"] == 10000
+    assert cycle["per_cycle"]["task_steps"] == 1000
     assert cycle["per_cycle"]["final_candidate"] == "artemus-task-sft.pt"
     assert "OpenAssistant/oasst1" in cycle["per_cycle"]["task_sources"]
     assert "openai/grade-school-math" in cycle["per_cycle"]["task_sources"]
@@ -453,7 +453,7 @@ def test_kaggle_notebook_uses_attached_offline_source_and_prepared_data_bundle()
     assert "Manual Kaggle UI execution" in install
     assert "['git', 'clone'" in install
     assert "prepared-artifacts" in install
-    for cell_id in ("stream", "fineweb2-ingest", "aya-code", "task-sft-code"):
+    for cell_id in ("stream", "fineweb-general-ingest", "aya-code", "task-sft-code"):
         assert "manifest.json" in cells[cell_id], f"{cell_id} must reuse a prepared source manifest"
 
 
@@ -463,7 +463,9 @@ def test_offline_kaggle_input_bundle_builder_pins_and_packages_all_training_sour
     for expected in (
         "artemus-prepare-hf",
         "HuggingFaceFW/fineweb-edu",
-        "HuggingFaceFW/fineweb-2",
+        "HuggingFaceFW/fineweb",
+        "--required-language en",
+        "--language-codes eng",
         "CohereLabs/aya_dataset",
         "artemis.prepare_oasst1",
         "artemis.prepare_capability_data",
