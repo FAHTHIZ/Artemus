@@ -15,8 +15,8 @@ def write_jsonl(path, rows):
 def test_mixture_is_deterministic_weighted_and_preserves_provenance(tmp_path):
     en_train = tmp_path / "en-train.jsonl"
     en_val = tmp_path / "en-val.jsonl"
-    bn_train = tmp_path / "bn-train.jsonl"
-    bn_val = tmp_path / "bn-val.jsonl"
+    en_beta_train = tmp_path / "bn-train.jsonl"
+    en_beta_val = tmp_path / "bn-val.jsonl"
 
     write_jsonl(en_train, [
         {"text": f"English document {i} " * 8, "provenance": {"dataset_id": "en"}}
@@ -26,18 +26,18 @@ def test_mixture_is_deterministic_weighted_and_preserves_provenance(tmp_path):
         {"text": f"English validation {i} " * 8, "provenance": {"dataset_id": "en"}}
         for i in range(10)
     ])
-    write_jsonl(bn_train, [
-        {"text": f"বাংলা নথি নম্বর {i} " * 8, "provenance": {"dataset_id": "bn"}}
+    write_jsonl(en_beta_train, [
+        {"text": f"English document number {i} " * 8, "provenance": {"dataset_id": "bn"}}
         for i in range(20)
     ])
-    write_jsonl(bn_val, [
-        {"text": f"বাংলা যাচাই {i} " * 8, "provenance": {"dataset_id": "bn"}}
+    write_jsonl(en_beta_val, [
+        {"text": f"English validation {i} " * 8, "provenance": {"dataset_id": "bn"}}
         for i in range(10)
     ])
 
     sources = [
         {"source_id": "english", "train_path": en_train, "validation_path": en_val, "weight": 0.8},
-        {"source_id": "bangla", "train_path": bn_train, "validation_path": bn_val, "weight": 0.2},
+        {"source_id": "english_beta", "train_path": en_beta_train, "validation_path": en_beta_val, "weight": 0.2},
     ]
     first = prepare_mixture(
         sources, tmp_path / "mix-a", train_documents=10,
@@ -50,8 +50,8 @@ def test_mixture_is_deterministic_weighted_and_preserves_provenance(tmp_path):
 
     assert first["train"] == second["train"]
     assert first["validation"] == second["validation"]
-    assert first["train"]["per_source_documents"] == {"english": 8, "bangla": 2}
-    assert first["validation"]["per_source_documents"] == {"english": 4, "bangla": 1}
+    assert first["train"]["per_source_documents"] == {"english": 8, "english_beta": 2}
+    assert first["validation"]["per_source_documents"] == {"english": 4, "english_beta": 1}
     assert first["train_validation_hash_overlap"] == 0
 
     train_rows = [
@@ -59,7 +59,7 @@ def test_mixture_is_deterministic_weighted_and_preserves_provenance(tmp_path):
         for line in (tmp_path / "mix-a" / "train.jsonl").read_text().splitlines()
     ]
     assert all("provenance" in row and "mixture" in row for row in train_rows)
-    assert {row["mixture"]["source_id"] for row in train_rows} == {"english", "bangla"}
+    assert {row["mixture"]["source_id"] for row in train_rows} == {"english", "english_beta"}
 
 
 def test_mixture_removes_duplicates_across_sources_and_splits(tmp_path):
