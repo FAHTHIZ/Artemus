@@ -1,230 +1,72 @@
-# Artemus continuous training programme
+# Artemus English-only continuous training programme
 
 **Status:** Active training plan  
-**Last reviewed:** 2026-11-06  
-**Purpose:** Turn independent model training into a staged, source-audited, GPU-capable programme.
+**Language scope:** English only  
+**Purpose:** build a reproducible, source-audited training pipeline and measure general capability per compute budget.
 
-## 1. What the current checkpoint actually is
+## 1. Current checkpoint
 
-The most recent documented 1,004,928-parameter checkpoint is an early task-supervised experiment trained from random initialization on OASST1, GSM8K, and MBPP. It reached 16,000 optimizer steps in a later run, but the run's multi-turn evaluation failed because a Bangla follow-up prompt exceeded the 256-token context. The checkpoint artifact was uploaded despite that evaluation failure.
+The previously documented compact checkpoints are early random-initialised task-SFT experiments on OASST1, GSM8K and MBPP. They are useful for testing the trainer and inference interfaces, but their recorded mathematics and Python generations remain incoherent. They are not broad foundation-pretrained models and must not be represented as useful general assistants.
 
-That checkpoint is useful as a reproducible experiment and for testing inference/teaching interfaces. It is **not** a broad foundation-pretrained model, and it should not be relabelled as one. The first general pretraining run below starts from random initialization with a separately trained tokenizer.
+The next official foundation run starts from fresh random initialization with a tokenizer trained only on the approved English foundation mixture.
 
-## 2. The training ladder
+## 2. Training stages
 
-| Stage | Method | Data / feedback | Promotion gate |
+| Stage | Method | English data | Promotion gate |
 |---|---|---|---|
-| F0 | Foundation pretraining | Broad, pinned, deduplicated general text; document-level EOS | Held-out next-token loss, source and temporal holdouts, contamination checks |
-| F1 | Continued/domain-adaptive pretraining | Code, math, science, Bangla/multilingual corpora under a bounded mixture | Improves target domain without unacceptable general-language forgetting |
-| S1 | Instruction SFT | Reviewed human-authored instruction/conversation pairs, OASST1, corrected examples | Protected instruction-following and multilingual evaluation |
-| S2 | Task-specific SFT | Official training splits only: GSM8K, MBPP, curated code tasks | Exact-answer or test-based evaluation on held-out tasks |
-| V1 | Verified outcome training | Code solutions that compile/pass tests; math with exact checks; structured API outputs | Independent verifier, no sandbox escape, private holdouts |
-| P1 | Preference learning | Human chosen/rejected responses; explicit direct-teaching feedback | Human preference agreement and regression suite |
-| R1 | Environment/outcome optimisation | Tool-use tasks in deterministic or sandboxed environments; verifiable reward | Matched-budget success rate, reward-hacking checks, rollback checkpoint |
-| M1 | Multimodal extensions | Licensed image/audio/video/text pairs and human-reviewed annotation | Modality-specific held-out tests and provenance audits |
+| F0 | Foundation next-token pretraining | FineWeb + FineWeb-Edu | Held-out loss, source/time holdouts, quality, privacy and contamination |
+| F1 | Domain-adaptive continuation | OSCR code, OpenWebMath, general-English replay | Specialist uplift without unacceptable general-language forgetting |
+| S1 | Response-only instruction SFT | Aya restricted to `eng`, OASST1 reviewed English | Instruction following and factuality regression suite |
+| S2 | Task SFT | GSM8K and MBPP approved train examples | Exact math answers and sandboxed code tests |
+| P1 | Preference learning | HH-RLHF chosen/rejected pairs | Dedicated objective, human agreement and regression tests |
+| V1 | Verified outcome learning | Project-authored English code/math/tool tasks | Independent validators and protected holdouts |
+| R1 | Outcome optimisation | Bounded deterministic English tool environments | Matched-budget success, reward-hacking checks and rollback |
 
-Do not jump to preference/RL training while the base model cannot reliably follow instructions. Do not use a language-model judge as the only verifier for its own answers.
+Do not use preference pairs as ordinary instruction targets. Do not jump to reward optimisation while the base model cannot reliably follow instructions. A language-model judge must not be the sole verifier of its own output.
 
-## 3. Data source plan
+## 3. Foundation mixture
 
-### Start now: small, reproducible pilots
+The first English foundation mixture uses:
+- 80% general FineWeb `sample-10BT` documents.
+- 20% FineWeb-Edu `sample-10BT` documents.
 
-- **FineWeb-Edu sample-10BT + FineWeb2 `ben_Beng`** — an initial bounded multilingual foundation mixture. FineWeb-Edu is pinned to 87f09149ef4734204d70ed1d046ddc9ca3f2b8f9. FineWeb2 resolves its exact dataset SHA once at notebook start and records it before streaming up to 5,000 accepted Bengali documents from filtered `train`. Both declare ODC-By 1.0; Common Crawl terms and residual PII caveats apply. The notebook filters phone-like sequences as well as email/IP/secret patterns, but this is not a complete privacy audit. The full FineWeb2 corpus is not downloaded.
-- **OSCR Python** — code-domain continuation through selected repository manifests and referenced Parquet blocks only. Dataset revision pinned to b0e3fadb276678880f7f3d764308fbebd3bcd044. Each repository/file keeps its own licence and source commit; exact-SPDX allowlisting and per-file SHA verification are mandatory.
-- **OASST1** — already pinned to a4992e1595393714c9e6c567b1ed645bbf7d00ee, Apache-2.0 per its dataset card; retain the existing tree-grouped split and quality filters.
-- **GSM8K** — use official train only for math SFT; keep test locked for evaluation. Pinned data revision and hash are in prepare_capability_data.py.
-- **MBPP** — use allowed training IDs only; retain official protected test/prompt ranges and execute generated code in an isolated offline sandbox.
-
-### Add after source/legal review
-
-- **FineWeb / FineWeb2** — broader and multilingual web pretraining. Keep the Common Crawl provenance, attribution, privacy filtering, and per-language sample balance. FineWeb-Edu is the first bounded pilot, not an excuse to dump all Common Crawl data into a training run.
-- **B-CORE** — important Bangla pretraining candidate. Its card declares CC-BY-4.0, but the underlying component/source rights need their own audit before large-scale use or weight distribution. Keep it separate from the initial English mix.
-- **Bangla NLP Corpus** — useful for Bangla language coverage but its CC-BY-SA terms require a distribution-policy review. Do not fold it into default training without that review.
-- **OpenWebMath** — mathematics continued-pretraining candidate, subject to the upstream source/attribution review noted in the data registry.
-- **DCLM-Baseline and Dolma** — broader general-text alternatives; review original-source terms, attribution, privacy, and dataset-specific restrictions before adding.
-- **The Stack v2** — do not bulk-download now. Access agreements, Software Heritage provenance, original licences, removal/opt-out updates, and model-release terms are prerequisites.
-- **CodeSearchNet** — do not ingest until exact per-file rights are resolved; it may still be useful as a retrieval/evaluation dataset.
+This is a document-weight hypothesis, not a token allocation. The pipeline measures actual tokenizer shares. FineWeb-Edu overlaps conceptually and at source level with general Common Crawl web content, so exact and near-duplicate screening is important. The pilot accepts up to 20,000 documents per source; it does not download the full upstream corpus.
 
-### Do not ingest
+Both sources declare ODC-By 1.0 and are derived from Common Crawl. Attribution, upstream terms, privacy, and content filtering require review before model-weight redistribution. Regex checks are not a complete PII audit.
 
-Private conversations without explicit consent, private repositories, paywalled or access-controlled sources, credential/secret dumps, opt-out data, unlicensed books/code, or a dataset whose rights cannot be determined. Public availability alone is not a licence.
+## 4. English-only data gates
 
-## 4. Mixture strategy
+- Foundation web text must have an explicit `en`, `eng`, or `english` label and language confidence of at least 0.70. Missing labels and non-English labels are rejected.
+- Aya SFT accepts only `language_code=eng`.
+- OASST1 accepts only reviewed English messages and keeps entire conversation trees in one split.
+- GSM8K and MBPP use only the documented allowed training subsets; protected evaluation tasks stay outside training.
+- Every prepared example carries source ID/revision, split, content hash, and relevant licence provenance.
+- There are no non-English corpora, text examples, tokenizer targets, or dialogue-evaluation scenarios in the active pipeline.
 
-Do not let a single enormous source dominate all training. The first general-text pilot is intentionally one source so the pipeline is measurable. The next curriculum should use a manifest-driven mixture with a target token budget per source and language.
+## 5. Alternatives and lab research
 
-Suggested later starting mixture (a hypothesis, not a fixed recipe):
-- 55–65% high-quality general/educational text.
-- 10–20% technical/scientific text.
-- 10–15% code with verified source licences.
-- 5–10% mathematics.
-- 5–10% Bangla/multilingual material, adjusted based on tokenisation and evaluation.
+Dolma, DCLM and SlimPajama are candidates for separate matched-budget English experiments, not sources to stack blindly. They are large and may overlap with web material already in FineWeb. Deduplicate and check the precise release's rights and source-component metadata first.
 
-For every source and stage, record the actual token counts, not just document counts. Reweight from measured tokenizer fertility and held-out capability results. Preserve a representative general replay fraction during domain adaptation to reduce catastrophic forgetting.
+OpenWebMath is an English math-text candidate for domain adaptation, not answer-verified math supervision. OSCR code must be filtered per file/repository licence; there is no universal source-code licence.
 
-## 5. Human teaching: let people talk to the model
+Anthropic's public HH-RLHF dataset provides preference pairs, not Claude's private pretraining corpus. DeepSeek's technical reports describe methodology but not a complete downloadable base corpus. DeepSeek-R1 outputs could be considered only as traceable teacher candidates with independent correctness checks and human review. OpenAI does not publish a complete itemised dataset inventory for this ChatGPT model. These disclosures inform independent research; they are not permission to copy private corpora.
 
-The new artemus-teach command gives a direct terminal conversation loop:
+## 6. Compute schedule
 
-    artemus-teach --checkpoint artifacts/artemus-foundation.pt
+The GPU notebook requests a Kaggle GPU and uses:
+- Foundation: 6,000 optimizer steps, 512-token context, batch size 4, gradient accumulation 4.
+- English Aya SFT: up to 10,000 examples and 1,500 steps.
+- Task SFT: 1,000 steps.
 
-For each response, the teacher can correct it, explicitly approve it, or skip it. Corrections are written to a candidate JSONL dataset with session ID, checkpoint hash, timestamp, and source type. Model-generated answers are **not** accepted by default. Enabling --allow-human-approved-model-output is a deliberate opt-in to human-approved self-distillation.
+If no CUDA device is allocated, the notebook explicitly switches to a bounded CPU pilot:
+- Foundation: 1,000 steps, 256-token context, batch size 1, FP32.
+- English Aya SFT: 250 steps.
+- Task SFT: 250 steps.
 
-Teaching data is not training data until it is reviewed and selected for a later SFT run. This avoids silently converting model hallucinations or private conversation material into weight updates.
+GitHub Actions validates and orchestrates; it does not supply a GPU. Kaggle availability, account eligibility, accelerator quotas and runtime limits are external constraints. A successful CI run is not evidence of training. Only a completed Kaggle run with a verified checkpoint is a trained model.
 
-Prepare a reviewed set with a session-grouped validation split:
+## 7. Checkpoint lineage and promotion
 
-```bash
-artemus-prepare-teaching \
-  --input artifacts/human-teaching/candidates.jsonl \
-  --output-dir artifacts/human-teaching/prepared
-```
+Each official foundation checkpoint begins from random initialization in this repository. Later cycles resume only the verified foundation checkpoint and keep the tokenizer byte-identical. Aya- and task-SFT candidates are not fed back into foundation pretraining.
 
-Then run a separate SFT segment against a checkpoint. `--steps` is the target **global** step, not an additional-step count; choose a value greater than the checkpoint's recorded step:
-
-```bash
-artemus-train \
-  --data artifacts/human-teaching/prepared/train.jsonl \
-  --validation-data artifacts/human-teaching/prepared/validation.jsonl \
-  --data-manifest artifacts/human-teaching/prepared/manifest.json \
-  --document-format jsonl --text-field text \
-  --resume artifacts/artemus-checkpoint.pt \
-  --tokenizer sentencepiece --phase instruction_sft --response-only \
-  --allow-data-change --allow-objective-change --override-resume-learning-rate \
-  --learning-rate 0.00005 --lr-schedule cosine --min-learning-rate 0.000005 \
-  --steps <checkpoint_global_step_plus_1000> \
-  --batch-size 4 --gradient-accumulation-steps 4 --device auto \
-  --output artifacts/artemus-human-taught.pt
-```
-
-Keep the preparation manifest and candidate JSONL beside the checkpoint. Review the train/validation counts and samples before launching this command. A successful training run still needs independent instruction-following and regression evaluation before promotion.
-
-## 6. Other learning channels
-
-- **Verified code training:** pair each prompt with a reference implementation and offline tests; use execution results as independent correctness evidence.
-- **Math outcome training:** evaluate final answers exactly where possible; retain derivations for learning but do not score a fluent derivation as proof.
-- **Preference optimisation:** collect human comparisons of two candidate answers with task context and a reason; DPO-like training comes only after enough high-quality, diverse pairs exist.
-- **Reward/outcome optimisation:** use a deterministic task environment with explicit success conditions and bounded actions; never reward length, confidence, or self-reported completion.
-- **Synthetic examples:** generate candidates from a teacher only when explicitly allowed by project policy; preserve teacher/source metadata, filter with independent checks, and label them as synthetic.
-- **Self-play:** useful later for tasks with objective rules (games, code tests, simulators); not a replacement for real-world language coverage.
-- **Retrieval and memory:** improve the integrated Artemus/OASIS system without altering weights. Measure retrieval/tool gains separately from base-model gains.
-- **Human written demonstrations:** strongest direct teaching channel available now; prioritise corrected examples over raw thumbs-up approvals.
-
-## 7. Run control and evaluation
-
-Each training segment must:
-1. Pin the code commit, data revision, data manifest, tokenizer hash, and parent checkpoint hash.
-2. Use a named phase and explicit token/step/compute budget.
-3. Save a recoverable checkpoint at evaluation intervals.
-4. Keep source/time/language/group holdouts untouched.
-5. Compare against the previous checkpoint on identical tasks, prompts, and budgets.
-6. Report train/validation loss and actual tokens processed, then run capability tests.
-7. Stop on divergence, data leakage, repeated validation regression, or a failed integrity gate.
-8. Promote only a checkpoint with a complete provenance record and a passing regression suite.
-
-“Continuous training” means a repeatable curriculum that advances to new reviewed data and validated objectives. Repeating one small dataset endlessly is not continuous improvement; it is overfitting.
-
-## 8. First runnable route
-
-Open notebooks/kaggle-gpu-training.ipynb in Kaggle or Google Colab, enable a GPU, and run the notebook top to bottom. It:
-- checks GPU allocation;
-- clones and records the Artemus commit;
-- streams a bounded FineWeb-Edu sample at a pinned dataset revision;
-- filters obvious PII/secret patterns, duplicates and low-quality text;
-- records document-level provenance and deterministic train/validation assignment;
-- trains a tokenizer on training text only;
-- starts a fresh foundation-pretraining run with mixed precision and gradient accumulation;
-- evaluates dialogue health and exports checkpoint/provenance artifacts;
-- optionally continues on a selected OSCR code subset.
-
-The notebook detects Kaggle versus Colab working directories and exports a ZIP archive. The first run is a pipeline-scale experiment, not a frontier model training run. Increase the scale after measuring tokens/second, peak GPU memory, validation behavior, and data quality.
-
-
-### Disk-backed token caching for larger corpora
-
-For JSONL pretraining and continued-pretraining mixtures, pass `--token-cache-dir artifacts/token-cache`. The trainer tokenizes each document once, adds one EOS marker per document, records the source/tokenizer/cache hashes, and memory-maps the int32 stream for batch sampling. This reduces peak RAM use and avoids rebuilding tokens on every run when the source and tokenizer identities are unchanged. The cache is disposable: it can be regenerated from the pinned JSONL source and tokenizer. Keep the JSONL source and provenance manifest as the authoritative record.
-
-
-### Multilingual foundation mix and Bangla privacy filter
-
-The GPU notebook now samples FineWeb-Edu and FineWeb2 `ben_Beng` together **before** fitting the tokenizer and before random initialization. This avoids starting with an English-only tokenizer and then discovering that Bangla is represented inefficiently by byte fallback. The first mix uses 85% FineWeb-Edu and 15% FineWeb2 by accepted document quota; after fitting SentencePiece, the notebook measures actual token shares and records them. Rebalance the document weights if the token shares diverge materially from the intended mixture.
-
-The general pretraining filter additionally rejects conservative phone-like number patterns, including Bangla numerals. This can create false positives (for example, some date-like or long numeric text); the manifest reports the rejection count. Regex filtering is a first-pass hygiene measure, not a guarantee that a corpus contains no personal data.
-
-The new `artemus-prepare-mixture` command builds deterministic document-weighted corpora from already curated train/validation JSONL pairs. It removes exact duplicates across sources, prevents selected train documents from leaking into validation, preserves the original provenance fields, and records input hashes and actual per-source document/character counts. Document weights are not token weights; measure the final tokenizer's source-level token shares before interpreting or scaling the experiment.
-
-
-### Human teaching keeps conversational context
-
-The interactive `artemus-teach` loop records the earlier user/assistant turns that informed a correction or explicitly approved response. Earlier turns are embedded as context text inside the user prompt; only the final, reviewed answer is marked as the assistant target. This prevents earlier unreviewed model replies from accidentally becoming supervised training targets. The session-level train/validation splitter still keeps every turn from one teaching session in one split.
-
-### Code adaptation with general replay
-
-The optional OSCR stage now constructs a second deterministic mixture: 85% of the current multilingual foundation replay and 15% selected, verified Python source files by document quota. It resumes the existing checkpoint rather than training a separate model and records the mixed source manifest. Inspect actual per-source token counts before scaling; document proportions are not token proportions. This replay is a forgetting-control measure, not a guarantee against forgetting.
-
-
-### Aya multilingual response-only SFT
-
-The GPU notebook's final supervised stage resolves the current Aya Dataset revision, streams a bounded 10,000-example sample, and records the exact revision in its manifest. `artemus-prepare-aya` retains only prompts, responses, language labels, and annotation types; it discards annotator IDs and demographics. It groups identical prompts into the same split, then resumes the multilingual foundation checkpoint with response-only loss for a bounded 1,000 additional optimizer steps. Inspect per-language counts and protected task regressions before accepting the resulting checkpoint.
-
-Audio training is a separate future model branch: FLEURS and Mozilla Common Voice provide Bengali-capable ASR data, but the current ArtemisLM training pipeline is text-only. A speech encoder, audio frontend, alignment objective, and audio-specific evaluation must exist before those files are used.
-
-## Recurring GPU training — stateful cycle
-
-The GPU notebook now supports a repeatable cycle rather than restarting from random weights each time:
-
-1. The first cycle trains a foundation model and tokenizer from random initialization.
-2. The workflow stores the **foundation** checkpoint and matching tokenizer in a private Kaggle dataset named `artemus-training-state`.
-3. Each later cycle verifies checkpoint format, random-initialization lineage, loss objective, foundation checkpoint SHA-256, tokenizer SHA-256, and cycle number before continuing.
-4. FineWeb-Edu, FineWeb2 Bengali, the corpus mixture, and Aya are re-sampled using recorded cycle-specific deterministic seeds. Source revisions, hashes, sampling seeds, and provenance are written into manifests.
-5. The new foundation checkpoint is saved separately from the cycle's instruction-SFT candidate. The next cycle resumes the foundation checkpoint, never the instruction-tuned candidate.
-6. The workflow validates the exported artifact hashes, versions the private Kaggle state dataset, and retains the latest run metadata and provenance. No weights or raw corpora are committed to Git.
-
-### Enable the recurring Kaggle runner
-
-The repository workflow `.github/workflows/continuous-kaggle-training.yml` runs weekly and can also be started manually. It requires these repository configuration values:
-
-- Repository secret `KAGGLE_USERNAME`.
-- Repository secret `KAGGLE_KEY` (Kaggle API credential).
-- Repository variable `KAGGLE_STATE_DATASET`, set to `<your-kaggle-username>/artemus-training-state`.
-- Repository variable `KAGGLE_KERNEL_SLUG`, set to `artemus-continuous-training`.
-- Optional repository variable `ARTEMUS_KAGGLE_ACCELERATOR`, defaulting to `NvidiaTeslaT4`. Supported notebook choices are `NvidiaTeslaT4`, `NvidiaL4`, and `NvidiaTeslaA100` (availability depends on the Kaggle account and quota).
-
-On the first workflow run, the job creates an empty private Kaggle dataset with the exact slug `artemus-training-state` if it does not already exist, then attaches it to the automated kernel. The bootstrap uses Kaggle's `other` dataset licence because the bundle combines checkpoints with source-specific provenance; individual upstream rights remain recorded in the source manifests. Kaggle datasets are private by default when created without the `--public` flag. Keep the state dataset private and never put credentials inside it. The first cycle sees only a README and starts the foundation model from random initialization.
-
-The legacy CPU task-SFT workflow remains available for manual historical experiments only. It is no longer scheduled, because repeatedly running the same capped task-SFT mixture does not advance foundation learning.
-
-A successful CI run verifies code and workflow structure. A successful Kaggle run is required to claim new trained weights. A cycle's dialogue health check is not a capability score; release promotion still requires protected exact-answer, code execution, multilingual and regression evaluations.
-
-### Task-specific supervised tuning in each cycle
-
-After Aya instruction tuning, the GPU notebook now runs a bounded response-only task-SFT segment using the repository's existing pinned OASST1, GSM8K and MBPP adapters. It verifies the source archive hashes before preparation. GSM8K reads only its official training file and derives a deterministic validation split from that file; MBPP retains only task IDs 601-974 for training and 511-600 for validation, excluding IDs 1-10 (prompt examples) and 11-510 (protected test tasks).
-
-The task-SFT candidate is exported separately as `artemus-task-sft.pt`. The recurring workflow stores it as the latest instruction candidate, while the next cycle still resumes `artemus-foundation-current.pt` with its matching tokenizer. It never resumes task-SFT weights as foundation weights. A successful task-SFT run is not a correctness claim: promote only after independent exact-answer checks and isolated execution tests for generated code.
-
-
-
-### Held-out capability diagnostics
-
-Each GPU cycle now exports structured evaluation records from partitions disjoint from both training and optimizer validation. GSM8K official training rows are divided by stable hash buckets: bucket 0 is used for validation loss, bucket 1 is reserved for final diagnostics, and buckets 2-9 are used for training. The MBPP official validation range is further separated: IDs 511-555 are used for optimizer validation and IDs 556-600 are reserved for final diagnostics. The GSM8K official test file and MBPP IDs 1-510 remain excluded.
-
-After task-specific tuning, the capability evaluator reports strict numeric exact-match accuracy for math, Python syntax-valid rate, and exact code-text match rate. Python outputs are parsed with the AST module but never executed. These are internal diagnostics, not official GSM8K or MBPP benchmark scores; syntax-valid code is not necessarily correct. Independent protected data and an isolated code-execution harness are still required before making task-solving claims.
-
-The exported run bundle includes structured evaluation inputs, per-example outputs, and the aggregate summary, all included in the artifact SHA-256 manifest.
-
-
-The same bounded evaluation sample is now run against all three cycle checkpoints (foundation, Aya-tuned, task-SFT). The export contains per-stage summaries, per-example traces, and a comparison record with the shared evaluation-data hash. This makes phase regressions visible instead of reporting only the final checkpoint.
-
-## Checkpoint cadence and recovery
-
-Training now separates recovery checkpoints from validation runs. The trainer saves a checkpoint every 100 optimizer steps by default (`--checkpoint-interval 100`), while `--eval-interval` independently controls how often train/validation loss is measured. The Kaggle foundation, optional code-adaptation, Aya, and task-SFT stages all set the recovery interval explicitly to 100 steps.
-
-A checkpoint is also saved at the first and final step of a run segment. Intermediate checkpoint writes do not trigger extra validation, so recovery frequency can be increased without increasing evaluation cost. The checkpoint stores `losses_at_step` separately from its current optimizer step; consumers can see exactly how old the last measured loss is.
-
-Checkpoint files are written to a temporary file in the destination directory, flushed to disk, and atomically replaced only after the write completes. A failed write therefore leaves the previous complete checkpoint in place. This limits lost work to at most the configured checkpoint interval during an interruption, subject to the storage system's durability guarantees.
-
-## Deterministic evaluation sampling
-
-Train/validation loss evaluation now uses a dedicated CPU random generator seeded from the run seed. Repeated evaluations therefore use the same sampled windows for a fixed dataset and seed, making checkpoint-to-checkpoint loss comparisons less noisy. Evaluation sampling no longer advances the global random stream used by training batches, so changing the evaluation interval does not change which training batches are drawn between checkpoints.
-
-Checkpoint provenance distinguishes the planned token budget from work actually completed. Each saved checkpoint updates the active run record with its global checkpoint step, completed optimizer steps, and estimated processed tokens. An interrupted segment therefore reports progress only through the last successful checkpoint; the target-budget field remains available separately for planning.
+Each cycle exports the exact repository commit, accelerator, step counts, parameter count, checkpoint sizes, source manifests, hashes, held-out evaluations and run lineage. A successful cycle creates a candidate, not an automatically promoted flagship. Promotion requires a reproducible improvement on held-out English tasks without unacceptable regression.
