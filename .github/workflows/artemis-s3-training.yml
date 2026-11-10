@@ -1,0 +1,276 @@
+name: ArtemisLM F2 to S3 continuation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/artemis-s3-training.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: artemislm-f2-s3
+  cancel-in-progress: false
+
+jobs:
+  train-s3:
+    if: contains(github.event.head_commit.message, '[run-artemus-s3]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install CPU PyTorch and project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir \
+            --index-url https://download.pytorch.org/whl/cpu \
+            --extra-index-url https://pypi.org/simple \
+            "torch==2.10.0+cpu"
+          python -m pip install --no-cache-dir -e ".[data,dev]"
+
+      - name: Verify source and training helpers
+        run: |
+          python -m pytest -q \
+            tests/test_prepare_s3_mix.py \
+            tests/test_train.py
+
+      - name: Fetch and verify the exact F2 resumable checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ckpt
+          curl --fail --location --retry 5 --retry-all-errors \
+            "https://raw.githubusercontent.com/FAHTHIZ/Artemus/checkpoints/f2-edu2-6m-step17500/artemus-f2-edu2-6m-step17500.pt" \
+            --output ckpt/artemus-f2-edu2-6m.pt
+          echo "c4a791f9941ef4488c74a51bf2a46fce40b0764aa8bd81683c35385939efd584  ckpt/artemus-f2-edu2-6m.pt" \
+            | sha256sum --check --strict
+
+      - name: Prepare the pinned S3 training mixture
+        run: |
+          python -m artemis.prepare_s3_mix \
+            --output-dir data/s3-mix \
+            --cache-dir artifacts/s3-source-cache \
+            --seed 2031 \
+            --max-aya-examples 10000 \
+            --max-oasst-examples 15000
+
+      - name: Continue F2 into S3 on CPU
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/cpu/stage_supervisor.py s3 2>&1 | tee s3-training.log
+
+      - name: Evaluate the S3 checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          artemus-capability-eval \
+            --checkpoint ckpt/artemus-s3-joint-6m.pt \
+            --data data/s3-mix/evaluation.jsonl \
+            --output-dir artifacts/s3-capability-eval \
+            --max-new-tokens 96 \
+            --device cpu
+          artemus-generate \
+            --checkpoint ckpt/artemus-s3-joint-6m.pt \
+            --prompt "Hello." \
+            --tokens 32 \
+            --temperature 0.7 \
+            --top-k 40 \
+            --device cpu | tee s3-sample.txt
+
+      - name: Validate checkpoint lineage, step count, and parameter count
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          import torch
+          from artemis.config import ModelConfig
+          from artemis.model import ArtemisLM
+
+          checkpoint = Path("ckpt/artemus-s3-joint-6m.pt")
+          train_path = Path("data/s3-mix/train.txt")
+          validation_path = Path("data/s3-mix/validation.txt")
+          manifest_path = Path("data/s3-mix/manifest.json")
+
+          def sha256(path: Path) -> str:
+              digest = hashlib.sha256()
+              with path.open("rb") as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          payload = torch.load(checkpoint, map_location="cpu", weights_only=True)
+          assert payload["format_version"] == 3
+          assert payload["step"] == 19000, payload["step"]
+          assert payload["response_only"] is True
+          config = ModelConfig.from_dict(payload["model_config"])
+          model = ArtemisLM(config)
+          parameter_count = sum(parameter.numel() for parameter in model.parameters())
+          assert parameter_count == 6_451_200, parameter_count
+
+          runs = payload["run_metadata"]["runs"]
+          assert runs, "Missing run lineage"
+          stage = runs[-1]
+          assert stage["phase"] == "instruction_sft"
+          assert stage["start_step"] == 17500
+          assert stage["target_step"] == 19000
+          assert stage["parent_checkpoint_sha256"] == (
+              "c4a791f9941ef4488c74a51bf2a46fce40b0764aa8bd81683c35385939efd584"
+          )
+          assert stage["train_text_sha256"] == sha256(train_path)
+          assert stage["validation_text_sha256"] == sha256(validation_path)
+          assert stage["data_manifest_sha256"] == sha256(manifest_path)
+
+          report = {
+              "checkpoint": str(checkpoint),
+              "checkpoint_sha256": sha256(checkpoint),
+              "global_step": payload["step"],
+              "parameters": parameter_count,
+              "phase": stage["phase"],
+              "optimizer_steps_completed": stage["optimizer_steps_completed"],
+              "train_sha256": stage["train_text_sha256"],
+              "validation_sha256": stage["validation_text_sha256"],
+              "manifest_sha256": stage["data_manifest_sha256"],
+          }
+          Path("s3-run-summary.json").write_text(
+              json.dumps(report, indent=2) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(report, indent=2))
+          PY
+
+      - name: Export inference-only weights
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import torch
+
+          source = Path("ckpt/artemus-s3-joint-6m.pt")
+          destination = Path("ckpt/artemus-s3-joint-6m-inference.pt")
+          payload = torch.load(source, map_location="cpu", weights_only=True)
+          inference_payload = {
+              key: value
+              for key, value in payload.items()
+              if key not in {
+                  "optimizer_state_dict",
+                  "grad_scaler_state_dict",
+                  "torch_rng_state",
+                  "cuda_rng_states",
+              }
+          }
+          torch.save(inference_payload, destination)
+          print(f"Wrote {destination} ({destination.stat().st_size} bytes)")
+          PY
+
+      - name: Upload the trained checkpoint and evaluation
+        uses: actions/upload-artifact@v4
+        with:
+          name: artemislm-s3-step19000
+          path: |
+            ckpt/artemus-s3-joint-6m.pt
+            ckpt/artemus-s3-joint-6m-inference.pt
+            data/s3-mix/manifest.json
+            data/s3-mix/evaluation.jsonl
+            artifacts/s3-capability-eval/
+            s3-training.log
+            s3-sample.txt
+            s3-run-summary.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Promote the resumable checkpoint to the checkpoints branch
+        id: promote
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin checkpoints
+          worktree="$RUNNER_TEMP/artemus-checkpoints"
+          git worktree add --detach "$worktree" origin/checkpoints
+
+          folder="s3-joint-6m-step19000-run-$GITHUB_RUN_ID"
+          destination="$worktree/$folder"
+          mkdir -p "$destination"
+          cp ckpt/artemus-s3-joint-6m.pt "$destination/"
+          cp ckpt/artemus-s3-joint-6m-inference.pt "$destination/"
+          cp data/s3-mix/manifest.json "$destination/s3-mix-manifest.json"
+          cp data/s3-mix/evaluation.jsonl "$destination/"
+          cp artifacts/s3-capability-eval/summary.json "$destination/capability-eval.json"
+          cp s3-sample.txt "$destination/"
+          cp s3-run-summary.json "$destination/"
+
+          cat > "$destination/README.md" <<EOF
+          # ArtemisLM S3 joint instruction-tuning checkpoint
+
+          - Parent: F2, global step 17,500
+          - Parent SHA-256: c4a791f9941ef4488c74a51bf2a46fce40b0764aa8bd81683c35385939efd584
+          - Stage: response-only instruction SFT, 1,500 optimizer steps
+          - Final global step: 19,000
+          - Architecture: unchanged; 6,451,200 parameters
+          - Optimizer: retained in the full checkpoint for future resume
+          - Inference: optimizer and RNG state omitted from the inference-only file
+          - Dataset provenance: s3-mix-manifest.json
+          - Held-out capability diagnostics: capability-eval.json
+          - Smoke-test generation: s3-sample.txt
+          - Run metadata and hashes: s3-run-summary.json and SHA256SUMS
+          EOF
+
+          (
+            cd "$destination"
+            sha256sum \
+              artemus-s3-joint-6m.pt \
+              artemus-s3-joint-6m-inference.pt \
+              s3-mix-manifest.json \
+              evaluation.jsonl \
+              capability-eval.json \
+              s3-sample.txt \
+              s3-run-summary.json \
+              README.md > SHA256SUMS
+          )
+
+          python - "$worktree/README.md" "$folder" <<'PY'
+          import sys
+          from pathlib import Path
+
+          readme = Path(sys.argv[1])
+          folder = sys.argv[2]
+          text = readme.read_text(encoding="utf-8")
+          row = (
+              f"| {folder}/ | S3 response-only joint English instruction SFT "
+              "| 6,451,200 | — | — |"
+          )
+          if folder not in text:
+              lines = text.splitlines()
+              f2_index = next(
+                  (index for index, line in enumerate(lines) if "f2-edu2-6m-step17500/" in line),
+                  None,
+              )
+              if f2_index is None:
+                  raise SystemExit("Could not locate the F2 row in checkpoints README")
+              lines.insert(f2_index + 1, row)
+              readme.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+          git -C "$worktree" config user.name "github-actions[bot]"
+          git -C "$worktree" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$worktree" add "$folder" README.md
+          git -C "$worktree" commit -m "checkpoint: ArtemisLM S3 step 19000"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -C "$worktree" -c "http.extraheader=AUTHORIZATION: basic $auth" \
+            push origin HEAD:refs/heads/checkpoints
