@@ -130,8 +130,6 @@ def merge_sft_sources(
             "train_documents": accepted,
             "validation_documents": 0,
         }
-        if accepted == 0:
-            raise ValueError(f"{source} has no unique training documents")
 
     for source, content in validation_sources.items():
         source_documents = split_turn_documents(content, source=f"{source} validation")
