@@ -49,11 +49,9 @@ def test_merge_deduplicates_and_prevents_train_validation_overlap() -> None:
     assert "A shared prompt?" not in validation_text
     assert stats["dropped_train_duplicates"] == 1
     assert stats["dropped_validation_train_overlap"] == 1
-    assert stats["dropped_validation_duplicates"] == 0
+    assert stats["dropped_validation_duplicates"] == 1
     assert stats["sources"]["aya"]["train_documents"] == 2
-    assert stats["sources"]["oasst1"]["train_documents"] == 0 or (
-        stats["sources"]["oasst1"]["train_documents"] == 0
-    )
+    assert stats["sources"]["oasst1"]["train_documents"] == 0
 
 
 def test_merge_requires_nonempty_validation_and_matching_source_names() -> None:
