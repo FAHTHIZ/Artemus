@@ -1,0 +1,22 @@
+[
+  {
+    "dataset": "HuggingFaceFW/fineweb-edu",
+    "config": "sample-10BT",
+    "revision": "f87fe9a2ddf130c28295796ac89d19ec23256b24",
+    "path": "sample/10BT/008_00000.parquet",
+    "license": "ODC-By 1.0; Common Crawl terms also apply",
+    "local_path": "data/sources/fineweb-edu-008.parquet",
+    "sha256": "a6d9dcc0c72ecd7c7f0173c2d06b3a4249a2ccaa94961469d1a522ca689bbf1a",
+    "size_bytes": 2151274846
+  },
+  {
+    "dataset": "HuggingFaceTB/finemath",
+    "config": "finemath-4plus",
+    "revision": "e92b25a616738fe95dc186b64dfb19f9c8525594",
+    "path": "finemath-4plus/train-00012-of-00064.parquet",
+    "license": "ODC-By 1.0; Common Crawl terms also apply",
+    "local_path": "data/sources/finemath-4plus-00012.parquet",
+    "sha256": "8357ab429ac19c08290ae78ee8280d75140a3d82c4f18b1e747607b70eeece93",
+    "size_bytes": 286861763
+  }
+]

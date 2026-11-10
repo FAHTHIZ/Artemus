@@ -1,0 +1,132 @@
+{
+  "method": "deterministic_weighted_document_sampling",
+  "seed": 2032,
+  "text_field": "text",
+  "document_weights_are_not_token_weights": true,
+  "warning": "Document quotas do not guarantee token quotas. Measure per-source token shares after fitting the actual tokenizer; adjust document weights if necessary.",
+  "sources": [
+    {
+      "source_id": "fineweb-edu-shard008",
+      "weight": 0.85,
+      "train_path": "data/f3-edu008/train.jsonl",
+      "validation_path": "data/f3-edu008/validation.jsonl"
+    },
+    {
+      "source_id": "finemath-4plus-shard012",
+      "weight": 0.15,
+      "train_path": "data/f3-finemath12/train.jsonl",
+      "validation_path": "data/f3-finemath12/validation.jsonl"
+    }
+  ],
+  "requested_budgets": {
+    "train_documents": 100000,
+    "validation_documents": 900
+  },
+  "train_source_stats": [
+    {
+      "source_id": "fineweb-edu-shard008",
+      "weight": 0.85,
+      "input_file": "data/f3-edu008/train.jsonl",
+      "input_sha256": "1fa0237b8f62703aabb864085edfa4f18ee18ebe739f96cbb0f0ec815e8acd87",
+      "eligible_unique_documents": 87612,
+      "selected_documents": 85000,
+      "selected_characters": 349081662,
+      "requested_document_quota": 85000,
+      "split": "train"
+    },
+    {
+      "source_id": "finemath-4plus-shard012",
+      "weight": 0.15,
+      "input_file": "data/f3-finemath12/train.jsonl",
+      "input_sha256": "0190907fbf90ccd5d3a6410035ec258f58d246f228a615c117cf53f7cf8124b6",
+      "eligible_unique_documents": 24759,
+      "selected_documents": 15000,
+      "selected_characters": 60183482,
+      "requested_document_quota": 15000,
+      "split": "train"
+    }
+  ],
+  "validation_source_stats": [
+    {
+      "source_id": "fineweb-edu-shard008",
+      "weight": 0.85,
+      "input_file": "data/f3-edu008/validation.jsonl",
+      "input_sha256": "fd281ae7c92bfca8776b667691da463b66b5d8fd6264596d2eba9b9122f86000",
+      "eligible_unique_documents": 903,
+      "selected_documents": 765,
+      "selected_characters": 3216308,
+      "requested_document_quota": 765,
+      "split": "validation"
+    },
+    {
+      "source_id": "finemath-4plus-shard012",
+      "weight": 0.15,
+      "input_file": "data/f3-finemath12/validation.jsonl",
+      "input_sha256": "cda3a2c9f7920ae09453813ce94daf512fd4ccc5613431605fed8ee072e36a2c",
+      "eligible_unique_documents": 241,
+      "selected_documents": 135,
+      "selected_characters": 557484,
+      "requested_document_quota": 135,
+      "split": "validation"
+    }
+  ],
+  "train": {
+    "documents": 100000,
+    "characters": 409265144,
+    "per_source_documents": {
+      "fineweb-edu-shard008": 85000,
+      "finemath-4plus-shard012": 15000
+    },
+    "per_source_characters": {
+      "fineweb-edu-shard008": 349081662,
+      "finemath-4plus-shard012": 60183482
+    }
+  },
+  "validation": {
+    "documents": 900,
+    "characters": 3773792,
+    "per_source_documents": {
+      "fineweb-edu-shard008": 765,
+      "finemath-4plus-shard012": 135
+    },
+    "per_source_characters": {
+      "fineweb-edu-shard008": 3216308,
+      "finemath-4plus-shard012": 557484
+    }
+  },
+  "train_validation_hash_overlap": 0,
+  "files": {
+    "train_jsonl": "train.jsonl",
+    "validation_jsonl": "validation.jsonl",
+    "tokenizer_text": "train.txt"
+  },
+  "curriculum": {
+    "stage": "F3 continued pretraining",
+    "parent_checkpoint": "F2",
+    "fineweb_edu_weight": 0.85,
+    "finemath_4plus_replay_weight": 0.15,
+    "policy": "Fresh FineWeb-Edu shard 008 plus FineMath-4+ replay. Only the approved English train partitions enter training; upstream validation partitions remain held out."
+  },
+  "upstream_parquet_files": [
+    {
+      "dataset": "HuggingFaceFW/fineweb-edu",
+      "config": "sample-10BT",
+      "revision": "f87fe9a2ddf130c28295796ac89d19ec23256b24",
+      "path": "sample/10BT/008_00000.parquet",
+      "license": "ODC-By 1.0; Common Crawl terms also apply",
+      "local_path": "data/sources/fineweb-edu-008.parquet",
+      "sha256": "a6d9dcc0c72ecd7c7f0173c2d06b3a4249a2ccaa94961469d1a522ca689bbf1a",
+      "size_bytes": 2151274846
+    },
+    {
+      "dataset": "HuggingFaceTB/finemath",
+      "config": "finemath-4plus",
+      "revision": "e92b25a616738fe95dc186b64dfb19f9c8525594",
+      "path": "finemath-4plus/train-00012-of-00064.parquet",
+      "license": "ODC-By 1.0; Common Crawl terms also apply",
+      "local_path": "data/sources/finemath-4plus-00012.parquet",
+      "sha256": "8357ab429ac19c08290ae78ee8280d75140a3d82c4f18b1e747607b70eeece93",
+      "size_bytes": 286861763
+    }
+  ]
+}

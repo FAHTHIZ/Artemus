@@ -1,0 +1,28 @@
+{
+  "checkpoint": "artemus-f3-edu3-6m.pt",
+  "checkpoint_sha256": "4486c8a0b2471968e32799f4ef38af9c12c5fe3bda891cefdb836d570410a152",
+  "checkpoint_step": 21500,
+  "parameters": 6451200,
+  "datasets": {
+    "data/f3-edu008/validation.jsonl": {
+      "documents": 300,
+      "tokens": 329062,
+      "bytes": 1318746,
+      "token_loss": 3.705945788650022,
+      "perplexity": 40.688511857049434,
+      "bits_per_byte": 1.33410551245204,
+      "bytes_per_token": 4.00759127459263,
+      "data_sha256": "fd281ae7c92bfca8776b667691da463b66b5d8fd6264596d2eba9b9122f86000"
+    },
+    "data/f3-finemath12/validation.jsonl": {
+      "documents": 241,
+      "tokens": 344109,
+      "bytes": 1022075,
+      "token_loss": 2.9677225504396283,
+      "perplexity": 19.447578244078315,
+      "bits_per_byte": 1.4414882333285908,
+      "bytes_per_token": 2.9702071146061275,
+      "data_sha256": "cda3a2c9f7920ae09453813ce94daf512fd4ccc5613431605fed8ee072e36a2c"
+    }
+  }
+}

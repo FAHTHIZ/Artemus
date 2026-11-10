@@ -1,0 +1,12 @@
+{
+  "checkpoint": "ckpt/artemus-f3-edu3-6m.pt",
+  "checkpoint_sha256": "4486c8a0b2471968e32799f4ef38af9c12c5fe3bda891cefdb836d570410a152",
+  "global_step": 21500,
+  "parameters": 6451200,
+  "phase": "continued_pretraining",
+  "optimizer_steps_completed": 4000,
+  "parent_checkpoint_sha256": "c4a791f9941ef4488c74a51bf2a46fce40b0764aa8bd81683c35385939efd584",
+  "train_sha256": "7c2510bdaa183e9ee71ffad0b5ab4fe4e7f1a305cfaf5615483f5bb24519947c",
+  "validation_sha256": "cf2907982f403d0b88aa7ca1c5c0f5d2489f8b9f8d27206c5575ddac55261c80",
+  "manifest_sha256": "e058e9024e1d1c5d3d3261119465a58f54d753745f6fb493599c0859edd61019"
+}
