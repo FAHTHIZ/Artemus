@@ -2,7 +2,9 @@
 
 **Artemus is the complete cognitive-system research project—not a single LLM.** The current `ArtemisLM` implementation is one experimental neural-model component within that larger system. The full Artemus architecture is intended to coordinate perception, world modelling, memory, multiple reasoning methods, planning, action, verification, and controlled learning.
 
-> **Latest checkpoint (2026-11-09):** [Experiment 0012](docs/experiments/0012-cpu-math-adaptation-finemath.md) — the 6,451,200-parameter F0 foundation model (Experiment 0011, 1.346 bits/byte on FineWeb-Edu) continued for 2,500 steps on a 40% FineMath-4+ / 60% FineWeb-Edu replay mix: held-out FineMath 1.887 → 1.508 bits/byte with no general-text forgetting (1.350). Weights: [`checkpoints` branch](https://github.com/FAHTHIZ/Artemus/tree/checkpoints).
+> **Latest foundation checkpoint (2026-11-09):** [Experiment 0016](docs/experiments/0016-cpu-f2-continued-pretraining.md) — the 6,451,200-parameter F2 checkpoint at global step 17,500. It continues F1 with 5,000 steps on deduplicated FineWeb-Edu shards 000+007 plus FineMath replay; held-out bits/byte are 1.321 on FineWeb-Edu and 1.507 on FineMath. Weights: [F2 checkpoint](https://github.com/FAHTHIZ/Artemus/tree/checkpoints/f2-edu2-6m-step17500).
+>
+> **Training in progress:** S3 instruction tuning is running from F2. After S3 succeeds, a separate F3 pretraining cycle is queued from F2 (not from the SFT weights) so instruction tuning is not fed back into next-token pretraining.
 >
 > **Earlier model-component status (2026-11-06):** A 1,004,928-parameter compact `ArtemisLM` checkpoint from random initialization completed 16,000 task-SFT steps on an OASST1/GSM8K/MBPP mixture. The recovery/evaluation workflow now completes all 16 scripted dialogue turns (16 non-empty, zero context overflows; one old history window trimmed). However, direct math and Python spot checks remain incoherent. This is still an early experimental checkpoint—not a useful general assistant, foundation-pretrained model, or evidence of AGI.
 
