@@ -1,0 +1,11 @@
+{
+  "checkpoint": "ckpt/artemus-s3-joint-6m.pt",
+  "checkpoint_sha256": "f4714b6ac67612b62347c4dc191e1b5aac0fb0e5215473564230da6500ac52bb",
+  "global_step": 19000,
+  "parameters": 6451200,
+  "phase": "instruction_sft",
+  "optimizer_steps_completed": 1500,
+  "train_sha256": "dbf7b3f75fff6f76700d0bf1c1dde2cdea6513183f336f9ba59fe953930982aa",
+  "validation_sha256": "ca74442d2f63b45830e1e22cd8bd4d9555882acccfd4e15e6da8a1558dbfe518",
+  "manifest_sha256": "9d2d72d1fe89e7614d127ded6532aeb9378669ccaecc9464682ea3a2ec3254e8"
+}

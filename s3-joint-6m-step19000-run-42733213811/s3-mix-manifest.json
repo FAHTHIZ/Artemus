@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "stage": "S3 joint English instruction SFT",
+  "parent_checkpoint": {
+    "branch": "checkpoints",
+    "path": "f2-edu2-6m-step17500/artemus-f2-edu2-6m-step17500.pt",
+    "sha256": "c4a791f9941ef4488c74a51bf2a46fce40b0764aa8bd81683c35385939efd584",
+    "global_step": 17500,
+    "parameters": 6451200
+  },
+  "sources": {
+    "aya": {
+      "dataset_id": "CohereLabs/aya_dataset",
+      "dataset_revision": "f9ea04583f02a8f86404ff6c58bf75fe637df8a2",
+      "license": "Apache-2.0",
+      "license_review_note": "The upstream card declares Apache-2.0. This adapter retains only input/target text and non-sensitive language/annotation labels; annotator IDs and demographic fields are discarded. Human annotation is not a guarantee of factual correctness.",
+      "split_policy": "Deterministic split by dataset revision, language code, and prompt hash so re-annotations of an identical prompt stay in one split.",
+      "quality_policy": {
+        "max_prompt_chars": 20000,
+        "max_response_chars": 20000,
+        "filters": [
+          "missing or empty prompt/response",
+          "overlong prompt or response",
+          "obvious email/IP/private-key/token and phone-like patterns",
+          "exact prompt-response duplicates"
+        ],
+        "limitations": [
+          "Regex filters are not comprehensive PII or secrets detection.",
+          "Human annotations may still contain factual or reasoning errors.",
+          "Prompt-group splits do not guarantee semantic deduplication."
+        ]
+      },
+      "demographic_fields_discarded": [
+        "user_id",
+        "age_range",
+        "gender",
+        "languages",
+        "dialects"
+      ],
+      "sampling": {
+        "method": "huggingface_iterable_bounded_buffer_shuffle",
+        "seed": 2031,
+        "buffer_size": 10000,
+        "allowed_language_codes": [
+          "eng"
+        ]
+      },
+      "accepted_examples": 3858,
+      "counts": {
+        "rejected_language_not_allowed": 198418,
+        "accepted_train": 3775,
+        "accepted_validation": 83,
+        "rejected_possible_personal_or_secret_data": 20,
+        "rejected_exact_duplicate": 63,
+        "rejected_empty_prompt_or_response": 3
+      },
+      "examples_by_language_code": {
+        "eng": 3858
+      },
+      "examples_by_annotation_type": {
+        "original-annotations": 2116,
+        "re-annotations": 1742
+      },
+      "files": {
+        "train_jsonl": "train.jsonl",
+        "validation_jsonl": "validation.jsonl",
+        "train_text": "train.txt",
+        "validation_text": "validation.txt",
+        "provenance_jsonl": "provenance.jsonl"
+      }
+    },
+    "oasst1": {
+      "dataset": "OpenAssistant Conversations (OASST1), ready-for-export messages",
+      "license": "Apache-2.0",
+      "source_url": "https://huggingface.co/datasets/OpenAssistant/oasst1/resolve/a4992e1595393714c9e6c567b1ed645bbf7d00ee/2023-04-12_oasst_ready.messages.jsonl.gz",
+      "source_revision": "a4992e1595393714c9e6c567b1ed645bbf7d00ee",
+      "source_sha256": "286a6e9a5a413b3272ae9c0b5a20d327983dea1c24342ae28cb244a6da65185c",
+      "filter": {
+        "language": "en",
+        "review_result": true,
+        "deleted": false,
+        "synthetic": false,
+        "positive_pii_label": "excluded"
+      },
+      "eligible_messages": 39630,
+      "conversation_examples": 15000,
+      "train_examples": 13393,
+      "validation_examples": 1607,
+      "train_tree_groups": 3233,
+      "validation_tree_groups": 385,
+      "split": "deterministic 90/10 by message_tree_id hash; no tree crosses splits",
+      "tokenizer_note": "Artemus baseline UTF-8 byte tokenizer; preprocessing does not imply the current model is instruction-tuned or capable."
+    },
+    "gsm8k": {
+      "dataset": "openai/grade-school-math",
+      "revision": "3101c7d5072418e28b9008a6636bde82a006892c",
+      "license": "MIT",
+      "train_source_sha256": "17f347dc51477c50d4efb83959dbb7c56297aba886e5544ee2aaed3024813465",
+      "official_test_downloaded": false,
+      "examples": {
+        "train": 6011,
+        "validation": 772,
+        "diagnostic": 690
+      }
+    },
+    "mbpp": {
+      "dataset": "google-research/mbpp",
+      "revision": "83f1e7b59e762648c953de751d31f75720683622",
+      "license": "CC-BY-4.0",
+      "git_blob_sha": "96e2dc2f7dd95b7b87b38dc46e42cbed444251bb",
+      "task_id_policy": {
+        "train": "601-974",
+        "validation": "511-555",
+        "diagnostic": "556-600",
+        "excluded": "1-10 prompt examples; 11-510 protected test tasks"
+      },
+      "counts": {
+        "train": 374,
+        "validation": 45,
+        "evaluation": 45,
+        "excluded": 510
+      }
+    }
+  },
+  "mixture": {
+    "sources": {
+      "aya": {
+        "train_documents": 3774,
+        "validation_documents": 83
+      },
+      "oasst1": {
+        "train_documents": 13381,
+        "validation_documents": 1604
+      },
+      "gsm8k": {
+        "train_documents": 6011,
+        "validation_documents": 772
+      },
+      "mbpp": {
+        "train_documents": 374,
+        "validation_documents": 45
+      }
+    },
+    "train_documents": 23540,
+    "validation_documents": 2504,
+    "dropped_train_duplicates": 13,
+    "dropped_validation_duplicates": 3,
+    "dropped_validation_train_overlap": 0,
+    "seed": 2031,
+    "split_policy": "Preserve upstream source splits; remove exact normalized document duplicates across all sources; shuffle documents deterministically."
+  },
+  "files": {
+    "train": "train.txt",
+    "validation": "validation.txt",
+    "diagnostics": "evaluation.jsonl"
+  },
+  "sha256": {
+    "train": "dbf7b3f75fff6f76700d0bf1c1dde2cdea6513183f336f9ba59fe953930982aa",
+    "validation": "ca74442d2f63b45830e1e22cd8bd4d9555882acccfd4e15e6da8a1558dbfe518",
+    "diagnostics": "623f9171080ea45fb28ca84f55c6afc83680b41ffdab98268ffc148767e3d855"
+  },
+  "bytes": {
+    "train": 26724636,
+    "validation": 2831035,
+    "diagnostics": 559274
+  },
+  "data_policy": "English only. Aya uses language_code=eng; OASST1 uses reviewed, non-deleted, non-synthetic English messages; GSM8K and MBPP use the repository's documented train/validation/diagnostic partitions. No official GSM8K test data or protected MBPP task IDs enter training."
+}
