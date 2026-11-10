@@ -1,0 +1,425 @@
+name: ArtemisLM F3 continued pretraining
+
+on:
+  workflow_run:
+    workflows:
+      - "ArtemisLM F2 to S3 continuation"
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: artemislm-f3-continued-pretraining
+  cancel-in-progress: false
+
+jobs:
+  train-f3:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out the current main source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install CPU PyTorch and project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir \
+            --index-url https://download.pytorch.org/whl/cpu \
+            --extra-index-url https://pypi.org/simple \
+            "torch==2.10.0+cpu"
+          python -m pip install --no-cache-dir -e ".[data,dev]"
+
+      - name: Verify stage lineage and data-mixing helpers
+        run: |
+          python -m pytest -q \
+            tests/test_training_stages.py \
+            tests/test_prepare_corpus_mixture.py \
+            tests/test_train.py
+
+      - name: Download and verify the exact F2 resumable checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ckpt data/sources
+          curl --fail --location --retry 5 --retry-all-errors \
+            "https://raw.githubusercontent.com/FAHTHIZ/Artemus/checkpoints/f2-edu2-6m-step17500/artemus-f2-edu2-6m-step17500.pt" \
+            --output ckpt/artemus-f2-edu2-6m.pt
+          echo "c4a791f9941ef4488c74a51bf2a46fce40b0764aa8bd81683c35385939efd584  ckpt/artemus-f2-edu2-6m.pt" \
+            | sha256sum --check --strict
+
+      - name: Download the fresh FineWeb-Edu shard 008
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-all-errors \
+            "https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu/resolve/f87fe9a2ddf130c28295796ac89d19ec23256b24/sample/10BT/008_00000.parquet" \
+            --output data/sources/fineweb-edu-008.parquet
+          echo "a6d9dcc0c72ecd7c7f0173c2d06b3a4249a2ccaa94961469d1a522ca689bbf1a  data/sources/fineweb-edu-008.parquet" \
+            | sha256sum --check --strict
+
+      - name: Download FineMath-4+ replay shard 00012
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-all-errors \
+            "https://huggingface.co/datasets/HuggingFaceTB/finemath/resolve/e92b25a616738fe95dc186b64dfb19f9c8525594/finemath-4plus/train-00012-of-00064.parquet" \
+            --output data/sources/finemath-4plus-00012.parquet
+          test -s data/sources/finemath-4plus-00012.parquet
+
+      - name: Record immutable source identities and byte hashes
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          sources = [
+              {
+                  "dataset": "HuggingFaceFW/fineweb-edu",
+                  "config": "sample-10BT",
+                  "revision": "f87fe9a2ddf130c28295796ac89d19ec23256b24",
+                  "path": "sample/10BT/008_00000.parquet",
+                  "license": "ODC-By 1.0; Common Crawl terms also apply",
+                  "local_path": "data/sources/fineweb-edu-008.parquet",
+              },
+              {
+                  "dataset": "HuggingFaceTB/finemath",
+                  "config": "finemath-4plus",
+                  "revision": "e92b25a616738fe95dc186b64dfb19f9c8525594",
+                  "path": "finemath-4plus/train-00012-of-00064.parquet",
+                  "license": "ODC-By 1.0; Common Crawl terms also apply",
+                  "local_path": "data/sources/finemath-4plus-00012.parquet",
+              },
+          ]
+
+          for source in sources:
+              path = Path(source["local_path"])
+              digest = hashlib.sha256()
+              with path.open("rb") as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              source["sha256"] = digest.hexdigest()
+              source["size_bytes"] = path.stat().st_size
+
+          target = Path("data/sources/f3-source-shards.json")
+          target.write_text(json.dumps(sources, indent=2) + "\n", encoding="utf-8")
+          print(target.read_text(encoding="utf-8"))
+          PY
+
+      - name: Prepare fresh FineWeb-Edu English documents
+        run: |
+          artemus-prepare-parquet \
+            --parquet data/sources/fineweb-edu-008.parquet \
+            --dataset HuggingFaceFW/fineweb-edu \
+            --config sample-10BT \
+            --split train \
+            --revision f87fe9a2ddf130c28295796ac89d19ec23256b24 \
+            --license "ODC-By 1.0" \
+            --license-review-note "FineWeb-Edu sample-10BT shard 008; English-only filtering, educational score >= 3.5, privacy-pattern filtering, deduplication, and Common Crawl terms review remain applicable." \
+            --output-dir data/f3-edu008 \
+            --max-documents 90000 \
+            --validation-percent 1.0 \
+            --min-chars 300 \
+            --max-chars 30000 \
+            --min-language-score 0.70 \
+            --min-quality-score 3.5
+
+      - name: Prepare FineMath replay documents
+        run: |
+          artemus-prepare-parquet \
+            --parquet data/sources/finemath-4plus-00012.parquet \
+            --dataset HuggingFaceTB/finemath \
+            --config finemath-4plus \
+            --split train \
+            --revision e92b25a616738fe95dc186b64dfb19f9c8525594 \
+            --license "ODC-By 1.0" \
+            --license-review-note "FineMath-4+ shard 00012 replay; English-only filtering, privacy-pattern filtering, deduplication, and Common Crawl terms review remain applicable." \
+            --output-dir data/f3-finemath12 \
+            --max-documents 25000 \
+            --validation-percent 1.0 \
+            --min-chars 300 \
+            --max-chars 30000 \
+            --min-language-score 0.70
+
+      - name: Build a deduplicated 85/15 pretraining mixture
+        run: |
+          artemus-prepare-mixture \
+            --source fineweb-edu-shard008 \
+              data/f3-edu008/train.jsonl \
+              data/f3-edu008/validation.jsonl \
+              0.85 \
+            --source finemath-4plus-shard012 \
+              data/f3-finemath12/train.jsonl \
+              data/f3-finemath12/validation.jsonl \
+              0.15 \
+            --output-dir data/f3-mix \
+            --train-documents 100000 \
+            --validation-documents 900 \
+            --text-field text \
+            --seed 2032
+
+      - name: Attach exact raw-source hashes to the training manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest_path = Path("data/f3-mix/manifest.json")
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          manifest["curriculum"] = {
+              "stage": "F3 continued pretraining",
+              "parent_checkpoint": "F2",
+              "fineweb_edu_weight": 0.85,
+              "finemath_4plus_replay_weight": 0.15,
+              "policy": (
+                  "Fresh FineWeb-Edu shard 008 plus FineMath-4+ replay. "
+                  "Only the approved English train partitions enter training; "
+                  "upstream validation partitions remain held out."
+              ),
+          }
+          manifest["upstream_parquet_files"] = json.loads(
+              Path("data/sources/f3-source-shards.json").read_text(encoding="utf-8")
+          )
+          manifest_path.write_text(
+              json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Continue F2 into F3 on CPU
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/cpu/stage_supervisor.py f3 2>&1 | tee f3-training.log
+
+      - name: Evaluate both held-out source domains
+        run: |
+          mkdir -p artifacts
+          artemus-lm-eval \
+            --checkpoint ckpt/artemus-f3-edu3-6m.pt \
+            --data data/f3-edu008/validation.jsonl data/f3-finemath12/validation.jsonl \
+            --max-documents 300 \
+            --device cpu \
+            --output artifacts/f3-lm-eval.json
+          artemus-generate \
+            --checkpoint ckpt/artemus-f3-edu3-6m.pt \
+            --prompt "Explain photosynthesis in one paragraph." \
+            --tokens 64 \
+            --temperature 0.7 \
+            --top-k 40 \
+            --device cpu | tee f3-sample.txt
+
+      - name: Validate the final model and its complete training lineage
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          import torch
+          from artemis.config import ModelConfig
+          from artemis.model import ArtemisLM
+
+          checkpoint = Path("ckpt/artemus-f3-edu3-6m.pt")
+          payload = torch.load(checkpoint, map_location="cpu", weights_only=True)
+
+          def sha256(path: Path) -> str:
+              digest = hashlib.sha256()
+              with path.open("rb") as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          assert payload["format_version"] == 3
+          assert payload["step"] == 21500, payload["step"]
+          assert payload["response_only"] is False
+          model = ArtemisLM(ModelConfig.from_dict(payload["model_config"]))
+          parameter_count = sum(parameter.numel() for parameter in model.parameters())
+          assert parameter_count == 6_451_200, parameter_count
+
+          runs = payload["run_metadata"]["runs"]
+          assert runs, "Missing checkpoint run lineage"
+          stage = runs[-1]
+          assert stage["phase"] == "continued_pretraining"
+          assert stage["start_step"] == 17500
+          assert stage["target_step"] == 21500
+          assert stage["parent_checkpoint_sha256"] == (
+              "c4a791f9941ef4488c74a51bf2a46fce40b0764aa8bd81683c35385939efd584"
+          )
+          assert stage["train_text_sha256"] == sha256(Path("data/f3-mix/train.jsonl"))
+          assert stage["validation_text_sha256"] == sha256(Path("data/f3-mix/validation.jsonl"))
+          assert stage["data_manifest_sha256"] == sha256(Path("data/f3-mix/manifest.json"))
+
+          summary = {
+              "checkpoint": str(checkpoint),
+              "checkpoint_sha256": sha256(checkpoint),
+              "global_step": payload["step"],
+              "parameters": parameter_count,
+              "phase": stage["phase"],
+              "optimizer_steps_completed": stage["optimizer_steps_completed"],
+              "parent_checkpoint_sha256": stage["parent_checkpoint_sha256"],
+              "train_sha256": stage["train_text_sha256"],
+              "validation_sha256": stage["validation_text_sha256"],
+              "manifest_sha256": stage["data_manifest_sha256"],
+          }
+          Path("f3-run-summary.json").write_text(
+              json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(summary, indent=2))
+          PY
+
+      - name: Export inference-only weights
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import torch
+
+          source = Path("ckpt/artemus-f3-edu3-6m.pt")
+          destination = Path("ckpt/artemus-f3-edu3-6m-inference.pt")
+          payload = torch.load(source, map_location="cpu", weights_only=True)
+          inference_payload = {
+              key: value
+              for key, value in payload.items()
+              if key not in {
+                  "optimizer_state_dict",
+                  "grad_scaler_state_dict",
+                  "torch_rng_state",
+                  "cuda_rng_states",
+              }
+          }
+          torch.save(inference_payload, destination)
+          print(f"Wrote {destination} ({destination.stat().st_size} bytes)")
+          PY
+
+      - name: Upload F3 checkpoint and evaluation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artemislm-f3-step21500
+          path: |
+            ckpt/artemus-f3-edu3-6m.pt
+            ckpt/artemus-f3-edu3-6m-inference.pt
+            data/f3-mix/manifest.json
+            data/f3-mix/train.jsonl
+            data/f3-mix/validation.jsonl
+            data/f3-edu008/validation.jsonl
+            data/f3-finemath12/validation.jsonl
+            data/sources/f3-source-shards.json
+            artifacts/f3-lm-eval.json
+            f3-training.log
+            f3-sample.txt
+            f3-run-summary.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Promote verified F3 checkpoint to the checkpoints branch
+        id: promote
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin checkpoints
+          worktree="$RUNNER_TEMP/artemus-checkpoints"
+          git worktree add --detach "$worktree" origin/checkpoints
+
+          folder="f3-edu3-6m-step21500-run-$GITHUB_RUN_ID"
+          destination="$worktree/$folder"
+          mkdir -p "$destination"
+          cp ckpt/artemus-f3-edu3-6m.pt "$destination/"
+          cp ckpt/artemus-f3-edu3-6m-inference.pt "$destination/"
+          cp data/f3-mix/manifest.json "$destination/f3-mix-manifest.json"
+          cp data/f3-edu008/validation.jsonl "$destination/fineweb-edu-validation.jsonl"
+          cp data/f3-finemath12/validation.jsonl "$destination/finemath-validation.jsonl"
+          cp data/sources/f3-source-shards.json "$destination/"
+          cp artifacts/f3-lm-eval.json "$destination/lm-eval.json"
+          cp f3-sample.txt "$destination/"
+          cp f3-run-summary.json "$destination/"
+
+          cat > "$destination/README.md" <<EOF
+          # ArtemisLM F3 continued-pretraining checkpoint
+
+          - Parent: F2, global step 17,500
+          - Parent SHA-256: c4a791f9941ef4488c74a51bf2a46fce40b0764aa8bd81683c35385939efd584
+          - Stage: continued next-token pretraining, 4,000 optimizer steps
+          - Final global step: 21,500
+          - Architecture: unchanged; 6,451,200 parameters
+          - Mixture: 85% fresh FineWeb-Edu shard 008; 15% FineMath-4+ shard 00012 replay
+          - Optimizer: retained in the full checkpoint for future resume
+          - Inference: optimizer and RNG state omitted from the inference-only file
+          - Dataset/source provenance: f3-mix-manifest.json and f3-source-shards.json
+          - Held-out evaluation: lm-eval.json
+          - Run metadata and hashes: f3-run-summary.json and SHA256SUMS
+          EOF
+
+          (
+            cd "$destination"
+            sha256sum \
+              artemus-f3-edu3-6m.pt \
+              artemus-f3-edu3-6m-inference.pt \
+              f3-mix-manifest.json \
+              fineweb-edu-validation.jsonl \
+              finemath-validation.jsonl \
+              f3-source-shards.json \
+              lm-eval.json \
+              f3-sample.txt \
+              f3-run-summary.json \
+              README.md > SHA256SUMS
+          )
+
+          python - "$worktree/README.md" "$folder" <<'PY'
+          import sys
+          from pathlib import Path
+
+          readme = Path(sys.argv[1])
+          folder = sys.argv[2]
+          text = readme.read_text(encoding="utf-8")
+          row = (
+              f"| {folder}/ | F3 continued pretraining from F2 on fresh FineWeb-Edu "
+              "plus FineMath replay | 6,451,200 | — | — |"
+          )
+          if folder not in text:
+              lines = text.splitlines()
+              f2_index = next(
+                  (index for index, line in enumerate(lines) if "f2-edu2-6m-step17500/" in line),
+                  None,
+              )
+              if f2_index is None:
+                  raise SystemExit("Could not locate the F2 row in checkpoints README")
+              lines.insert(f2_index + 1, row)
+              readme.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+          git -C "$worktree" config user.name "github-actions[bot]"
+          git -C "$worktree" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$worktree" add "$folder" README.md
+          git -C "$worktree" commit -m "checkpoint: ArtemisLM F3 step 21500"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -C "$worktree" -c "http.extraheader=AUTHORIZATION: basic $auth" \
+            push origin HEAD:refs/heads/checkpoints
+
+          echo "promoted=true" >> "$GITHUB_OUTPUT"
+
+      - name: Report promotion status
+        if: always()
+        run: |
+          if [[ "${{ steps.promote.outputs.promoted }}" == "true" ]]; then
+            echo "F3 checkpoint was promoted to the checkpoints branch."
+          else
+            echo "F3 checkpoint remains available in the 90-day Actions artifact."
+          fi
