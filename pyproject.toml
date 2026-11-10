@@ -29,6 +29,7 @@ artemus-prepare-mixture = "artemis.prepare_corpus_mixture:main"
 artemus-prepare-oscr = "artemis.prepare_oscr_code:main"
 artemus-teach = "artemis.teach:main"
 artemus-prepare-teaching = "artemis.prepare_teaching_data:main"
+artemus-prepare-s3-mix = "artemis.prepare_s3_mix:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
