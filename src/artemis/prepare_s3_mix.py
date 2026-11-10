@@ -10,7 +10,6 @@ import argparse
 import hashlib
 import json
 import random
-import shutil
 import urllib.request
 from pathlib import Path
 from typing import Mapping
